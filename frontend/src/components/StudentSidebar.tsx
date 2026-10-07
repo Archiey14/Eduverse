@@ -77,7 +77,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           </Link>
 
           <Link
-            to="/courses"
+            to="/student/courses"
             className={`dashboard-nav-item ${
               current === "courses" ? "active" : ""
             }`}

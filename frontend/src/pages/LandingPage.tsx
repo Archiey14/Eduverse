@@ -1,45 +1,10 @@
-
 import { Link } from "react-router-dom";
+import Navbar from "../components/Navbar";
 
 function LandingPage() {
   return (
     <div className="landing-page">
-
-      {/* =========================================
-          NAVBAR
-      ========================================= */}
-
-      <header className="landing-navbar">
-        <div className="landing-container navbar-inner">
-
-          <Link to="/" className="landing-logo">
-            <span className="landing-logo-icon">L</span>
-            <span>LearnHub</span>
-          </Link>
-
-          <nav className="landing-nav-links">
-            <Link to="/" className="active">
-              Home
-            </Link>
-
-            <Link to="/courses">
-              Courses
-            </Link>
-
-            <Link to="/login">
-              Login
-            </Link>
-
-            <Link
-              to="/register"
-              className="navbar-register-btn"
-            >
-              Get Started
-            </Link>
-          </nav>
-
-        </div>
-      </header>
+      <Navbar />
 
 
       {/* =========================================

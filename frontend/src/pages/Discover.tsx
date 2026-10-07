@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
-import StudentLayout from "../components/StudentLayout";
+import Navbar from "../components/Navbar";
 import "./Discover.css";
 
 interface DiscoverCourse {
@@ -257,13 +257,10 @@ function Discover() {
   }, [coursesList, searchQuery, selectedCategory]);
 
   return (
-    <StudentLayout
-      activeItem="discover"
-      searchQuery={searchQuery}
-      onSearchChange={setSearchQuery}
-      searchPlaceholder="Discover courses, instructors, and skills..."
-    >
-      <div className="discover-content" style={{ padding: "0" }}>
+    <div className="landing-page">
+      <Navbar />
+      <main className="landing-container" style={{ padding: "40px 0" }}>
+        <div className="discover-content" style={{ padding: "0" }}>
           {/* Hero */}
           <section className="discover-hero">
             <div className="discover-hero-content">
@@ -635,7 +632,8 @@ function Discover() {
             <p>© 2026 LearnHub. All rights reserved.</p>
           </footer>
         </div>
-    </StudentLayout>
+      </main>
+    </div>
   );
 }
 

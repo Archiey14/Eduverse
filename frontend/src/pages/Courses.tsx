@@ -265,13 +265,10 @@ function Courses() {
   };
 
   return (
-    <StudentLayout
-      activeItem="courses"
-      searchQuery={searchQuery}
-      onSearchChange={setSearchQuery}
-      searchPlaceholder="Search for courses, topics or instructors..."
-    >
-      <div className="courses-content" style={{ padding: "0" }}>
+    <div className="landing-page">
+      <Navbar />
+      <main className="landing-container" style={{ padding: "40px 0" }}>
+        <div className="courses-content" style={{ padding: "0" }}>
         {/* Page Header */}
         <section className="courses-page-header">
           <div className="courses-header-left">
@@ -680,7 +677,8 @@ function Courses() {
           </div>
         </footer>
       </div>
-    </StudentLayout>
+      </main>
+    </div>
   );
 }
 

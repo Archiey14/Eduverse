@@ -15,6 +15,7 @@ import Quizzes from "./pages/Quizzes";
 import Progress from "./pages/Progress";
 import Activities from "./pages/Activities";
 import Learn from "./pages/Learn";
+import MyCourses from "./pages/MyCourses";
 
 import "./index.css";
 
@@ -44,6 +45,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <StudentDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/courses"
+        element={
+          <ProtectedRoute>
+            <MyCourses />
           </ProtectedRoute>
         }
       />
