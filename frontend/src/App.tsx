@@ -20,6 +20,17 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Help from "./pages/Help";
 
+// Instructor Pages
+import InstructorDashboard from "./pages/InstructorDashboard";
+import InstructorCourses from "./pages/InstructorCourses";
+import CreateCourse from "./pages/CreateCourse";
+import ManageLessons from "./pages/ManageLessons";
+import InstructorStudents from "./pages/InstructorStudents";
+import InstructorQuizzes from "./pages/InstructorQuizzes";
+import InstructorAnalytics from "./pages/InstructorAnalytics";
+import InstructorProfile from "./pages/InstructorProfile";
+import InstructorSettings from "./pages/InstructorSettings";
+
 import "./index.css";
 
 function App() {
@@ -28,121 +39,126 @@ function App() {
       <Routes>
 
         {/* =========================
-            Landing Page
-        ========================= */}
-        <Route
-          path="/"
-          element={<LandingPage />}
-        />
+            LANDING & AUTHENTICATION
+           ========================= */}
+
+        <Route path="/" element={<LandingPage />} />
+
+        <Route path="/login" element={<Login />} />
+
+        <Route path="/register" element={<Register />} />
+
 
         {/* =========================
-            Authentication
-        ========================= */}
-        <Route
-          path="/login"
-          element={<Login />}
-        />
+            STUDENT ROUTES
+           ========================= */}
 
-        <Route
-          path="/register"
-          element={<Register />}
-        />
-
-        {/* =========================
-            Student Dashboard
-        ========================= */}
         <Route
           path="/student/dashboard"
           element={<StudentDashboard />}
         />
 
-        {/* =========================
-            Courses
-        ========================= */}
         <Route
           path="/courses"
           element={<Courses />}
         />
 
-        {/* Course Details
-            Example: /courses/1
-        */}
         <Route
           path="/courses/:id"
           element={<CourseDetails />}
         />
 
-        {/* =========================
-            Discover
-        ========================= */}
         <Route
           path="/discover"
           element={<Discover />}
         />
 
-        {/* =========================
-            Quizzes
-        ========================= */}
         <Route
           path="/quizzes"
           element={<Quizzes />}
         />
 
-        {/* =========================
-            Progress
-        ========================= */}
         <Route
           path="/progress"
           element={<Progress />}
         />
 
-        {/* =========================
-            Learning Activities
-        ========================= */}
         <Route
           path="/activities"
           element={<Activities />}
         />
 
-        {/* =========================
-            Achievements
-        ========================= */}
         <Route
           path="/achievements"
           element={<Achievements />}
         />
 
-        {/* =========================
-            Wishlist
-        ========================= */}
         <Route
           path="/wishlist"
           element={<Wishlist />}
         />
 
-        {/* =========================
-            Profile
-        ========================= */}
         <Route
           path="/profile"
           element={<Profile />}
         />
 
-        {/* =========================
-            Settings
-        ========================= */}
         <Route
           path="/settings"
           element={<Settings />}
         />
 
-        {/* =========================
-            Help & Support
-        ========================= */}
         <Route
           path="/help"
           element={<Help />}
         />
+
+
+        {/* =========================
+            INSTRUCTOR ROUTES
+           ========================= */}
+
+        <Route
+          path="/instructor/dashboard"
+          element={<InstructorDashboard />}
+        />
+
+        <Route
+          path="/instructor/courses"
+          element={<InstructorCourses />}
+        />
+        <Route
+          path="/instructor/courses/create"
+          element={<CreateCourse />}
+        />
+
+        <Route
+          path="/instructor/lessons"
+          element={<ManageLessons />}
+        />
+       
+        <Route
+          path="/instructor/students"
+          element={<InstructorStudents />}
+        />
+        <Route
+          path="/instructor/quizzes"
+          element={<InstructorQuizzes />}
+        />
+
+        <Route
+          path="/instructor/analytics"
+          element={<InstructorAnalytics />}
+        />
+
+        <Route
+          path="/instructor/profile"
+          element={<InstructorProfile />}
+        />
+
+       <Route path="/instructor/settings" element={<InstructorSettings />} />
+
+   
 
       </Routes>
     </BrowserRouter>

@@ -18,6 +18,7 @@ function LandingPage() {
           </Link>
 
           <nav className="landing-nav-links">
+
             <Link to="/" className="active">
               Home
             </Link>
@@ -30,12 +31,18 @@ function LandingPage() {
               Login
             </Link>
 
+            {/* Instructor Portal */}
+            <Link to="/instructor/dashboard">
+              Instructor Portal
+            </Link>
+
             <Link
               to="/register"
               className="navbar-register-btn"
             >
               Get Started
             </Link>
+
           </nav>
 
         </div>
@@ -165,10 +172,12 @@ function LandingPage() {
                     <div className="dashboard-progress-row">
 
                       <div className="dashboard-progress-bar">
+
                         <div
                           className="dashboard-progress-fill"
                           style={{ width: "72%" }}
                         ></div>
+
                       </div>
 
                       <span>72%</span>
@@ -185,6 +194,7 @@ function LandingPage() {
                 <div className="learning-mini-stats">
 
                   <div className="mini-stat">
+
                     <div className="mini-stat-icon">
                       📚
                     </div>
@@ -193,9 +203,11 @@ function LandingPage() {
                       <strong>12</strong>
                       <span>Courses</span>
                     </div>
+
                   </div>
 
                   <div className="mini-stat">
+
                     <div className="mini-stat-icon">
                       🏆
                     </div>
@@ -204,6 +216,7 @@ function LandingPage() {
                       <strong>8</strong>
                       <span>Completed</span>
                     </div>
+
                   </div>
 
                 </div>
@@ -214,6 +227,7 @@ function LandingPage() {
                 <div className="upcoming-lesson">
 
                   <div className="lesson-heading">
+
                     <span>
                       Upcoming Lesson
                     </span>
@@ -221,6 +235,7 @@ function LandingPage() {
                     <span className="lesson-time">
                       Today
                     </span>
+
                   </div>
 
                   <div className="lesson-content">
@@ -339,7 +354,10 @@ function LandingPage() {
             FEATURES
         ========================================= */}
 
-        <section className="landing-section features-section">
+        <section
+          id="features"
+          className="landing-section features-section"
+        >
 
           <div className="landing-container">
 
@@ -466,8 +484,8 @@ function LandingPage() {
                   your learning goals.
                 </p>
 
-                <Link to="/register">
-                  Join as learner →
+                <Link to="/instructor/dashboard">
+                  Instructor Portal →
                 </Link>
 
               </div>
@@ -483,7 +501,10 @@ function LandingPage() {
             HOW IT WORKS
         ========================================= */}
 
-        <section className="how-it-works">
+        <section
+          id="how-it-works"
+          className="how-it-works"
+        >
 
           <div className="landing-container">
 
@@ -620,12 +641,16 @@ function LandingPage() {
 
               <div className="community-points">
 
+                {/* Student */}
+
                 <div>
+
                   <span className="community-check">
                     ✓
                   </span>
 
                   <div>
+
                     <strong>
                       For Students
                     </strong>
@@ -634,16 +659,22 @@ function LandingPage() {
                       Discover courses, learn new skills,
                       and track your progress.
                     </p>
+
                   </div>
+
                 </div>
 
 
+                {/* Instructor */}
+
                 <div>
+
                   <span className="community-check">
                     ✓
                   </span>
 
                   <div>
+
                     <strong>
                       For Instructors
                     </strong>
@@ -652,17 +683,33 @@ function LandingPage() {
                       Create courses, share knowledge,
                       and help others learn.
                     </p>
+
                   </div>
+
                 </div>
 
               </div>
 
-              <Link
-                to="/register"
-                className="community-btn"
-              >
-                Join LearnHub →
-              </Link>
+
+              {/* Community Buttons */}
+
+              <div className="community-buttons">
+
+                <Link
+                  to="/register"
+                  className="community-btn"
+                >
+                  Join as Student →
+                </Link>
+
+                <Link
+                  to="/instructor/dashboard"
+                  className="community-instructor-btn"
+                >
+                  Instructor Portal →
+                </Link>
+
+              </div>
 
             </div>
 
@@ -672,6 +719,7 @@ function LandingPage() {
               <div className="community-main-card">
 
                 <div className="community-card-header">
+
                   <span>
                     LEARNING COMMUNITY
                   </span>
@@ -679,11 +727,13 @@ function LandingPage() {
                   <span>
                     ● Active
                   </span>
+
                 </div>
 
                 <div className="community-users">
 
                   <div className="community-user">
+
                     <div className="user-avatar avatar-one">
                       A
                     </div>
@@ -699,10 +749,12 @@ function LandingPage() {
                     </div>
 
                     <span className="online-dot"></span>
+
                   </div>
 
 
                   <div className="community-user">
+
                     <div className="user-avatar avatar-two">
                       R
                     </div>
@@ -718,10 +770,12 @@ function LandingPage() {
                     </div>
 
                     <span className="online-dot"></span>
+
                   </div>
 
 
                   <div className="community-user">
+
                     <div className="user-avatar avatar-three">
                       M
                     </div>
@@ -737,6 +791,7 @@ function LandingPage() {
                     </div>
 
                     <span className="online-dot"></span>
+
                   </div>
 
                 </div>
@@ -744,6 +799,7 @@ function LandingPage() {
                 <div className="community-bottom">
 
                   <div>
+
                     <strong>
                       1,000+
                     </strong>
@@ -751,6 +807,7 @@ function LandingPage() {
                     <span>
                       Learners growing together
                     </span>
+
                   </div>
 
                   <span className="community-arrow">
@@ -841,6 +898,7 @@ function LandingPage() {
                 to="/"
                 className="footer-logo"
               >
+
                 <span className="landing-logo-icon">
                   L
                 </span>
@@ -848,6 +906,7 @@ function LandingPage() {
                 <span>
                   LearnHub
                 </span>
+
               </Link>
 
               <p>
@@ -879,6 +938,10 @@ function LandingPage() {
 
               <Link to="/register">
                 Register
+              </Link>
+
+              <Link to="/instructor/dashboard">
+                Instructor Portal
               </Link>
 
             </div>
