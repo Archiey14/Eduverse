@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { api } from "../services/api";
-import { useAuth } from "../context/AuthContext";
+import StudentLayout from "../components/StudentLayout";
 import "./Activities.css";
 
 interface Activity {
@@ -114,16 +114,8 @@ const defaultActivities: Activity[] = [
 ];
 
 const Activities = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState("All");
   const [activityList, setActivityList] = useState<Activity[]>(defaultActivities);
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
 
   useEffect(() => {
     const fetchActivities = async () => {
@@ -205,169 +197,12 @@ const Activities = () => {
     },
   ];
 
-  const closeSidebar = () => {
-    setSidebarOpen(false);
-  };
-
   return (
-    <div className="activities-page">
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <div
-          className="activities-sidebar-overlay"
-          onClick={closeSidebar}
-        ></div>
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`activities-sidebar ${
-          sidebarOpen ? "activities-sidebar-open" : ""
-        }`}
-      >
-        <div className="activities-sidebar-logo">
-          <div className="activities-logo-icon">L</div>
-          <span>LearnHub</span>
-        </div>
-
-        <nav className="activities-sidebar-nav">
-          <p className="activities-nav-title">MAIN MENU</p>
-
-          <Link to="/student/dashboard" className="activities-nav-item">
-            <span>🏠</span>
-            Dashboard
-          </Link>
-
-          <Link to="/courses" className="activities-nav-item">
-            <span>📚</span>
-            My Courses
-          </Link>
-
-          <Link to="/discover" className="activities-nav-item">
-            <span>🔎</span>
-            Discover
-          </Link>
-
-          <Link to="/quizzes" className="activities-nav-item">
-            <span>📝</span>
-            Quizzes
-          </Link>
-
-          <Link to="/progress" className="activities-nav-item">
-            <span>📊</span>
-            Progress
-          </Link>
-
-          <Link
-            to="/activities"
-            className="activities-nav-item activities-nav-active"
-          >
-            <span>⚡</span>
-            Activities
-          </Link>
-
-          <p className="activities-nav-title activities-nav-title-spaced">
-            PERSONAL
-          </p>
-
-          <Link to="/courses" className="activities-nav-item">
-            <span>🏆</span>
-            Achievements
-          </Link>
-
-          <Link to="/courses" className="activities-nav-item">
-            <span>❤️</span>
-            Wishlist
-          </Link>
-
-          <Link to="/student/dashboard" className="activities-nav-item">
-            <span>👤</span>
-            Profile
-          </Link>
-
-          <Link to="/student/dashboard" className="activities-nav-item">
-            <span>⚙️</span>
-            Settings
-          </Link>
-        </nav>
-
-        <div className="activities-sidebar-bottom">
-          <div className="activities-help-card">
-            <div className="activities-help-icon">💡</div>
-            <strong>Need Help?</strong>
-            <p>We're here to help you learn.</p>
-            <Link to="/courses">Visit Help Center →</Link>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            className="activities-logout"
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              width: "100%",
-              textAlign: "left",
-              fontFamily: "inherit",
-            }}
-          >
-            <span>🚪</span>
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* Main */}
-      <main className="activities-main">
-        {/* Topbar */}
-        <header className="activities-topbar">
-          <div className="activities-topbar-left">
-            <button
-              className="activities-mobile-menu"
-              onClick={() => setSidebarOpen(true)}
-            >
-              ☰
-            </button>
-
-            <div className="activities-search">
-              <span>⌕</span>
-              <input type="text" placeholder="Search activities..." />
-            </div>
-          </div>
-
-          <div className="activities-topbar-right">
-            <button className="activities-icon-button" title="Filter">
-              ⚙️
-            </button>
-
-            <button
-              className="activities-icon-button activities-notification-btn"
-              title="Notifications"
-            >
-              🔔
-              <span className="activities-notification-badge"></span>
-            </button>
-
-            <div className="activities-user">
-              <div className="activities-user-avatar">
-                {user?.name
-                  ? user.name
-                      .split(" ")
-                      .map((n: string) => n[0])
-                      .join("")
-                      .toUpperCase()
-                  : "ST"}
-              </div>
-              <div className="activities-user-info">
-                <strong>{user?.name || "Student"}</strong>
-                <span>Student</span>
-              </div>
-              <span className="activities-user-arrow">⌄</span>
-            </div>
-          </div>
-        </header>
-
-        <div className="activities-content">
+    <StudentLayout
+      activeItem="activities"
+      searchPlaceholder="Search your learning activity..."
+    >
+      <div className="activities-content" style={{ padding: "0" }}>
           {/* Header */}
           <section className="activities-page-header">
             <div>
@@ -623,8 +458,7 @@ const Activities = () => {
 
           <span>© 2026 LearnHub. All rights reserved.</span>
         </footer>
-      </main>
-    </div>
+    </StudentLayout>
   );
 };
 

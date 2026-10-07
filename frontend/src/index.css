@@ -2745,6 +2745,53 @@ img {
 
 
 /* =========================================================
+   GOOGLE SIGN-IN BUTTON
+========================================================= */
+
+.professional-google-button {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: #ffffff;
+  color: #1f2937;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.professional-google-button:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.professional-google-button:active {
+  transform: translateY(0);
+}
+
+.professional-google-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.google-icon-svg {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+}
+
+/* =========================================================
    LOGIN DIVIDER
 ========================================================= */
 

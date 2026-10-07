@@ -187,3 +187,62 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
     message: "Password updated successfully.",
   });
 });
+
+export const googleAuth = asyncHandler(async (req, res, next) => {
+  const { email, name, avatarUrl, googleId } = req.body;
+
+  if (!email) {
+    return next(new AppError(400, "Google account email is required."));
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+  let user = await User.findOne({ email: normalizedEmail });
+
+  if (user) {
+    if (!user.isActive) {
+      return next(
+        new AppError(401, "Your account is deactivated. Please contact support.")
+      );
+    }
+
+    let modified = false;
+    if (googleId && !user.googleId) {
+      user.googleId = googleId;
+      modified = true;
+    }
+    if (avatarUrl && !user.avatarUrl) {
+      user.avatarUrl = avatarUrl;
+      modified = true;
+    }
+    if (modified) {
+      await user.save();
+    }
+  } else {
+    // Create new Google-authenticated user
+    user = await User.create({
+      name: name?.trim() || email.split("@")[0],
+      email: normalizedEmail,
+      avatarUrl: avatarUrl || "",
+      googleId: googleId || "",
+      authProvider: "google",
+      roles: ["student"],
+    });
+  }
+
+  const token = generateToken(user._id);
+
+  res.status(200).json({
+    success: true,
+    message: "Google sign-in successful",
+    token,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      roles: user.roles,
+      avatarUrl: user.avatarUrl,
+      mentorProfile: user.mentorProfile,
+    },
+  });
+});
+

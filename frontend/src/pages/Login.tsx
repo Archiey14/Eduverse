@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api, getErrorMessage } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 
 function Login() {
   const navigate = useNavigate();
@@ -140,6 +141,16 @@ function Login() {
                 <span>{error}</span>
               </div>
             )}
+
+            <GoogleSignInButton
+              text="Continue with Google"
+              redirectTo={redirectTo}
+              onError={(msg) => setError(msg)}
+            />
+
+            <div className="professional-divider">
+              <span>OR CONTINUE WITH EMAIL</span>
+            </div>
 
             <form
               onSubmit={handleSubmit}

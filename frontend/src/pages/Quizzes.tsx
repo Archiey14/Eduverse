@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
-import { useAuth } from "../context/AuthContext";
+import StudentLayout from "../components/StudentLayout";
 import "./Quizzes.css";
 
 interface Quiz {
@@ -104,7 +104,6 @@ const defaultQuizzes: Quiz[] = [
 ];
 
 function Quizzes() {
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "completed">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [quizzesList, setQuizzesList] = useState<Quiz[]>(defaultQuizzes);
@@ -170,124 +169,13 @@ function Quizzes() {
       : 85;
 
   return (
-    <div className="quizzes-page">
-      {/* Sidebar */}
-      <aside className="quizzes-sidebar">
-        <Link to="/" className="quizzes-brand">
-          <span className="quizzes-brand-icon">L</span>
-          <span>LearnHub</span>
-        </Link>
-
-        <nav className="quizzes-navigation">
-          <div className="quizzes-nav-section">
-            <p className="quizzes-nav-title">LEARNING</p>
-
-            <Link to="/student/dashboard" className="quizzes-nav-item">
-              <span>▦</span>
-              Dashboard
-            </Link>
-
-            <Link to="/courses" className="quizzes-nav-item">
-              <span>▤</span>
-              Courses
-            </Link>
-
-            <Link to="/discover" className="quizzes-nav-item">
-              <span>✦</span>
-              Discover
-            </Link>
-
-            <Link to="/quizzes" className="quizzes-nav-item active">
-              <span>✓</span>
-              Quizzes
-            </Link>
-
-            <Link to="/progress" className="quizzes-nav-item">
-              <span>◔</span>
-              Progress
-            </Link>
-          </div>
-
-          <div className="quizzes-nav-section">
-            <p className="quizzes-nav-title">MY LEARNING</p>
-
-            <Link to="/activities" className="quizzes-nav-item">
-              <span>◷</span>
-              Activities
-            </Link>
-
-            <Link to="/courses" className="quizzes-nav-item">
-              <span>🏆</span>
-              Achievements
-            </Link>
-
-            <Link to="/courses" className="quizzes-nav-item">
-              <span>♡</span>
-              Wishlist
-            </Link>
-          </div>
-
-          <div className="quizzes-nav-section">
-            <p className="quizzes-nav-title">ACCOUNT</p>
-
-            <Link to="/student/dashboard" className="quizzes-nav-item">
-              <span>♙</span>
-              Profile
-            </Link>
-
-            <Link to="/student/dashboard" className="quizzes-nav-item">
-              <span>⚙</span>
-              Settings
-            </Link>
-          </div>
-        </nav>
-
-        <div className="quizzes-help-card">
-          <div className="quizzes-help-icon">?</div>
-          <strong>Need help?</strong>
-          <p>We're here to help you learn.</p>
-          <Link to="/courses">Visit Help Center →</Link>
-        </div>
-      </aside>
-
-      {/* Main */}
-      <main className="quizzes-main">
-        {/* Topbar */}
-        <header className="quizzes-topbar">
-          <div className="quizzes-breadcrumb">
-            <Link to="/student/dashboard">Dashboard</Link>
-            <span>/</span>
-            <strong>Quizzes</strong>
-          </div>
-
-          <div className="quizzes-topbar-actions">
-            <button
-              className="quizzes-notification-button"
-              aria-label="Notifications"
-            >
-              ♢
-              <span className="quizzes-notification-dot"></span>
-            </button>
-
-            <Link to="/student/dashboard" className="quizzes-user">
-              <span className="quizzes-avatar">
-                {user?.name
-                  ? user.name
-                      .split(" ")
-                      .map((n: string) => n[0])
-                      .join("")
-                      .toUpperCase()
-                  : "ST"}
-              </span>
-              <span className="quizzes-user-name">
-                {user?.name || "Student"}
-              </span>
-              <span className="quizzes-user-arrow">⌄</span>
-            </Link>
-          </div>
-        </header>
-
-        <div className="quizzes-content">
+    <StudentLayout
+      activeItem="quizzes"
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      searchPlaceholder="Search quizzes or courses..."
+    >
+      <div className="quizzes-content" style={{ padding: "0" }}>
           {/* Page Header */}
           <section className="quizzes-page-header">
             <div>
@@ -533,8 +421,7 @@ function Quizzes() {
             <p>© 2026 LearnHub. All rights reserved.</p>
           </footer>
         </div>
-      </main>
-    </div>
+    </StudentLayout>
   );
 }
 

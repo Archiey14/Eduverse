@@ -152,6 +152,13 @@ export const api = {
       request<any>("/auth/register", json("POST", body)),
     login: (body: { email: string; password: string }) =>
       request<any>("/auth/login", json("POST", body)),
+    googleAuth: (body: {
+      email: string;
+      name?: string;
+      avatarUrl?: string;
+      googleId?: string;
+      idToken?: string;
+    }) => request<any>("/auth/google", json("POST", body)),
     getMe: () => request<any>("/auth/me"),
     becomeMentor: (body: {
       headline?: string;

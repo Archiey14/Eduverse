@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   register,
   login,
+  googleAuth,
   getMe,
   becomeMentor,
   updateMe,
@@ -14,6 +15,7 @@ const router = Router();
 
 router.post("/register", authLimiter, register);
 router.post("/login", authLimiter, login);
+router.post("/google", authLimiter, googleAuth);
 
 router.get("/me", protect, getMe);
 router.patch("/me", protect, updateMe);

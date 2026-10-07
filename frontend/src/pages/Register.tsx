@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, getErrorMessage } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import "./Register.css";
 
 function Register() {
@@ -177,6 +178,16 @@ function Register() {
                 <span>{error}</span>
               </div>
             )}
+
+            <GoogleSignInButton
+              text="Continue with Google"
+              roleToAssign={role}
+              onError={(msg) => setError(msg)}
+            />
+
+            <div className="professional-divider">
+              <span>OR REGISTER WITH EMAIL</span>
+            </div>
 
             <form
               onSubmit={handleSubmit}

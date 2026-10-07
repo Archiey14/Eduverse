@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { api } from "../services/api";
-import { useAuth } from "../context/AuthContext";
+import StudentLayout from "../components/StudentLayout";
 import "./Progress.css";
 
 interface CourseProgress {
@@ -108,9 +108,6 @@ const defaultWeeklyActivity: ActivityDay[] = [
 ];
 
 const Progress = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [courseList, setCourseList] = useState<CourseProgress[]>(defaultCourseProgress);
   const [weeklyActivity] = useState<ActivityDay[]>(defaultWeeklyActivity);
   const [stats, setStats] = useState({
@@ -119,11 +116,6 @@ const Progress = () => {
     hoursLearned: 18,
     streak: 12,
   });
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
 
   useEffect(() => {
     const fetchProgress = async () => {
@@ -194,166 +186,12 @@ const Progress = () => {
       : 70
   );
 
-  const closeSidebar = () => {
-    setSidebarOpen(false);
-  };
-
   return (
-    <div className="progress-page">
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <div className="progress-sidebar-overlay" onClick={closeSidebar}></div>
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`progress-sidebar ${
-          sidebarOpen ? "progress-sidebar-open" : ""
-        }`}
-      >
-        <div className="progress-sidebar-logo">
-          <div className="progress-logo-icon">L</div>
-          <span>LearnHub</span>
-        </div>
-
-        <nav className="progress-sidebar-nav">
-          <p className="progress-nav-title">MAIN MENU</p>
-
-          <Link to="/student/dashboard" className="progress-nav-item">
-            <span>🏠</span>
-            Dashboard
-          </Link>
-
-          <Link to="/courses" className="progress-nav-item">
-            <span>📚</span>
-            My Courses
-          </Link>
-
-          <Link to="/discover" className="progress-nav-item">
-            <span>🔎</span>
-            Discover
-          </Link>
-
-          <Link to="/quizzes" className="progress-nav-item">
-            <span>📝</span>
-            Quizzes
-          </Link>
-
-          <Link
-            to="/progress"
-            className="progress-nav-item progress-nav-active"
-          >
-            <span>📊</span>
-            Progress
-          </Link>
-
-          <Link to="/activities" className="progress-nav-item">
-            <span>⚡</span>
-            Activities
-          </Link>
-
-          <p className="progress-nav-title progress-nav-title-spaced">
-            PERSONAL
-          </p>
-
-          <Link to="/courses" className="progress-nav-item">
-            <span>🏆</span>
-            Achievements
-          </Link>
-
-          <Link to="/courses" className="progress-nav-item">
-            <span>❤️</span>
-            Wishlist
-          </Link>
-
-          <Link to="/student/dashboard" className="progress-nav-item">
-            <span>👤</span>
-            Profile
-          </Link>
-
-          <Link to="/student/dashboard" className="progress-nav-item">
-            <span>⚙️</span>
-            Settings
-          </Link>
-        </nav>
-
-        <div className="progress-sidebar-bottom">
-          <div className="progress-help-card">
-            <div className="progress-help-icon">💡</div>
-            <strong>Need Help?</strong>
-            <p>We're here to help you learn.</p>
-            <Link to="/courses">Visit Help Center →</Link>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            className="progress-logout"
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              width: "100%",
-              textAlign: "left",
-              fontFamily: "inherit",
-            }}
-          >
-            <span>🚪</span>
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="progress-main">
-        {/* Top Bar */}
-        <header className="progress-topbar">
-          <div className="progress-topbar-left">
-            <button
-              className="progress-mobile-menu"
-              onClick={() => setSidebarOpen(true)}
-            >
-              ☰
-            </button>
-
-            <div className="progress-search">
-              <span>⌕</span>
-              <input type="text" placeholder="Search your learning..." />
-            </div>
-          </div>
-
-          <div className="progress-topbar-right">
-            <button className="progress-icon-button" title="Help">
-              ?
-            </button>
-
-            <button
-              className="progress-icon-button progress-notification-btn"
-              title="Notifications"
-            >
-              🔔
-              <span className="progress-notification-badge"></span>
-            </button>
-
-            <div className="progress-user">
-              <div className="progress-user-avatar">
-                {user?.name
-                  ? user.name
-                      .split(" ")
-                      .map((n: string) => n[0])
-                      .join("")
-                      .toUpperCase()
-                  : "ST"}
-              </div>
-              <div className="progress-user-info">
-                <strong>{user?.name || "Student"}</strong>
-                <span>Student</span>
-              </div>
-              <span className="progress-user-arrow">⌄</span>
-            </div>
-          </div>
-        </header>
-
-        <div className="progress-content">
+    <StudentLayout
+      activeItem="progress"
+      searchPlaceholder="Search your progress, certificates, and achievements..."
+    >
+      <div className="progress-content" style={{ padding: "0" }}>
           {/* Header */}
           <section className="progress-page-header">
             <div>
@@ -618,8 +456,7 @@ const Progress = () => {
 
           <span>© 2026 LearnHub. All rights reserved.</span>
         </footer>
-      </main>
-    </div>
+    </StudentLayout>
   );
 };
 

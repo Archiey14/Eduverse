@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
-import { useAuth } from "../context/AuthContext";
+import StudentLayout from "../components/StudentLayout";
 import "./Discover.css";
 
 interface DiscoverCourse {
@@ -193,7 +193,6 @@ const categories = [
 ];
 
 function Discover() {
-  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [activeTab, setActiveTab] = useState("Trending");
@@ -258,124 +257,13 @@ function Discover() {
   }, [coursesList, searchQuery, selectedCategory]);
 
   return (
-    <div className="discover-page">
-      {/* Sidebar */}
-      <aside className="discover-sidebar">
-        <Link to="/" className="discover-brand">
-          <span className="discover-brand-icon">L</span>
-          <span>LearnHub</span>
-        </Link>
-
-        <nav className="discover-navigation">
-          <div className="discover-nav-section">
-            <p className="discover-nav-title">LEARNING</p>
-
-            <Link to="/student/dashboard" className="discover-nav-item">
-              <span>▦</span>
-              Dashboard
-            </Link>
-
-            <Link to="/courses" className="discover-nav-item">
-              <span>▤</span>
-              Courses
-            </Link>
-
-            <Link to="/discover" className="discover-nav-item active">
-              <span>✦</span>
-              Discover
-            </Link>
-
-            <Link to="/quizzes" className="discover-nav-item">
-              <span>✓</span>
-              Quizzes
-            </Link>
-
-            <Link to="/progress" className="discover-nav-item">
-              <span>◔</span>
-              Progress
-            </Link>
-          </div>
-
-          <div className="discover-nav-section">
-            <p className="discover-nav-title">MY LEARNING</p>
-
-            <Link to="/activities" className="discover-nav-item">
-              <span>◷</span>
-              Activities
-            </Link>
-
-            <Link to="/courses" className="discover-nav-item">
-              <span>🏆</span>
-              Achievements
-            </Link>
-
-            <Link to="/courses" className="discover-nav-item">
-              <span>♡</span>
-              Wishlist
-            </Link>
-          </div>
-
-          <div className="discover-nav-section">
-            <p className="discover-nav-title">ACCOUNT</p>
-
-            <Link to="/student/dashboard" className="discover-nav-item">
-              <span>♙</span>
-              Profile
-            </Link>
-
-            <Link to="/student/dashboard" className="discover-nav-item">
-              <span>⚙</span>
-              Settings
-            </Link>
-          </div>
-        </nav>
-
-        <div className="discover-help-card">
-          <div className="discover-help-icon">?</div>
-          <strong>Need help?</strong>
-          <p>We're here to help you learn.</p>
-          <Link to="/courses">Visit Help Center →</Link>
-        </div>
-      </aside>
-
-      {/* Main */}
-      <main className="discover-main">
-        {/* Topbar */}
-        <header className="discover-topbar">
-          <div className="discover-breadcrumb">
-            <Link to="/student/dashboard">Dashboard</Link>
-            <span>/</span>
-            <strong>Discover</strong>
-          </div>
-
-          <div className="discover-topbar-actions">
-            <button
-              className="discover-notification-button"
-              aria-label="Notifications"
-            >
-              ♢
-              <span className="discover-notification-dot"></span>
-            </button>
-
-            <Link to="/student/dashboard" className="discover-user">
-              <span className="discover-avatar">
-                {user?.name
-                  ? user.name
-                      .split(" ")
-                      .map((n: string) => n[0])
-                      .join("")
-                      .toUpperCase()
-                  : "ST"}
-              </span>
-              <span className="discover-user-name">
-                {user?.name || "Student"}
-              </span>
-              <span className="discover-user-arrow">⌄</span>
-            </Link>
-          </div>
-        </header>
-
-        <div className="discover-content">
+    <StudentLayout
+      activeItem="discover"
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      searchPlaceholder="Discover courses, instructors, and skills..."
+    >
+      <div className="discover-content" style={{ padding: "0" }}>
           {/* Hero */}
           <section className="discover-hero">
             <div className="discover-hero-content">
@@ -747,8 +635,7 @@ function Discover() {
             <p>© 2026 LearnHub. All rights reserved.</p>
           </footer>
         </div>
-      </main>
-    </div>
+    </StudentLayout>
   );
 }
 
