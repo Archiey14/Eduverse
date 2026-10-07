@@ -28,11 +28,11 @@ function StudentDashboard() {
             id: c._id || c.slug,
             title: c.title,
             instructor: c.mentor?.name || "Lead Instructor",
-            rating: c.stats?.ratingAvg || "4.9",
+            rating: c.stats?.ratingAvg || 0,
             students: `${c.stats?.enrollmentCount || 0}`,
             lessons: `${c.stats?.lessonCount || 8} lessons`,
             duration: `${c.stats?.totalDurationMin || 45}m`,
-            price: "$49",
+            price: c.price ? `$${c.price}` : "Free",
             icon: idx % 3 === 0 ? "🟨" : idx % 3 === 1 ? "🎨" : "🟢",
             colorClass:
               idx % 3 === 0
@@ -122,28 +122,7 @@ function StudentDashboard() {
         : "success",
   }));
 
-  const achievements = [
-    {
-      icon: "🏆",
-      title: "First Course",
-      description: "Completed your first course",
-    },
-    {
-      icon: "🔥",
-      title: "Active Learner",
-      description: "Consistent learning progress",
-    },
-    {
-      icon: "⭐",
-      title: "Quiz Master",
-      description: "Scored 90% or higher",
-    },
-    {
-      icon: "🚀",
-      title: "Fast Learner",
-      description: "Completed 5 lessons in a day",
-    },
-  ];
+
 
   const filteredCourses = enrolledCourses.filter((course: any) =>
     `${course.title} ${course.category} ${course.instructor}`
@@ -191,7 +170,7 @@ function StudentDashboard() {
               </Link>
             )}
 
-            <Link to="/discover" className="dashboard-secondary-button">
+            <Link to="/courses" className="dashboard-secondary-button">
               Explore Catalog
             </Link>
           </div>
@@ -414,32 +393,7 @@ function StudentDashboard() {
           SECONDARY GRID
       ================================= */}
       <div className="dashboard-secondary-grid">
-        {/* ACHIEVEMENTS */}
-        <section className="dashboard-card achievements-card">
-          <div className="dashboard-card-header">
-            <div>
-              <span className="card-eyebrow">MILESTONES</span>
-              <h2>Achievements</h2>
-              <p>Celebrate your learning milestones.</p>
-            </div>
 
-            <Link to="/progress" className="view-all-link">
-              View all →
-            </Link>
-          </div>
-
-          <div className="achievement-grid">
-            {achievements.map((achievement) => (
-              <div className="achievement-card" key={achievement.title}>
-                <div className="achievement-card-icon">{achievement.icon}</div>
-                <div>
-                  <strong>{achievement.title}</strong>
-                  <span>{achievement.description}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
 
         {/* RECENT ACTIVITY */}
         <section className="dashboard-card recent-activity-section">
@@ -495,7 +449,7 @@ function StudentDashboard() {
             <p>Continue growing with courses selected for your learning journey.</p>
           </div>
 
-          <Link to="/discover" className="view-all-link">
+          <Link to="/courses" className="view-all-link">
             Explore all →
           </Link>
         </div>

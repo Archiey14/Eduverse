@@ -111,6 +111,10 @@ export const becomeMentor = asyncHandler(async (req, res, next) => {
     user.roles.push("mentor");
   }
 
+  if (!user.mentorProfile) {
+    user.mentorProfile = { headline: "", bio: "", expertise: [] };
+  }
+
   if (headline !== undefined) user.mentorProfile.headline = headline;
   if (bio !== undefined) user.mentorProfile.bio = bio;
   if (Array.isArray(expertise)) user.mentorProfile.expertise = expertise;

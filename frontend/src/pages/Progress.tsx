@@ -24,97 +24,12 @@ interface ActivityDay {
   hours: number;
 }
 
-const defaultCourseProgress: CourseProgress[] = [
-  {
-    id: "1",
-    title: "React & TypeScript Development",
-    instructor: "Alex Johnson",
-    category: "Web Development",
-    progress: 78,
-    completedLessons: 18,
-    totalLessons: 24,
-    lastLesson: "Advanced React Hooks",
-    totalTime: "12h 40m",
-    imageClass: "progress-react",
-    icon: "⚛️",
-    color: "blue",
-  },
-  {
-    id: "2",
-    title: "JavaScript Beginner to Advanced",
-    instructor: "Sarah Williams",
-    category: "Programming",
-    progress: 65,
-    completedLessons: 26,
-    totalLessons: 40,
-    lastLesson: "Asynchronous JavaScript",
-    totalTime: "10h 15m",
-    imageClass: "progress-javascript",
-    icon: "JS",
-    color: "yellow",
-  },
-  {
-    id: "3",
-    title: "Python Programming Masterclass",
-    instructor: "Michael Brown",
-    category: "Programming",
-    progress: 48,
-    completedLessons: 19,
-    totalLessons: 40,
-    lastLesson: "Working with Functions",
-    totalTime: "8h 30m",
-    imageClass: "progress-python",
-    icon: "🐍",
-    color: "green",
-  },
-  {
-    id: "4",
-    title: "UI/UX Design Fundamentals",
-    instructor: "Emily Davis",
-    category: "Design",
-    progress: 35,
-    completedLessons: 7,
-    totalLessons: 20,
-    lastLesson: "Design Systems",
-    totalTime: "5h 20m",
-    imageClass: "progress-design",
-    icon: "🎨",
-    color: "purple",
-  },
-  {
-    id: "5",
-    title: "Node.js & Express Backend",
-    instructor: "Daniel Wilson",
-    category: "Backend Development",
-    progress: 22,
-    completedLessons: 5,
-    totalLessons: 23,
-    lastLesson: "Express Middleware",
-    totalTime: "3h 45m",
-    imageClass: "progress-node",
-    icon: "🟢",
-    color: "teal",
-  },
-];
-
-const defaultWeeklyActivity: ActivityDay[] = [
-  { day: "Mon", hours: 2.5 },
-  { day: "Tue", hours: 1.8 },
-  { day: "Wed", hours: 3.2 },
-  { day: "Thu", hours: 2.1 },
-  { day: "Fri", hours: 4.0 },
-  { day: "Sat", hours: 1.5 },
-  { day: "Sun", hours: 2.9 },
-];
-
 const Progress = () => {
-  const [courseList, setCourseList] = useState<CourseProgress[]>(defaultCourseProgress);
-  const [weeklyActivity] = useState<ActivityDay[]>(defaultWeeklyActivity);
+  const [courseList, setCourseList] = useState<CourseProgress[]>([]);
   const [stats, setStats] = useState({
-    enrolledCount: 2,
-    completedCount: 1,
-    hoursLearned: 18,
-    streak: 12,
+    enrolledCount: 0,
+    completedCount: 0,
+    hoursLearned: 0,
   });
 
   useEffect(() => {
@@ -124,10 +39,9 @@ const Progress = () => {
         if (res.data) {
           if (res.data.stats) {
             setStats({
-              enrolledCount: res.data.stats.enrolledCount || 2,
-              completedCount: res.data.stats.completedCount || 1,
-              hoursLearned: res.data.stats.hoursLearned || 18,
-              streak: 12,
+              enrolledCount: res.data.stats.enrolledCount || 0,
+              completedCount: res.data.stats.completedCount || 0,
+              hoursLearned: res.data.stats.hoursLearned || 0,
             });
           }
           if (res.data.activeEnrollments && res.data.activeEnrollments.length > 0) {
@@ -164,10 +78,7 @@ const Progress = () => {
     fetchProgress();
   }, []);
 
-  const totalWeeklyHours = useMemo(
-    () => weeklyActivity.reduce((total, activity) => total + activity.hours, 0),
-    [weeklyActivity]
-  );
+
 
   const completedLessons = courseList.reduce(
     (total, course) => total + course.completedLessons,
@@ -183,7 +94,7 @@ const Progress = () => {
     courseList.length > 0
       ? courseList.reduce((total, course) => total + course.progress, 0) /
           courseList.length
-      : 70
+      : 0
   );
 
   return (
@@ -234,16 +145,7 @@ const Progress = () => {
               <div className="progress-stat-content">
                 <span>Hours Learned</span>
                 <strong>{stats.hoursLearned}h</strong>
-                <small>+8h this month</small>
-              </div>
-            </div>
-
-            <div className="progress-stat-card">
-              <div className="progress-stat-icon">🔥</div>
-              <div className="progress-stat-content">
-                <span>Learning Streak</span>
-                <strong>{stats.streak} days</strong>
-                <small>Keep it going!</small>
+                <small>Total learning time</small>
               </div>
             </div>
           </section>
@@ -320,59 +222,7 @@ const Progress = () => {
               </div>
             </section>
 
-            {/* Weekly Activity */}
             <aside className="progress-side-column">
-              <section className="progress-activity-card">
-                <div className="progress-section-header">
-                  <div>
-                    <h2>Weekly Activity</h2>
-                    <p>Your learning time</p>
-                  </div>
-                </div>
-
-                <div className="progress-week-total">
-                  <strong>{totalWeeklyHours.toFixed(1)}h</strong>
-                  <span>This week</span>
-                </div>
-
-                <div className="progress-chart">
-                  {weeklyActivity.map((activity) => (
-                    <div className="progress-chart-column" key={activity.day}>
-                      <div className="progress-chart-value">
-                        {activity.hours}h
-                      </div>
-
-                      <div className="progress-chart-bar-area">
-                        <div
-                          className="progress-chart-bar"
-                          style={{
-                            height: `${(activity.hours / 4) * 100}%`,
-                          }}
-                        ></div>
-                      </div>
-
-                      <span>{activity.day}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="progress-week-goal">
-                  <div>
-                    <span>Weekly Goal</span>
-                    <strong>20 / 25 hours</strong>
-                  </div>
-
-                  <div className="progress-goal-track">
-                    <div
-                      className="progress-goal-fill"
-                      style={{ width: "80%" }}
-                    ></div>
-                  </div>
-
-                  <small>5 more hours to reach your goal</small>
-                </div>
-              </section>
-
               {/* Quick Summary */}
               <section className="progress-summary-card">
                 <h2>Learning Summary</h2>

@@ -135,16 +135,6 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
             <span>Learning Activity</span>
           </Link>
 
-          <Link
-            to="/progress"
-            className={`dashboard-nav-item ${
-              current === "achievements" ? "active" : ""
-            }`}
-            onClick={onClose}
-          >
-            <span className="nav-item-icon">🏆</span>
-            <span>Achievements</span>
-          </Link>
         </div>
       </nav>
 

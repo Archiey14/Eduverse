@@ -132,7 +132,7 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
                 👤 My Progress
               </Link>
               <Link
-                to="/courses"
+                to="/student/courses"
                 style={{
                   display: "block",
                   padding: "8px 12px",
@@ -177,8 +177,8 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
                         alert("Success! You are now an instructor. Please login again to apply changes.");
                         logout();
                         navigate("/login");
-                      } catch (err) {
-                        alert("Failed to upgrade account");
+                      } catch (err: any) {
+                        alert("Failed to upgrade account: " + err.message);
                       }
                     }
                   }}

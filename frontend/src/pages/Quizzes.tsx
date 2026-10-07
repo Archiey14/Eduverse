@@ -19,101 +19,19 @@ interface Quiz {
   icon: string;
 }
 
-const defaultQuizzes: Quiz[] = [
-  {
-    id: 1,
-    title: "React Fundamentals Quiz",
-    course: "Complete React & TypeScript Development",
-    courseColor: "quiz-blue",
-    questions: 20,
-    duration: "25 min",
-    difficulty: "Medium",
-    date: "Today",
-    dateLabel: "Today, 4:00 PM",
-    status: "upcoming",
-    icon: "⚛️",
-  },
-  {
-    id: 2,
-    title: "JavaScript Basics Assessment",
-    course: "JavaScript From Beginner to Advanced",
-    courseColor: "quiz-yellow",
-    questions: 15,
-    duration: "20 min",
-    difficulty: "Easy",
-    date: "Tomorrow",
-    dateLabel: "Tomorrow, 10:00 AM",
-    status: "upcoming",
-    icon: "JS",
-  },
-  {
-    id: 3,
-    title: "TypeScript Advanced Concepts",
-    course: "Complete React & TypeScript Development",
-    courseColor: "quiz-purple",
-    questions: 25,
-    duration: "30 min",
-    difficulty: "Hard",
-    date: "Oct 10",
-    dateLabel: "Oct 10, 2:00 PM",
-    status: "upcoming",
-    icon: "TS",
-  },
-  {
-    id: 4,
-    title: "Python Programming Basics",
-    course: "Python Programming Masterclass",
-    courseColor: "quiz-green",
-    questions: 20,
-    duration: "25 min",
-    difficulty: "Easy",
-    date: "Completed",
-    dateLabel: "Oct 4, 2026",
-    status: "completed",
-    score: 92,
-    icon: "🐍",
-  },
-  {
-    id: 5,
-    title: "HTML & CSS Assessment",
-    course: "Modern CSS & Responsive Web Design",
-    courseColor: "quiz-orange",
-    questions: 18,
-    duration: "20 min",
-    difficulty: "Medium",
-    date: "Completed",
-    dateLabel: "Oct 2, 2026",
-    status: "completed",
-    score: 86,
-    icon: "🎯",
-  },
-  {
-    id: 6,
-    title: "Web Development Concepts",
-    course: "Complete React & TypeScript Development",
-    courseColor: "quiz-teal",
-    questions: 30,
-    duration: "35 min",
-    difficulty: "Hard",
-    date: "Completed",
-    dateLabel: "Sep 28, 2026",
-    status: "completed",
-    score: 78,
-    icon: "💻",
-  },
-];
+
 
 function Quizzes() {
   const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "completed">("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [quizzesList, setQuizzesList] = useState<Quiz[]>(defaultQuizzes);
+  const [quizzesList, setQuizzesList] = useState<Quiz[]>([]);
 
   useEffect(() => {
     const loadQuizData = async () => {
       try {
         const res = await api.dashboard.getStudentDashboard();
-        if (res.data?.quizAttempts && res.data.quizAttempts.length > 0) {
-          const completedFromDb: Quiz[] = res.data.quizAttempts.map(
+        if (res.data?.recentQuizAttempts && res.data.recentQuizAttempts.length > 0) {
+          const completedFromDb: Quiz[] = res.data.recentQuizAttempts.map(
             (attempt: any, idx: number) => ({
               id: attempt._id,
               title: attempt.quiz?.title || "Course Assessment",
@@ -133,12 +51,10 @@ function Quizzes() {
               icon: idx % 2 === 0 ? "🐍" : "⚛️",
             })
           );
-          // Combine with upcoming items
-          const upcomingItems = defaultQuizzes.filter((q) => q.status === "upcoming");
-          setQuizzesList([...upcomingItems, ...completedFromDb]);
+          setQuizzesList(completedFromDb);
         }
       } catch (err) {
-        console.warn("Using preset quizzes list:", err);
+        console.warn("Failed to load quizzes:", err);
       }
     };
     loadQuizData();
@@ -166,7 +82,7 @@ function Quizzes() {
           completedQuizzes.reduce((total, quiz) => total + (quiz.score || 0), 0) /
             completedQuizzes.length
         )
-      : 85;
+      : 0;
 
   return (
     <StudentLayout
@@ -203,30 +119,12 @@ function Quizzes() {
             </div>
 
             <div className="quiz-stat-card">
-              <div className="quiz-stat-icon orange">◷</div>
-              <div>
-                <span>Upcoming</span>
-                <strong>{upcomingQuizzes.length}</strong>
-              </div>
-              <small>Need your attention</small>
-            </div>
-
-            <div className="quiz-stat-card">
               <div className="quiz-stat-icon green">★</div>
               <div>
                 <span>Avg. Score</span>
                 <strong>{averageScore}%</strong>
               </div>
               <small>Your performance</small>
-            </div>
-
-            <div className="quiz-stat-card">
-              <div className="quiz-stat-icon purple">🏆</div>
-              <div>
-                <span>Highest Score</span>
-                <strong>92%</strong>
-              </div>
-              <small>Your highest result</small>
             </div>
           </section>
 
@@ -249,14 +147,6 @@ function Quizzes() {
               >
                 All Quizzes
                 <span>{quizzesList.length}</span>
-              </button>
-
-              <button
-                className={activeTab === "upcoming" ? "active" : ""}
-                onClick={() => setActiveTab("upcoming")}
-              >
-                Upcoming
-                <span>{upcomingQuizzes.length}</span>
               </button>
 
               <button
@@ -366,43 +256,7 @@ function Quizzes() {
             )}
           </section>
 
-          {/* Upcoming Highlight */}
-          {activeTab !== "completed" && (
-            <section className="next-quiz-section">
-              <div className="next-quiz-content">
-                <span className="next-quiz-label">NEXT UP</span>
-                <h2>React Fundamentals Quiz</h2>
-                <p>
-                  Make sure you're ready. Review the React fundamentals lessons
-                  before taking this assessment.
-                </p>
 
-                <div className="next-quiz-info">
-                  <span>📝 20 Questions</span>
-                  <span>◷ 25 Minutes</span>
-                  <span>● Medium</span>
-                </div>
-
-                <Link to="/courses" className="next-quiz-button" style={{ display: "inline-block", textDecoration: "none" }}>
-                  Start Quiz →
-                </Link>
-              </div>
-
-              <div className="next-quiz-visual">
-                <div className="quiz-countdown-circle">
-                  <strong>04</strong>
-                  <span>Hours</span>
-                </div>
-
-                <div className="countdown-divider">:</div>
-
-                <div className="quiz-countdown-circle">
-                  <strong>32</strong>
-                  <span>Minutes</span>
-                </div>
-              </div>
-            </section>
-          )}
 
           {/* Footer */}
           <footer className="quizzes-footer">

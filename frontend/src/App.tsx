@@ -16,7 +16,6 @@ import Progress from "./pages/Progress";
 import Activities from "./pages/Activities";
 import Learn from "./pages/Learn";
 import MyCourses from "./pages/MyCourses";
-import Achievements from "./pages/Achievements";
 import Wishlist from "./pages/Wishlist";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
@@ -77,8 +76,7 @@ function AppRoutes() {
       <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
       <Route path="/activities" element={<ProtectedRoute><Activities /></ProtectedRoute>} />
       <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
-      <Route path="/my-courses" element={<ProtectedRoute><MyCourses /></ProtectedRoute>} />
-      <Route path="/achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
+      <Route path="/student/courses" element={<ProtectedRoute><MyCourses /></ProtectedRoute>} />
       <Route path="/wishlist" element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
