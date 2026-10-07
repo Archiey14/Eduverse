@@ -1374,7 +1374,7 @@
    QUIZZES
    ========================================================= */
 
-.quiz-list {
+.dashboard-quiz-list {
   padding: 0 22px;
 }
 
@@ -1875,7 +1875,7 @@
   );
 }
 
-.course-wishlist {
+.recommended-wishlist {
   position: absolute;
   top: 10px;
   right: 10px;
@@ -1904,7 +1904,7 @@
     transform 0.2s ease;
 }
 
-.course-wishlist:hover {
+.recommended-wishlist:hover {
   background: #ffffff;
   color: #ef4444;
 
@@ -2147,7 +2147,7 @@
   }
 
   .course-list,
-  .quiz-list,
+  .dashboard-quiz-list,
   .recent-activity-list {
     padding-left: 25px;
     padding-right: 25px;
@@ -2430,7 +2430,7 @@
   }
 
   .course-list,
-  .quiz-list,
+  .dashboard-quiz-list,
   .recent-activity-list {
     padding-left: 16px;
     padding-right: 16px;
@@ -2632,7 +2632,7 @@
   }
 
   .course-list,
-  .quiz-list,
+  .dashboard-quiz-list,
   .recent-activity-list {
     padding-left: 14px;
     padding-right: 14px;
@@ -2868,7 +2868,7 @@
 .view-all-link:focus-visible,
 .course-play-button:focus-visible,
 .full-width-outline-button:focus-visible,
-.course-wishlist:focus-visible,
+.recommended-wishlist:focus-visible,
 .course-details-link:focus-visible,
 .dashboard-user-menu:focus-visible {
   outline: 3px solid rgba(99, 102, 241, 0.3);

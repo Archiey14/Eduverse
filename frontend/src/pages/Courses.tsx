@@ -1,10 +1,11 @@
-
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { api } from "../services/api";
+import StudentLayout from "../components/StudentLayout";
 import "./Courses.css";
 
 interface Course {
-  id: number;
+  id: string | number;
   title: string;
   instructor: string;
   category: string;
@@ -14,7 +15,7 @@ interface Course {
   students: number;
   rating: number;
   reviews: number;
-  price: number;
+  price: number | string;
   originalPrice?: number;
   imageClass: string;
   icon: string;
@@ -23,9 +24,24 @@ interface Course {
   newCourse?: boolean;
 }
 
-const courses: Course[] = [
+interface EnrolledCourse {
+  id: string;
+  courseId: string;
+  title: string;
+  instructor: string;
+  category: string;
+  progressPercent: number;
+  lastLessonTitle?: string;
+  completedLessonsCount: number;
+  totalLessons: number;
+  duration: string;
+  icon: string;
+  colorClass: string;
+}
+
+const defaultCourses: Course[] = [
   {
-    id: 1,
+    id: "1",
     title: "Complete React & TypeScript Development",
     instructor: "Sarah Johnson",
     category: "Web Development",
@@ -44,7 +60,26 @@ const courses: Course[] = [
     bestseller: true,
   },
   {
-    id: 2,
+    id: "2",
+    title: "Python for Data Science & Machine Learning",
+    instructor: "David Wilson",
+    category: "Data Science",
+    level: "Beginner",
+    duration: "24h 10m",
+    lessons: 64,
+    students: 3421,
+    rating: 4.9,
+    reviews: 784,
+    price: 45,
+    originalPrice: 75,
+    imageClass: "course-image-green",
+    icon: "🐍",
+    description:
+      "Learn Python from the basics and build real-world data applications.",
+    bestseller: true,
+  },
+  {
+    id: "3",
     title: "JavaScript From Beginner to Advanced",
     instructor: "Michael Brown",
     category: "Web Development",
@@ -63,26 +98,7 @@ const courses: Course[] = [
     bestseller: true,
   },
   {
-    id: 3,
-    title: "Python Programming Masterclass",
-    instructor: "David Wilson",
-    category: "Programming",
-    level: "Beginner",
-    duration: "24h 10m",
-    lessons: 64,
-    students: 3421,
-    rating: 4.9,
-    reviews: 784,
-    price: 45,
-    originalPrice: 75,
-    imageClass: "course-image-green",
-    icon: "🐍",
-    description:
-      "Learn Python from the basics and build real-world applications.",
-    bestseller: true,
-  },
-  {
-    id: 4,
+    id: "4",
     title: "UI/UX Design Fundamentals",
     instructor: "Emily Carter",
     category: "Design",
@@ -99,121 +115,119 @@ const courses: Course[] = [
     description:
       "Learn user-centered design principles and create beautiful digital experiences.",
   },
-  {
-    id: 5,
-    title: "Node.js & Express Backend Development",
-    instructor: "James Anderson",
-    category: "Backend Development",
-    level: "Intermediate",
-    duration: "16h 20m",
-    lessons: 38,
-    students: 1456,
-    rating: 4.8,
-    reviews: 341,
-    price: 44,
-    originalPrice: 72,
-    imageClass: "course-image-teal",
-    icon: "🟢",
-    description:
-      "Build powerful REST APIs and server-side applications with Node.js and Express.",
-    newCourse: true,
-  },
-  {
-    id: 6,
-    title: "MongoDB Database Essentials",
-    instructor: "Daniel Martinez",
-    category: "Database",
-    level: "Intermediate",
-    duration: "10h 35m",
-    lessons: 28,
-    students: 876,
-    rating: 4.7,
-    reviews: 194,
-    price: 32,
-    originalPrice: 55,
-    imageClass: "course-image-dark-green",
-    icon: "🍃",
-    description:
-      "Understand MongoDB, database design, queries, indexes, and application integration.",
-  },
-  {
-    id: 7,
-    title: "Data Structures & Algorithms",
-    instructor: "Robert Taylor",
-    category: "Computer Science",
-    level: "Advanced",
-    duration: "26h 40m",
-    lessons: 72,
-    students: 2789,
-    rating: 4.9,
-    reviews: 623,
-    price: 55,
-    originalPrice: 89,
-    imageClass: "course-image-orange",
-    icon: "🧠",
-    description:
-      "Strengthen your problem-solving skills with essential data structures and algorithms.",
-  },
-  {
-    id: 8,
-    title: "Modern CSS & Responsive Web Design",
-    instructor: "Sophia Williams",
-    category: "Web Development",
-    level: "Intermediate",
-    duration: "9h 50m",
-    lessons: 26,
-    students: 1124,
-    rating: 4.8,
-    reviews: 267,
-    price: 29,
-    originalPrice: 49,
-    imageClass: "course-image-pink",
-    icon: "🎯",
-    description:
-      "Create responsive and professional websites using modern CSS techniques.",
-    newCourse: true,
-  },
-];
-
-const categories = [
-  "All Courses",
-  "Web Development",
-  "Programming",
-  "Design",
-  "Backend Development",
-  "Database",
-  "Computer Science",
 ];
 
 const levels = ["All Levels", "Beginner", "Intermediate", "Advanced"];
 
 function Courses() {
-  const [selectedCategory, setSelectedCategory] =
-    useState("All Courses");
+  const [dbCourses, setDbCourses] = useState<Course[]>([]);
+  const [myEnrollments, setMyEnrollments] = useState<EnrolledCourse[]>([]);
+  const [currentTab, setCurrentTab] = useState<"all" | "enrolled">("all");
+  const [categories, setCategories] = useState<string[]>([
+    "All Courses",
+    "Web Development",
+    "Data Science",
+    "Design",
+    "Backend Development",
+    "Database",
+  ]);
 
-  const [selectedLevel, setSelectedLevel] =
-    useState("All Levels");
-
+  const [selectedCategory, setSelectedCategory] = useState("All Courses");
+  const [selectedLevel, setSelectedLevel] = useState("All Levels");
   const [searchQuery, setSearchQuery] = useState("");
-
   const [sortBy, setSortBy] = useState("popular");
-
   const [showFilters, setShowFilters] = useState(false);
+  const [wishlist, setWishlist] = useState<(string | number)[]>([]);
 
-  const [wishlist, setWishlist] = useState<number[]>([]);
+  useEffect(() => {
+    const loadCourses = async () => {
+      try {
+        const [catsRes, coursesRes, enrollmentsRes] = await Promise.all([
+          api.categories.getAll(),
+          api.courses.getAll(),
+          api.enrollments.getMyEnrollments().catch(() => ({ data: [] })),
+        ]);
+
+        if (catsRes.data && catsRes.data.length > 0) {
+          setCategories(["All Courses", ...catsRes.data.map((c: any) => c.name)]);
+        }
+
+        if (coursesRes.data && coursesRes.data.length > 0) {
+          const mapped = coursesRes.data.map((c: any, idx: number) => ({
+            id: c._id || c.slug,
+            title: c.title,
+            instructor: c.mentor?.name || "Lead Instructor",
+            category: c.category?.name || "Web Development",
+            level: c.level
+              ? c.level.charAt(0).toUpperCase() + c.level.slice(1)
+              : "Beginner",
+            duration: `${c.stats?.totalDurationMin || 45}m`,
+            lessons: c.stats?.lessonCount || 10,
+            students: c.stats?.enrollmentCount || 120,
+            rating: c.stats?.ratingAvg || 4.9,
+            reviews: c.stats?.ratingCount || 15,
+            price: 49,
+            originalPrice: 79,
+            imageClass:
+              idx % 3 === 0
+                ? "course-image-blue"
+                : idx % 3 === 1
+                ? "course-image-green"
+                : "course-image-purple",
+            icon: idx % 2 === 0 ? "⚛️" : "🐍",
+            description: c.description,
+            bestseller: true,
+          }));
+          setDbCourses(mapped);
+        }
+
+        if (enrollmentsRes.data && Array.isArray(enrollmentsRes.data)) {
+          const mappedEnr = enrollmentsRes.data.map(
+            (enr: any, idx: number) => ({
+              id: enr._id,
+              courseId: enr.course?._id || enr.course?.slug || enr._id,
+              title: enr.course?.title || "Course",
+              instructor: enr.course?.mentor?.name || "Instructor",
+              category: (
+                enr.course?.category?.name || "Web Development"
+              ).toUpperCase(),
+              progressPercent: enr.progressPercent || 0,
+              lastLessonTitle: enr.lastLesson?.title || "Next Lesson",
+              completedLessonsCount: enr.completedLessons?.length || 0,
+              totalLessons: enr.course?.stats?.lessonCount || 8,
+              duration: `${enr.course?.stats?.totalDurationMin || 45}m`,
+              icon: idx % 2 === 0 ? "💻" : "🐍",
+              colorClass:
+                idx % 3 === 0
+                  ? "course-blue"
+                  : idx % 3 === 1
+                  ? "course-purple"
+                  : "course-green",
+            })
+          );
+          setMyEnrollments(mappedEnr);
+        }
+      } catch (err) {
+        console.error("Failed to load courses:", err);
+      }
+    };
+
+    loadCourses();
+  }, []);
+
+  const coursesToFilter = dbCourses.length > 0 ? dbCourses : defaultCourses;
 
   const filteredCourses = useMemo(() => {
-    let filtered = courses.filter((course) => {
+    let filtered = coursesToFilter.filter((course) => {
       const matchesCategory =
         selectedCategory === "All Courses" ||
-        course.category === selectedCategory;
+        course.category.toLowerCase() === selectedCategory.toLowerCase();
 
       const matchesLevel =
         selectedLevel === "All Levels" ||
-        course.level === selectedLevel;
+        course.level.toLowerCase() === selectedLevel.toLowerCase();
 
       const search = searchQuery.toLowerCase().trim();
-
       const matchesSearch =
         !search ||
         course.title.toLowerCase().includes(search) ||
@@ -224,48 +238,23 @@ function Courses() {
     });
 
     if (sortBy === "rating") {
-      filtered = [...filtered].sort(
-        (a, b) => b.rating - a.rating
-      );
+      filtered = [...filtered].sort((a, b) => b.rating - a.rating);
     }
-
-    if (sortBy === "price-low") {
-      filtered = [...filtered].sort(
-        (a, b) => a.price - b.price
-      );
-    }
-
-    if (sortBy === "price-high") {
-      filtered = [...filtered].sort(
-        (a, b) => b.price - a.price
-      );
-    }
-
     if (sortBy === "newest") {
       filtered = [...filtered].sort(
-        (a, b) =>
-          Number(b.newCourse) - Number(a.newCourse)
+        (a, b) => Number(b.newCourse) - Number(a.newCourse)
       );
     }
 
     return filtered;
-  }, [
-    selectedCategory,
-    selectedLevel,
-    searchQuery,
-    sortBy,
-  ]);
+  }, [coursesToFilter, selectedCategory, selectedLevel, searchQuery, sortBy]);
 
-  const toggleWishlist = (courseId: number) => {
-    setWishlist((currentWishlist) => {
-      if (currentWishlist.includes(courseId)) {
-        return currentWishlist.filter(
-          (id) => id !== courseId
-        );
-      }
-
-      return [...currentWishlist, courseId];
-    });
+  const toggleWishlist = (courseId: string | number) => {
+    setWishlist((curr) =>
+      curr.includes(courseId)
+        ? curr.filter((id) => id !== courseId)
+        : [...curr, courseId]
+    );
   };
 
   const resetFilters = () => {
@@ -276,632 +265,418 @@ function Courses() {
   };
 
   return (
-    <div className="courses-page">
-      {/* ================================
-          SIDEBAR
-          ================================= */}
+    <div className="landing-page">
+      <Navbar />
+      <main className="landing-container" style={{ padding: "40px 0" }}>
+        <div className="courses-content" style={{ padding: "0" }}>
+        {/* Page Header */}
+        <section className="courses-page-header">
+          <div className="courses-header-left">
+            <span className="courses-eyebrow">COURSES DIRECTORY</span>
+            <h1>Course Hub</h1>
+            <p>
+              Explore high-quality courses, build in-demand skills, or resume your
+              enrolled courses.
+            </p>
 
-      <aside className="courses-sidebar">
-        <div className="courses-brand">
-          <Link
-            to="/student/dashboard"
-            className="courses-brand-link"
-          >
-            <span className="courses-brand-icon">
-              L
-            </span>
+            {/* Tab selection */}
+            <div
+              style={{
+                display: "inline-flex",
+                gap: "8px",
+                marginTop: "16px",
+                background: "#f1f5f9",
+                padding: "4px",
+                borderRadius: "10px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setCurrentTab("all")}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: "8px",
+                  border: "none",
+                  fontWeight: 700,
+                  fontSize: "13.5px",
+                  cursor: "pointer",
+                  background: currentTab === "all" ? "#ffffff" : "transparent",
+                  color: currentTab === "all" ? "#4f46e5" : "#64748b",
+                  boxShadow:
+                    currentTab === "all"
+                      ? "0 2px 8px rgba(0, 0, 0, 0.06)"
+                      : "none",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                Explore All Courses ({filteredCourses.length})
+              </button>
 
-            <span className="courses-brand-text">
-              LearnHub
-            </span>
-          </Link>
-        </div>
-
-        <nav className="courses-navigation">
-          <p className="courses-nav-title">
-            MAIN MENU
-          </p>
-
-          <Link
-            to="/student/dashboard"
-            className="courses-nav-item"
-          >
-            <span className="courses-nav-icon">
-              ▦
-            </span>
-
-            <span>Dashboard</span>
-          </Link>
-
-          <Link
-            to="/courses"
-            className="courses-nav-item active"
-          >
-            <span className="courses-nav-icon">
-              ▤
-            </span>
-
-            <span>Courses</span>
-          </Link>
-
-          <Link
-            to="/discover"
-            className="courses-nav-item"
-          >
-            <span className="courses-nav-icon">
-              ⌕
-            </span>
-
-            <span>Discover</span>
-          </Link>
-
-          <Link
-            to="/quizzes"
-            className="courses-nav-item"
-          >
-            <span className="courses-nav-icon">
-              ✓
-            </span>
-
-            <span>Quizzes</span>
-          </Link>
-
-          <Link
-            to="/progress"
-            className="courses-nav-item"
-          >
-            <span className="courses-nav-icon">
-              ◔
-            </span>
-
-            <span>My Progress</span>
-          </Link>
-
-          <p className="courses-nav-title second-title">
-            LEARNING
-          </p>
-
-          <Link
-            to="/activities"
-            className="courses-nav-item"
-          >
-            <span className="courses-nav-icon">
-              ◷
-            </span>
-
-            <span>Activities</span>
-          </Link>
-
-          <Link
-            to="/achievements"
-            className="courses-nav-item"
-          >
-            <span className="courses-nav-icon">
-              ♛
-            </span>
-
-            <span>Achievements</span>
-          </Link>
-
-          <Link
-            to="/wishlist"
-            className="courses-nav-item"
-          >
-            <span className="courses-nav-icon">
-              ♡
-            </span>
-
-            <span>Wishlist</span>
-
-            {wishlist.length > 0 && (
-              <span className="courses-nav-badge">
-                {wishlist.length}
-              </span>
-            )}
-          </Link>
-        </nav>
-
-        <div className="courses-sidebar-bottom">
-          <Link
-            to="/profile"
-            className="courses-profile-link"
-          >
-            <span className="courses-avatar">
-              S
-            </span>
-
-            <span>
-              <strong>Supriya</strong>
-              <small>Student</small>
-            </span>
-          </Link>
-
-          <Link
-            to="/settings"
-            className="courses-settings-link"
-          >
-            <span>⚙</span>
-            Settings
-          </Link>
-        </div>
-      </aside>
-
-      {/* ================================
-          MAIN CONTENT
-          ================================= */}
-
-      <main className="courses-main">
-        {/* Topbar */}
-
-        <header className="courses-topbar">
-          <div className="courses-breadcrumb">
-            <Link to="/student/dashboard">
-              Dashboard
-            </Link>
-
-            <span>/</span>
-
-            <strong>Courses</strong>
+              <button
+                type="button"
+                onClick={() => setCurrentTab("enrolled")}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: "8px",
+                  border: "none",
+                  fontWeight: 700,
+                  fontSize: "13.5px",
+                  cursor: "pointer",
+                  background: currentTab === "enrolled" ? "#ffffff" : "transparent",
+                  color: currentTab === "enrolled" ? "#4f46e5" : "#64748b",
+                  boxShadow:
+                    currentTab === "enrolled"
+                      ? "0 2px 8px rgba(0, 0, 0, 0.06)"
+                      : "none",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                My Enrolled Courses ({myEnrollments.length})
+              </button>
+            </div>
           </div>
 
-          <div className="courses-topbar-actions">
-            <button
-              type="button"
-              className="courses-topbar-button"
-              aria-label="Notifications"
-            >
-              ♢
-
-              <span className="notification-dot"></span>
-            </button>
-
-            <div className="topbar-divider"></div>
-
-            <Link
-              to="/profile"
-              className="courses-user"
-            >
-              <span className="courses-user-avatar">
-                S
-              </span>
-
-              <span className="courses-user-info">
-                <strong>Supriya</strong>
-                <small>Student</small>
-              </span>
-
-              <span className="user-arrow">
-                ⌄
-              </span>
-            </Link>
-          </div>
-        </header>
-
-        <div className="courses-content">
-          {/* ================================
-              PAGE HEADER
-              ================================= */}
-
-          <section className="courses-page-header">
+          <div className="courses-header-stat">
+            <span className="header-stat-icon">📚</span>
             <div>
-              <span className="courses-eyebrow">
-                EXPAND YOUR KNOWLEDGE
-              </span>
-
-              <h1>Explore Courses</h1>
-
-              <p>
-                Discover courses designed to help you
-                build practical skills and achieve your
-                learning goals.
-              </p>
+              <strong>{filteredCourses.length}+</strong>
+              <span>Courses available</span>
             </div>
+          </div>
+        </section>
 
-            <div className="courses-header-stat">
-              <span className="header-stat-icon">
-                📚
-              </span>
+        {/* Tab 1: My Enrolled Courses */}
+        {currentTab === "enrolled" && (
+          <div style={{ padding: "0 0 32px" }}>
+            {myEnrollments.length > 0 ? (
+              <div className="courses-grid" style={{ marginTop: "16px" }}>
+                {myEnrollments.map((enr) => (
+                  <article className="course-card" key={enr.id}>
+                    <div className="course-card-image course-image-blue">
+                      <div className="course-image-pattern"></div>
+                      <span className="course-main-icon">{enr.icon}</span>
+                      <span className="course-badge bestseller">
+                        {enr.progressPercent}% Complete
+                      </span>
+                    </div>
 
-              <div>
-                <strong>500+</strong>
-                <span>Courses available</span>
-              </div>
-            </div>
-          </section>
+                    <div className="course-card-body">
+                      <div className="course-category-row">
+                        <span>{enr.category}</span>
+                        <span className="course-level">Enrolled</span>
+                      </div>
 
-          {/* ================================
-              SEARCH
-              ================================= */}
+                      <h3>{enr.title}</h3>
+                      <p className="course-description">
+                        Current: <strong>{enr.lastLessonTitle}</strong> (
+                        {enr.completedLessonsCount} of {enr.totalLessons} lessons
+                        completed)
+                      </p>
 
-          <section className="course-search-section">
-            <div className="course-search-box">
-              <span className="course-search-icon">
-                ⌕
-              </span>
-
-              <input
-                type="text"
-                placeholder="Search for courses, topics or instructors..."
-                value={searchQuery}
-                onChange={(event) =>
-                  setSearchQuery(event.target.value)
-                }
-              />
-
-              {searchQuery && (
-                <button
-                  type="button"
-                  className="clear-search"
-                  onClick={() => setSearchQuery("")}
-                  aria-label="Clear search"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-
-            <button
-              type="button"
-              className={`mobile-filter-button ${
-                showFilters ? "active" : ""
-              }`}
-              onClick={() =>
-                setShowFilters((value) => !value)
-              }
-            >
-              ☷
-              <span>Filters</span>
-            </button>
-          </section>
-
-          <div className="courses-layout">
-            {/* ================================
-                FILTER SIDEBAR
-                ================================= */}
-
-            <aside
-              className={`courses-filters ${
-                showFilters
-                  ? "filters-visible"
-                  : ""
-              }`}
-            >
-              <div className="filters-header">
-                <h2>Filters</h2>
-
-                <button
-                  type="button"
-                  onClick={resetFilters}
-                >
-                  Reset
-                </button>
-              </div>
-
-              {/* Categories */}
-
-              <div className="filter-group">
-                <h3>Categories</h3>
-
-                <div className="filter-options">
-                  {categories.map((category) => (
-                    <button
-                      type="button"
-                      key={category}
-                      className={`filter-option ${
-                        selectedCategory === category
-                          ? "selected"
-                          : ""
-                      }`}
-                      onClick={() =>
-                        setSelectedCategory(category)
-                      }
-                    >
-                      <span
-                        className={`filter-radio ${
-                          selectedCategory === category
-                            ? "checked"
-                            : ""
-                        }`}
-                      ></span>
-
-                      <span>{category}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Levels */}
-
-              <div className="filter-group">
-                <h3>Level</h3>
-
-                <div className="filter-options">
-                  {levels.map((level) => (
-                    <button
-                      type="button"
-                      key={level}
-                      className={`filter-option ${
-                        selectedLevel === level
-                          ? "selected"
-                          : ""
-                      }`}
-                      onClick={() =>
-                        setSelectedLevel(level)
-                      }
-                    >
-                      <span
-                        className={`filter-radio ${
-                          selectedLevel === level
-                            ? "checked"
-                            : ""
-                        }`}
-                      ></span>
-
-                      <span>{level}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Help Card */}
-
-              <div className="filter-help-card">
-                <span>💡</span>
-
-                <strong>
-                  Not sure where to start?
-                </strong>
-
-                <p>
-                  Take a quick assessment and discover
-                  courses that match your skill level.
-                </p>
-
-                <button type="button">
-                  Find My Courses →
-                </button>
-              </div>
-            </aside>
-
-            {/* ================================
-                COURSE RESULTS
-                ================================= */}
-
-            <section className="course-results">
-              <div className="course-results-header">
-                <div>
-                  <h2>All Courses</h2>
-
-                  <p>
-                    Showing{" "}
-                    <strong>
-                      {filteredCourses.length}
-                    </strong>{" "}
-                    courses
-                  </p>
-                </div>
-
-                <div className="sort-wrapper">
-                  <label htmlFor="course-sort">
-                    Sort by
-                  </label>
-
-                  <select
-                    id="course-sort"
-                    value={sortBy}
-                    onChange={(event) =>
-                      setSortBy(event.target.value)
-                    }
-                  >
-                    <option value="popular">
-                      Most Popular
-                    </option>
-
-                    <option value="rating">
-                      Highest Rated
-                    </option>
-
-                    <option value="newest">
-                      Newest
-                    </option>
-
-                    <option value="price-low">
-                      Price: Low to High
-                    </option>
-
-                    <option value="price-high">
-                      Price: High to Low
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Course Cards */}
-
-              {filteredCourses.length > 0 ? (
-                <div className="courses-grid">
-                  {filteredCourses.map((course) => (
-                    <article
-                      className="course-card"
-                      key={course.id}
-                    >
-                      {/* Course Image */}
-
-                      <div
-                        className={`course-card-image ${course.imageClass}`}
-                      >
-                        <div className="course-image-pattern"></div>
-
-                        <span className="course-main-icon">
-                          {course.icon}
-                        </span>
-
-                        {course.bestseller && (
-                          <span className="course-badge bestseller">
-                            Bestseller
-                          </span>
-                        )}
-
-                        {course.newCourse && (
-                          <span className="course-badge new-badge">
-                            New
-                          </span>
-                        )}
-
-                        <button
-                          type="button"
-                          className={`course-wishlist ${
-                            wishlist.includes(course.id)
-                              ? "saved"
-                              : ""
-                          }`}
-                          onClick={() =>
-                            toggleWishlist(course.id)
-                          }
-                          aria-label={
-                            wishlist.includes(course.id)
-                              ? "Remove from wishlist"
-                              : "Add to wishlist"
-                          }
+                      <div style={{ margin: "14px 0" }}>
+                        <div
+                          style={{
+                            height: "6px",
+                            background: "#e5e7eb",
+                            borderRadius: "10px",
+                            overflow: "hidden",
+                          }}
                         >
-                          {wishlist.includes(course.id)
-                            ? "♥"
-                            : "♡"}
-                        </button>
-                      </div>
-
-                      {/* Course Information */}
-
-                      <div className="course-card-body">
-                        <div className="course-category-row">
-                          <span>
-                            {course.category}
-                          </span>
-
-                          <span className="course-level">
-                            {course.level}
-                          </span>
-                        </div>
-
-                        <h3>{course.title}</h3>
-
-                        <p className="course-description">
-                          {course.description}
-                        </p>
-
-                        {/* Instructor */}
-
-                        <div className="course-instructor">
-                          <span className="instructor-avatar">
-                            {course.instructor.charAt(0)}
-                          </span>
-
-                          <span>
-                            {course.instructor}
-                          </span>
-                        </div>
-
-                        {/* Rating */}
-
-                        <div className="course-rating-row">
-                          <strong>
-                            {course.rating}
-                          </strong>
-
-                          <span className="stars">
-                            ★★★★★
-                          </span>
-
-                          <span className="review-count">
-                            ({course.reviews})
-                          </span>
-                        </div>
-
-                        {/* Course Metadata */}
-
-                        <div className="course-meta-row">
-                          <span>
-                            ◷ {course.duration}
-                          </span>
-
-                          <span>
-                            ▤ {course.lessons} lessons
-                          </span>
-
-                          <span>
-                            ♙{" "}
-                            {course.students.toLocaleString()}
-                          </span>
-                        </div>
-
-                        {/* Footer */}
-
-                        <div className="course-card-footer">
-                          <div className="course-price">
-                            <strong>
-                              ${course.price}
-                            </strong>
-
-                            {course.originalPrice && (
-                              <del>
-                                ${course.originalPrice}
-                              </del>
-                            )}
-                          </div>
-
-                          <Link
-                            to={`/courses/${course.id}`}
-                            className="course-view-button"
-                          >
-                            View Course
-                          </Link>
+                          <div
+                            style={{
+                              height: "100%",
+                              width: `${enr.progressPercent}%`,
+                              background: "#4f46e5",
+                              borderRadius: "10px",
+                            }}
+                          ></div>
                         </div>
                       </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                /* No Results */
 
-                <div className="no-courses">
-                  <span>🔎</span>
+                      <div className="course-card-footer">
+                        <Link
+                          to={`/learn/${enr.courseId}`}
+                          className="course-view-button"
+                          style={{ width: "100%", textAlign: "center" }}
+                        >
+                          Resume Learning →
+                        </Link>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div
+                className="dashboard-empty-state"
+                style={{
+                  background: "#ffffff",
+                  borderRadius: "16px",
+                  padding: "50px 20px",
+                  border: "1px solid #e5e7eb",
+                  marginTop: "16px",
+                  textAlign: "center",
+                }}
+              >
+                <span style={{ fontSize: "42px", marginBottom: "12px", display: "block" }}>
+                  🎓
+                </span>
+                <strong style={{ fontSize: "18px", color: "#1f2937", display: "block" }}>
+                  No enrolled courses yet
+                </strong>
+                <p
+                  style={{
+                    fontSize: "14px",
+                    color: "#6b7280",
+                    margin: "8px auto 20px",
+                    maxWidth: "420px",
+                  }}
+                >
+                  You haven't enrolled in any courses yet. Explore our curated
+                  courses catalog below to start learning right now.
+                </p>
+                <button
+                  type="button"
+                  className="dashboard-primary-button"
+                  onClick={() => setCurrentTab("all")}
+                  style={{ display: "inline-flex", margin: "0 auto" }}
+                >
+                  Browse All Courses →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
-                  <h3>No courses found</h3>
-
-                  <p>
-                    We couldn't find any courses matching
-                    your search and filters.
-                  </p>
-
+        {/* Tab 2: All Courses Catalog */}
+        {currentTab === "all" && (
+          <div>
+            {/* Search and filter controls */}
+            <section className="course-search-section">
+              <div className="course-search-box">
+                <span className="course-search-icon">⌕</span>
+                <input
+                  type="text"
+                  placeholder="Filter by keyword, topic or instructor..."
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+                {searchQuery && (
                   <button
                     type="button"
-                    onClick={resetFilters}
+                    className="clear-search"
+                    onClick={() => setSearchQuery("")}
+                    aria-label="Clear search"
                   >
-                    Clear Filters
+                    ×
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className={`mobile-filter-button ${
+                  showFilters ? "active" : ""
+                }`}
+                onClick={() => setShowFilters((value) => !value)}
+              >
+                ☷ <span>Filters</span>
+              </button>
+            </section>
+
+            <div className="courses-layout">
+              {/* Filter Sidebar */}
+              <aside
+                className={`courses-filters ${
+                  showFilters ? "filters-visible" : ""
+                }`}
+              >
+                <div className="filters-header">
+                  <h2>Filters</h2>
+                  <button type="button" onClick={resetFilters}>
+                    Reset
                   </button>
                 </div>
-              )}
-            </section>
+
+                {/* Categories */}
+                <div className="filter-group">
+                  <h3>Categories</h3>
+                  <div className="filter-options">
+                    {categories.map((category) => (
+                      <button
+                        type="button"
+                        key={category}
+                        className={`filter-option ${
+                          selectedCategory === category ? "selected" : ""
+                        }`}
+                        onClick={() => setSelectedCategory(category)}
+                      >
+                        <span
+                          className={`filter-radio ${
+                            selectedCategory === category ? "checked" : ""
+                          }`}
+                        ></span>
+                        <span>{category}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Levels */}
+                <div className="filter-group">
+                  <h3>Level</h3>
+                  <div className="filter-options">
+                    {levels.map((level) => (
+                      <button
+                        type="button"
+                        key={level}
+                        className={`filter-option ${
+                          selectedLevel === level ? "selected" : ""
+                        }`}
+                        onClick={() => setSelectedLevel(level)}
+                      >
+                        <span
+                          className={`filter-radio ${
+                            selectedLevel === level ? "checked" : ""
+                          }`}
+                        ></span>
+                        <span>{level}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </aside>
+
+              {/* Course Results */}
+              <section className="course-results">
+                <div className="course-results-header">
+                  <div>
+                    <h2>All Courses</h2>
+                    <p>
+                      Showing <strong>{filteredCourses.length}</strong> courses
+                    </p>
+                  </div>
+
+                  <div className="sort-wrapper">
+                    <label htmlFor="course-sort">Sort by</label>
+                    <select
+                      id="course-sort"
+                      value={sortBy}
+                      onChange={(event) => setSortBy(event.target.value)}
+                    >
+                      <option value="popular">Most Popular</option>
+                      <option value="rating">Highest Rated</option>
+                      <option value="newest">Newest</option>
+                    </select>
+                  </div>
+                </div>
+
+                {filteredCourses.length > 0 ? (
+                  <div className="courses-grid">
+                    {filteredCourses.map((course) => (
+                      <article className="course-card" key={course.id}>
+                        <div
+                          className={`course-card-image ${course.imageClass}`}
+                        >
+                          <div className="course-image-pattern"></div>
+                          <span className="course-main-icon">{course.icon}</span>
+
+                          {course.bestseller && (
+                            <span className="course-badge bestseller">
+                              Bestseller
+                            </span>
+                          )}
+
+                          <button
+                            type="button"
+                            className={`course-wishlist ${
+                              wishlist.includes(course.id) ? "saved" : ""
+                            }`}
+                            onClick={() => toggleWishlist(course.id)}
+                            aria-label={`Wishlist ${course.title}`}
+                          >
+                            {wishlist.includes(course.id) ? "♥" : "♡"}
+                          </button>
+                        </div>
+
+                        <div className="course-card-body">
+                          <div className="course-category-row">
+                            <span>{course.category}</span>
+                            <span className="course-level">{course.level}</span>
+                          </div>
+
+                          <h3>{course.title}</h3>
+                          <p className="course-description">
+                            {course.description}
+                          </p>
+
+                          <div className="course-instructor">
+                            <span className="instructor-avatar">
+                              {course.instructor.charAt(0)}
+                            </span>
+                            <span>{course.instructor}</span>
+                          </div>
+
+                          <div className="course-rating-row">
+                            <strong>{course.rating}</strong>
+                            <span className="stars">★★★★★</span>
+                            <span className="review-count">
+                              ({course.reviews})
+                            </span>
+                          </div>
+
+                          <div className="course-meta-row">
+                            <span>◷ {course.duration}</span>
+                            <span>▤ {course.lessons} lessons</span>
+                            <span>♙ {course.students.toLocaleString()}</span>
+                          </div>
+
+                          <div className="course-card-footer">
+                            <div className="course-price">
+                              <strong>${course.price}</strong>
+                              {course.originalPrice && (
+                                <del>${course.originalPrice}</del>
+                              )}
+                            </div>
+
+                            <Link
+                              to={`/courses/${course.id}`}
+                              className="course-view-button"
+                            >
+                              View Course
+                            </Link>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="no-courses">
+                    <span>🔎</span>
+                    <h3>No courses found</h3>
+                    <p>
+                      We couldn't find any courses matching your search and
+                      filters.
+                    </p>
+                    <button type="button" onClick={resetFilters}>
+                      Clear Filters
+                    </button>
+                  </div>
+                )}
+              </section>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* ================================
-            FOOTER
-            ================================= */}
-
+        {/* Footer */}
         <footer className="courses-footer">
-          <span>
-            © 2026 LearnHub. Keep learning, keep growing.
-          </span>
-
+          <span>© 2026 LearnHub. Keep learning, keep growing.</span>
           <div>
-            <Link to="/help">Help Center</Link>
-
-            <Link to="/privacy">Privacy</Link>
-
-            <Link to="/terms">Terms</Link>
+            <Link to="/courses">Courses</Link>
+            <Link to="/student/dashboard">Dashboard</Link>
           </div>
         </footer>
+      </div>
       </main>
     </div>
   );

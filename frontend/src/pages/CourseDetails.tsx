@@ -1,822 +1,695 @@
-
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ApiError, api, getErrorMessage } from "../services/api";
+import { useAuth } from "../context/AuthContext";
+import { EmptyState, Loading, Notice } from "../components/Notice";
+import {
+  capitalize,
+  formatDuration,
+  getInitials,
+  getYouTubeEmbedUrl,
+  PRICE_LABEL,
+} from "../utils/format";
 import "./CourseDetails.css";
 
-interface Lesson {
-  id: number;
-  title: string;
-  duration: string;
-  preview?: boolean;
+function Stars({ value }: { value: number }) {
+  const full = Math.round(value);
+  return (
+    <span className="cd-stars" aria-label={`${value} out of 5 stars`}>
+      {"★".repeat(full)}
+      <span className="cd-stars-off">{"★".repeat(Math.max(0, 5 - full))}</span>
+    </span>
+  );
 }
-
-interface CourseDetail {
-  id: number;
-  title: string;
-  instructor: string;
-  instructorRole: string;
-  category: string;
-  level: string;
-  duration: string;
-  lessons: number;
-  students: number;
-  rating: number;
-  reviews: number;
-  price: number;
-  originalPrice: number;
-  imageClass: string;
-  icon: string;
-  description: string;
-  bestseller?: boolean;
-  newCourse?: boolean;
-  lastUpdated: string;
-  language: string;
-  certificate: boolean;
-  whatYouLearn: string[];
-  requirements: string[];
-  lessonsList: Lesson[];
-  instructorBio: string;
-}
-
-const courses: CourseDetail[] = [
-  {
-    id: 1,
-    title: "Complete React & TypeScript Development",
-    instructor: "Sarah Johnson",
-    instructorRole: "Senior Frontend Developer",
-    category: "Web Development",
-    level: "Intermediate",
-    duration: "18h 30m",
-    lessons: 42,
-    students: 1248,
-    rating: 4.9,
-    reviews: 326,
-    price: 49,
-    originalPrice: 79,
-    imageClass: "detail-blue",
-    icon: "⚛️",
-    description:
-      "Master modern React and TypeScript by building real-world applications from scratch. Learn component architecture, hooks, state management, TypeScript fundamentals, API integration, and professional frontend development practices.",
-    bestseller: true,
-    lastUpdated: "September 2026",
-    language: "English",
-    certificate: true,
-    whatYouLearn: [
-      "Build modern React applications with TypeScript",
-      "Understand React components, props, state, and hooks",
-      "Create reusable and scalable frontend architectures",
-      "Work with APIs and asynchronous data",
-      "Implement forms and advanced validation",
-      "Use TypeScript effectively in React projects",
-      "Build responsive and professional user interfaces",
-      "Follow modern frontend development best practices",
-    ],
-    requirements: [
-      "Basic understanding of HTML and CSS",
-      "Basic JavaScript knowledge",
-      "A computer with a modern web browser",
-      "No previous React experience is required",
-    ],
-    lessonsList: [
-      {
-        id: 1,
-        title: "Introduction to React & TypeScript",
-        duration: "18 min",
-        preview: true,
-      },
-      {
-        id: 2,
-        title: "Setting Up Your Development Environment",
-        duration: "24 min",
-        preview: true,
-      },
-      {
-        id: 3,
-        title: "React Components & JSX",
-        duration: "32 min",
-      },
-      {
-        id: 4,
-        title: "Props and Component Communication",
-        duration: "28 min",
-      },
-      {
-        id: 5,
-        title: "Understanding React State",
-        duration: "35 min",
-      },
-      {
-        id: 6,
-        title: "React Hooks Fundamentals",
-        duration: "42 min",
-      },
-      {
-        id: 7,
-        title: "Working with TypeScript",
-        duration: "38 min",
-      },
-      {
-        id: 8,
-        title: "Forms and User Input",
-        duration: "31 min",
-      },
-      {
-        id: 9,
-        title: "API Integration",
-        duration: "45 min",
-      },
-      {
-        id: 10,
-        title: "Building the Final Project",
-        duration: "58 min",
-      },
-    ],
-    instructorBio:
-      "Sarah Johnson is a senior frontend developer and educator with years of experience building scalable web applications. She enjoys helping developers learn practical skills through real-world projects.",
-  },
-  {
-    id: 2,
-    title: "JavaScript From Beginner to Advanced",
-    instructor: "Michael Brown",
-    instructorRole: "JavaScript Developer & Instructor",
-    category: "Web Development",
-    level: "Beginner",
-    duration: "21h 15m",
-    lessons: 56,
-    students: 2156,
-    rating: 4.8,
-    reviews: 512,
-    price: 39,
-    originalPrice: 69,
-    imageClass: "detail-yellow",
-    icon: "JS",
-    bestseller: true,
-    description:
-      "Learn JavaScript from the fundamentals to advanced concepts through practical examples and projects.",
-    lastUpdated: "August 2026",
-    language: "English",
-    certificate: true,
-    whatYouLearn: [
-      "Understand JavaScript fundamentals",
-      "Work with functions, arrays, and objects",
-      "Understand asynchronous JavaScript",
-      "Work with APIs and JSON",
-      "Build interactive web applications",
-      "Use modern ES6+ features",
-    ],
-    requirements: [
-      "Basic computer knowledge",
-      "A modern web browser",
-      "No programming experience required",
-    ],
-    lessonsList: [
-      {
-        id: 1,
-        title: "Introduction to JavaScript",
-        duration: "22 min",
-        preview: true,
-      },
-      {
-        id: 2,
-        title: "Variables and Data Types",
-        duration: "28 min",
-      },
-      {
-        id: 3,
-        title: "Functions and Scope",
-        duration: "35 min",
-      },
-      {
-        id: 4,
-        title: "Arrays and Objects",
-        duration: "41 min",
-      },
-      {
-        id: 5,
-        title: "DOM Manipulation",
-        duration: "46 min",
-      },
-      {
-        id: 6,
-        title: "Asynchronous JavaScript",
-        duration: "52 min",
-      },
-    ],
-    instructorBio:
-      "Michael Brown is a JavaScript developer and instructor focused on teaching programming concepts in a simple and practical way.",
-  },
-  {
-    id: 3,
-    title: "Python Programming Masterclass",
-    instructor: "David Wilson",
-    instructorRole: "Python Developer & Data Educator",
-    category: "Programming",
-    level: "Beginner",
-    duration: "24h 10m",
-    lessons: 64,
-    students: 3421,
-    rating: 4.9,
-    reviews: 784,
-    price: 45,
-    originalPrice: 75,
-    imageClass: "detail-green",
-    icon: "🐍",
-    bestseller: true,
-    description:
-      "Build a strong Python foundation and learn how to create practical applications using modern Python programming techniques.",
-    lastUpdated: "September 2026",
-    language: "English",
-    certificate: true,
-    whatYouLearn: [
-      "Master Python syntax and fundamentals",
-      "Work with functions and modules",
-      "Understand object-oriented programming",
-      "Work with files and data",
-      "Handle errors and exceptions",
-      "Build practical Python applications",
-    ],
-    requirements: [
-      "Basic computer knowledge",
-      "No previous programming experience required",
-    ],
-    lessonsList: [
-      {
-        id: 1,
-        title: "Getting Started with Python",
-        duration: "25 min",
-        preview: true,
-      },
-      {
-        id: 2,
-        title: "Variables and Data Types",
-        duration: "31 min",
-      },
-      {
-        id: 3,
-        title: "Conditional Statements",
-        duration: "28 min",
-      },
-      {
-        id: 4,
-        title: "Loops and Iteration",
-        duration: "36 min",
-      },
-      {
-        id: 5,
-        title: "Functions",
-        duration: "42 min",
-      },
-      {
-        id: 6,
-        title: "Object-Oriented Programming",
-        duration: "51 min",
-      },
-    ],
-    instructorBio:
-      "David Wilson teaches Python and programming fundamentals with a focus on practical projects and easy-to-understand explanations.",
-  },
-];
 
 function CourseDetails() {
-  const { id } = useParams();
-  const [openSection, setOpenSection] = useState(true);
-  const [isWishlisted, setIsWishlisted] = useState(false);
-  const [enrolled, setEnrolled] = useState(false);
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
 
-  const course =
-    courses.find((item) => item.id === Number(id)) || courses[0];
+  const [course, setCourse] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [enrollment, setEnrollment] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [notFound, setNotFound] = useState(false);
 
-  const handleEnroll = () => {
-    setEnrolled(true);
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrollError, setEnrollError] = useState("");
+
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState<{
+    kind: "error" | "success";
+    text: string;
+  } | null>(null);
+
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewError, setPreviewError] = useState("");
+
+  const isEnrolled = !!enrollment;
+
+  const loadCourse = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setLoadError("");
+    setNotFound(false);
+
+    try {
+      const courseRes = await api.courses.getByIdOrSlug(id);
+      const c = courseRes.data;
+      setCourse(c);
+
+      // Reviews are secondary: a failure here should not hide the course
+      try {
+        const reviewsRes = await api.courses.getReviews(c._id);
+        setReviews(reviewsRes.data || []);
+      } catch {
+        setReviews([]);
+      }
+
+      if (isAuthenticated) {
+        try {
+          const mine = await api.enrollments.getMyEnrollments();
+          const found = (mine.data || []).find(
+            (e: any) => e.course?._id === c._id
+          );
+          setEnrollment(found || null);
+        } catch {
+          setEnrollment(null);
+        }
+      } else {
+        setEnrollment(null);
+      }
+    } catch (err) {
+      setCourse(null);
+      if (err instanceof ApiError && err.status === 404) {
+        setNotFound(true);
+      } else {
+        setLoadError(getErrorMessage(err, "Failed to load this course."));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [id, isAuthenticated]);
+
+  useEffect(() => {
+    loadCourse();
+  }, [loadCourse]);
+
+  const isOwner =
+    !!course && !!user && course.mentor?._id === user.id;
+  const isPublished = course?.status === "published";
+
+  const handleEnroll = async () => {
+    if (!isAuthenticated) {
+      navigate("/login", { state: { from: `/courses/${id}` } });
+      return;
+    }
+
+    if (isEnrolled) {
+      navigate(`/learn/${course._id}`);
+      return;
+    }
+
+    setEnrolling(true);
+    setEnrollError("");
+    try {
+      await api.enrollments.enroll(course._id);
+      navigate(`/learn/${course._id}`);
+    } catch (err) {
+      // 409 = already enrolled (e.g. enrolled in another tab): just continue
+      if (err instanceof ApiError && err.status === 409) {
+        navigate(`/learn/${course._id}`);
+        return;
+      }
+      setEnrollError(getErrorMessage(err, "Enrollment failed. Please try again."));
+    } finally {
+      setEnrolling(false);
+    }
   };
 
-  const toggleWishlist = () => {
-    setIsWishlisted((current) => !current);
+  const handleReviewSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!course) return;
+
+    setSubmittingReview(true);
+    setReviewMessage(null);
+
+    try {
+      await api.courses.submitReview(course._id, {
+        rating,
+        comment: comment.trim(),
+      });
+      setReviewMessage({ kind: "success", text: "Thanks! Your review was saved." });
+      setComment("");
+
+      const [updatedReviews, updatedCourse] = await Promise.all([
+        api.courses.getReviews(course._id),
+        api.courses.getByIdOrSlug(course._id),
+      ]);
+      setReviews(updatedReviews.data || []);
+      setCourse(updatedCourse.data);
+    } catch (err) {
+      setReviewMessage({
+        kind: "error",
+        text: getErrorMessage(err, "Failed to submit review."),
+      });
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
-  return (
-    <div className="course-details-page">
-      {/* Sidebar */}
-      <aside className="details-sidebar">
-        <Link to="/" className="details-brand">
-          <span className="details-brand-icon">L</span>
-          <span>LearnHub</span>
+  const togglePreview = async (lessonId: string) => {
+    if (previewId === lessonId) {
+      setPreviewId(null);
+      return;
+    }
+    setPreviewId(lessonId);
+    setPreviewData(null);
+    setPreviewError("");
+    try {
+      const res = await api.learn.getLesson(lessonId);
+      setPreviewData(res.data);
+    } catch (err) {
+      setPreviewError(getErrorMessage(err, "Could not load the preview."));
+    }
+  };
+
+  // Group lessons / quizzes under their sections
+  const curriculum = useMemo(() => {
+    if (!course) return [];
+    const sections = [...(course.sections || [])].sort(
+      (a: any, b: any) => (a.order || 0) - (b.order || 0)
+    );
+    const lessons = course.lessons || [];
+    const quizzes = course.quizzes || [];
+
+    const grouped = sections.map((section: any) => ({
+      id: section._id,
+      title: section.title,
+      lessons: lessons.filter((l: any) => l.sectionId === section._id),
+      quizzes: quizzes.filter((q: any) => q.sectionId === section._id),
+    }));
+
+    const knownIds = new Set(sections.map((s: any) => s._id));
+    const looseLessons = lessons.filter((l: any) => !knownIds.has(l.sectionId));
+    const looseQuizzes = quizzes.filter((q: any) => !knownIds.has(q.sectionId));
+    if (looseLessons.length > 0 || looseQuizzes.length > 0) {
+      grouped.push({
+        id: "other",
+        title: "Additional content",
+        lessons: looseLessons,
+        quizzes: looseQuizzes,
+      });
+    }
+
+    return grouped.filter((g: any) => g.lessons.length + g.quizzes.length > 0);
+  }, [course]);
+
+  const navbar = (
+    <header className="cd-navbar">
+      <div className="cd-navbar-inner">
+        <Link to="/" className="cd-logo">
+          <span className="cd-logo-icon">E</span>
+          <span>Eduverse</span>
         </Link>
 
-        <nav className="details-navigation">
-          <div className="details-nav-section">
-            <p className="details-nav-title">LEARNING</p>
+        <nav className="cd-nav-links">
+          <Link to="/">Home</Link>
+          <Link to="/courses">Courses</Link>
+          <Link to="/discover">Discover</Link>
 
-            <Link to="/student/dashboard" className="details-nav-item">
-              <span>▦</span>
+          {isAuthenticated ? (
+            <Link to="/student/dashboard" className="cd-nav-cta">
               Dashboard
             </Link>
-
-            <Link
-              to="/courses"
-              className="details-nav-item active"
-            >
-              <span>▤</span>
-              Courses
+          ) : (
+            <Link to="/login" className="cd-nav-cta">
+              Login
             </Link>
-
-            <Link to="/discover" className="details-nav-item">
-              <span>✦</span>
-              Discover
-            </Link>
-
-            <Link to="/quizzes" className="details-nav-item">
-              <span>✓</span>
-              Quizzes
-            </Link>
-
-            <Link to="/progress" className="details-nav-item">
-              <span>◔</span>
-              Progress
-            </Link>
-          </div>
-
-          <div className="details-nav-section">
-            <p className="details-nav-title">MY LEARNING</p>
-
-            <Link to="/activities" className="details-nav-item">
-              <span>◷</span>
-              Activities
-            </Link>
-
-            <Link to="/achievements" className="details-nav-item">
-              <span>🏆</span>
-              Achievements
-            </Link>
-
-            <Link to="/wishlist" className="details-nav-item">
-              <span>♡</span>
-              Wishlist
-            </Link>
-          </div>
-
-          <div className="details-nav-section">
-            <p className="details-nav-title">ACCOUNT</p>
-
-            <Link to="/profile" className="details-nav-item">
-              <span>♙</span>
-              Profile
-            </Link>
-
-            <Link to="/settings" className="details-nav-item">
-              <span>⚙</span>
-              Settings
-            </Link>
-          </div>
+          )}
         </nav>
+      </div>
+    </header>
+  );
 
-        <div className="details-sidebar-help">
-          <div className="help-icon">?</div>
-          <strong>Need help?</strong>
-          <p>We're here to help you learn.</p>
-          <Link to="/help">Visit Help Center →</Link>
+  if (loading) {
+    return (
+      <div className="cd-page">
+        {navbar}
+        <Loading label="Loading course..." />
+      </div>
+    );
+  }
+
+  if (notFound || (!course && !loadError)) {
+    return (
+      <div className="cd-page">
+        {navbar}
+        <div className="cd-container">
+          <EmptyState
+            icon="🔎"
+            title="Course not found"
+            message="This course doesn't exist, or it hasn't been published yet."
+          >
+            <Link to="/courses" className="ev-btn">
+              Browse courses
+            </Link>
+          </EmptyState>
         </div>
-      </aside>
+      </div>
+    );
+  }
 
-      {/* Main */}
-      <main className="course-details-main">
-        {/* Topbar */}
-        <header className="details-topbar">
-          <div className="details-breadcrumb">
+  if (loadError || !course) {
+    return (
+      <div className="cd-page">
+        {navbar}
+        <div className="cd-container">
+          <Notice
+            title="Couldn't load this course"
+            message={loadError}
+            onRetry={loadCourse}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const stats = course.stats || {};
+  const mentor = course.mentor || {};
+  const mentorName = mentor.name || "Instructor";
+  const hasRatings = (stats.ratingCount || 0) > 0;
+  const embedUrl = getYouTubeEmbedUrl(course.previewVideoUrl);
+  const progressPercent = enrollment?.progressPercent || 0;
+  const canReview = isEnrolled && !isOwner;
+
+  return (
+    <div className="cd-page">
+      {navbar}
+
+      {/* HERO */}
+      <section className="cd-hero">
+        <div className="cd-container">
+          <div className="cd-breadcrumb">
             <Link to="/courses">Courses</Link>
             <span>/</span>
-            <span>{course.category}</span>
-            <span>/</span>
-            <strong>Course Details</strong>
+            <span>{course.category?.name || "Course"}</span>
           </div>
 
-          <div className="details-topbar-right">
-            <button
-              className="details-icon-button"
-              aria-label="Notifications"
-            >
-              ♢
-              <span className="details-notification-dot"></span>
-            </button>
-
-            <Link to="/profile" className="details-user">
-              <span className="details-avatar">SE</span>
-              <span className="details-user-name">Supriya</span>
-              <span className="details-user-arrow">⌄</span>
-            </Link>
-          </div>
-        </header>
-
-        {/* Course Hero */}
-        <section className="course-detail-hero">
-          <div className="course-detail-hero-content">
-            <div className="course-detail-badges">
-              {course.bestseller && (
-                <span className="detail-badge bestseller">
-                  Bestseller
-                </span>
-              )}
-
-              {course.newCourse && (
-                <span className="detail-badge new">New</span>
-              )}
-
-              <span className="detail-badge category">
-                {course.category}
+          <div className="cd-badges">
+            {!isPublished && (
+              <span className="cd-badge cd-badge-warn">
+                {capitalize(course.status)} preview
               </span>
+            )}
+            {course.category?.name && (
+              <span className="cd-badge">{course.category.name}</span>
+            )}
+            <span className="cd-badge">{capitalize(course.level)}</span>
+          </div>
+
+          <h1>{course.title}</h1>
+          {course.subtitle && <p className="cd-subtitle">{course.subtitle}</p>}
+
+          <div className="cd-meta">
+            <div className="cd-meta-item">
+              {hasRatings ? (
+                <>
+                  <strong>{stats.ratingAvg}</strong>
+                  <Stars value={stats.ratingAvg} />
+                  <span>({stats.ratingCount} reviews)</span>
+                </>
+              ) : (
+                <span>No ratings yet</span>
+              )}
             </div>
-
-            <h1>{course.title}</h1>
-
-            <p className="course-detail-description">
-              {course.description}
-            </p>
-
-            <div className="course-detail-rating">
-              <strong>{course.rating}</strong>
-
-              <span className="rating-stars">★★★★★</span>
-
-              <a href="#reviews">
-                {course.reviews.toLocaleString()} reviews
-              </a>
-
-              <span>•</span>
-
-              <span>
-                {course.students.toLocaleString()} students
-              </span>
+            <div className="cd-meta-item">
+              <span>👥 {(stats.enrollmentCount || 0).toLocaleString()} students</span>
             </div>
-
-            <div className="course-detail-instructor">
-              <div className="instructor-avatar">SJ</div>
-
-              <div>
-                <span>Created by</span>
-                <strong>{course.instructor}</strong>
-              </div>
+            <div className="cd-meta-item">
+              <span>⏱ {formatDuration(stats.totalDurationMin)}</span>
             </div>
-
-            <div className="course-detail-meta">
-              <span>◷ {course.duration}</span>
-              <span>▣ {course.lessons} lessons</span>
-              <span>◉ {course.level}</span>
-              <span>🌐 {course.language}</span>
-              <span>↻ Updated {course.lastUpdated}</span>
+            <div className="cd-meta-item">
+              <span>🌐 {course.language || "English"}</span>
             </div>
           </div>
 
-          <div className="course-preview-card">
-            <div className={`course-preview-image ${course.imageClass}`}>
-              <span>{course.icon}</span>
-
-              <button className="preview-play-button">
-                ▶
-              </button>
-
-              <div className="preview-label">Course Preview</div>
-            </div>
-
-            <div className="course-purchase-content">
-              <div className="course-price-row">
-                <strong>${course.price}</strong>
-                <span>${course.originalPrice}</span>
-                <small>
-                  {Math.round(
-                    ((course.originalPrice - course.price) /
-                      course.originalPrice) *
-                      100
-                  )}
-                  % off
-                </small>
-              </div>
-
-              <p className="price-note">
-                Limited-time offer
-              </p>
-
-              <button
-                className={`enroll-button ${
-                  enrolled ? "enrolled" : ""
-                }`}
-                onClick={handleEnroll}
-              >
-                {enrolled ? "✓ Enrolled" : "Enroll Now"}
-              </button>
-
-              <button
-                className={`wishlist-button ${
-                  isWishlisted ? "wishlisted" : ""
-                }`}
-                onClick={toggleWishlist}
-              >
-                {isWishlisted ? "♥" : "♡"}
-                {isWishlisted
-                  ? " Added to Wishlist"
-                  : " Add to Wishlist"}
-              </button>
-
-              <p className="purchase-note">
-                30-day money-back guarantee
-              </p>
-
-              <div className="course-includes">
-                <strong>This course includes:</strong>
-
-                <span>◷ {course.duration} on-demand video</span>
-                <span>▣ {course.lessons} lessons</span>
-                <span>📱 Access on mobile and desktop</span>
-
-                {course.certificate && (
-                  <span>🏆 Certificate of completion</span>
-                )}
-              </div>
+          <div className="cd-hero-instructor">
+            <div className="cd-avatar">{getInitials(mentorName, "I")}</div>
+            <div>
+              <small>Created by</small>
+              <strong>{mentorName}</strong>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Main Content */}
-        <div className="course-detail-content">
-          <div className="course-detail-left">
-            {/* What You'll Learn */}
-            <section className="detail-content-card">
-              <h2>What you'll learn</h2>
+      {/* BODY */}
+      <div className="cd-container cd-layout">
+        <div className="cd-main">
+          {!isPublished && (
+            <Notice
+              kind="info"
+              message={
+                isOwner
+                  ? "This course is not published yet. Only you can see this preview. Publish it from Mentor Studio to make it available to students."
+                  : "This course is not published."
+              }
+            />
+          )}
 
-              <div className="learning-points">
-                {course.whatYouLearn.map((item, index) => (
-                  <div className="learning-point" key={index}>
-                    <span>✓</span>
-                    <p>{item}</p>
+          {course.description && (
+            <section className="cd-card">
+              <h2>About this course</h2>
+              <p className="cd-description">{course.description}</p>
+            </section>
+          )}
+
+          {course.learningOutcomes?.length > 0 && (
+            <section className="cd-card">
+              <h2>What you will learn</h2>
+              <div className="cd-learn-grid">
+                {course.learningOutcomes.map((item: string, index: number) => (
+                  <div className="cd-learn-item" key={index}>
+                    <span className="cd-check">✓</span>
+                    <span>{item}</span>
                   </div>
                 ))}
               </div>
             </section>
+          )}
 
-            {/* Curriculum */}
-            <section className="detail-content-card curriculum-card">
-              <div className="curriculum-header">
-                <div>
-                  <h2>Course Curriculum</h2>
-                  <p>
-                    {course.lessons} lessons • {course.duration}
-                  </p>
-                </div>
+          <section className="cd-card">
+            <div className="cd-card-heading">
+              <h2>Course content</h2>
+              <p>
+                {stats.lessonCount || 0} lessons
+                {stats.quizCount ? ` • ${stats.quizCount} quizzes` : ""} •{" "}
+                {formatDuration(stats.totalDurationMin)} total
+              </p>
+            </div>
 
-                <button
-                  className="expand-button"
-                  onClick={() =>
-                    setOpenSection((current) => !current)
-                  }
-                >
-                  {openSection ? "Collapse all" : "Expand all"}
-                </button>
-              </div>
+            {curriculum.length === 0 ? (
+              <p className="cd-muted">No lessons have been published yet.</p>
+            ) : (
+              curriculum.map((section: any) => (
+                <div className="cd-section" key={section.id}>
+                  <h3>{section.title}</h3>
 
-              <div className="curriculum-section">
-                <button
-                  className="curriculum-section-header"
-                  onClick={() =>
-                    setOpenSection((current) => !current)
-                  }
-                >
-                  <span className="section-arrow">
-                    {openSection ? "⌄" : "›"}
-                  </span>
-
-                  <div>
-                    <strong>Getting Started</strong>
-                    <small>10 lessons • 2h 45m</small>
-                  </div>
-                </button>
-
-                {openSection && (
-                  <div className="lesson-list">
-                    {course.lessonsList.map((lesson) => (
-                      <div
-                        className="lesson-item"
-                        key={lesson.id}
-                      >
-                        <div className="lesson-icon">
-                          {lesson.preview ? "▶" : "▣"}
+                  {section.lessons.map((lesson: any) => (
+                    <div key={lesson._id}>
+                      <div className="cd-lesson">
+                        <div className="cd-lesson-left">
+                          <span className="cd-lesson-icon">
+                            {lesson.type === "text" ? "📄" : "▶"}
+                          </span>
+                          <div>
+                            <strong>{lesson.title}</strong>
+                            <small>
+                              {lesson.durationMin
+                                ? `${lesson.durationMin} min`
+                                : "Reading"}
+                            </small>
+                          </div>
                         </div>
 
-                        <div className="lesson-info">
-                          <strong>{lesson.title}</strong>
-
-                          {lesson.preview && (
-                            <span className="preview-text">
-                              Preview
-                            </span>
-                          )}
-                        </div>
-
-                        <span className="lesson-duration">
-                          {lesson.duration}
-                        </span>
-
-                        {lesson.preview && (
-                          <button className="lesson-preview-button">
-                            Preview
+                        {lesson.isFreePreview ? (
+                          <button
+                            type="button"
+                            className="cd-preview-btn"
+                            onClick={() => togglePreview(lesson._id)}
+                          >
+                            {previewId === lesson._id ? "Hide" : "Preview"}
                           </button>
+                        ) : (
+                          <span className="cd-lock" title="Enroll to unlock">
+                            🔒
+                          </span>
                         )}
                       </div>
+
+                      {previewId === lesson._id && (
+                        <div className="cd-preview-box">
+                          {previewError && (
+                            <Notice message={previewError} />
+                          )}
+                          {!previewError && !previewData && (
+                            <Loading label="Loading preview..." />
+                          )}
+                          {previewData && (
+                            <>
+                              {getYouTubeEmbedUrl(previewData.videoUrl) && (
+                                <iframe
+                                  title={previewData.title}
+                                  src={getYouTubeEmbedUrl(previewData.videoUrl) || ""}
+                                  allowFullScreen
+                                />
+                              )}
+                              {previewData.content && (
+                                <p>{previewData.content}</p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {section.quizzes.map((quiz: any) => (
+                    <div className="cd-lesson" key={quiz._id}>
+                      <div className="cd-lesson-left">
+                        <span className="cd-lesson-icon">📝</span>
+                        <div>
+                          <strong>{quiz.title}</strong>
+                          <small>Quiz • pass at {quiz.passPercent}%</small>
+                        </div>
+                      </div>
+                      <span className="cd-lock" title="Enroll to unlock">
+                        🔒
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
+          </section>
+
+          {course.requirements?.length > 0 && (
+            <section className="cd-card">
+              <h2>Requirements</h2>
+              <ul className="cd-requirements">
+                {course.requirements.map((req: string, index: number) => (
+                  <li key={index}>{req}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <section className="cd-card">
+            <h2>Instructor</h2>
+            <div className="cd-instructor">
+              <div className="cd-avatar cd-avatar-lg">
+                {getInitials(mentorName, "I")}
+              </div>
+              <div>
+                <h3>{mentorName}</h3>
+                {mentor.mentorProfile?.headline && (
+                  <span className="cd-instructor-role">
+                    {mentor.mentorProfile.headline}
+                  </span>
+                )}
+                {mentor.mentorProfile?.bio && <p>{mentor.mentorProfile.bio}</p>}
+                {mentor.mentorProfile?.expertise?.length > 0 && (
+                  <div className="cd-chips">
+                    {mentor.mentorProfile.expertise.map((skill: string) => (
+                      <span key={skill}>{skill}</span>
                     ))}
                   </div>
                 )}
               </div>
-
-              <div className="curriculum-section locked">
-                <div className="curriculum-section-header">
-                  <span className="section-arrow">›</span>
-
-                  <div>
-                    <strong>Building Real-World Projects</strong>
-                    <small>12 lessons • 5h 20m</small>
-                  </div>
-
-                  <span className="lock-icon">🔒</span>
-                </div>
-              </div>
-
-              <div className="curriculum-section locked">
-                <div className="curriculum-section-header">
-                  <span className="section-arrow">›</span>
-
-                  <div>
-                    <strong>Advanced Concepts</strong>
-                    <small>10 lessons • 4h 45m</small>
-                  </div>
-
-                  <span className="lock-icon">🔒</span>
-                </div>
-              </div>
-            </section>
-
-            {/* Requirements */}
-            <section className="detail-content-card">
-              <h2>Requirements</h2>
-
-              <ul className="requirements-list">
-                {course.requirements.map((item, index) => (
-                  <li key={index}>
-                    <span>•</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            {/* Instructor */}
-            <section className="detail-content-card instructor-section">
-              <h2>About the instructor</h2>
-
-              <div className="instructor-profile">
-                <div className="large-instructor-avatar">
-                  SJ
-                </div>
-
-                <div>
-                  <h3>{course.instructor}</h3>
-                  <p className="instructor-role">
-                    {course.instructorRole}
-                  </p>
-
-                  <div className="instructor-stats">
-                    <span>★ {course.rating} Rating</span>
-                    <span>
-                      👥 {course.students.toLocaleString()} Students
-                    </span>
-                    <span>▣ {course.lessons} Courses</span>
-                  </div>
-                </div>
-              </div>
-
-              <p className="instructor-bio">
-                {course.instructorBio}
-              </p>
-            </section>
-
-            {/* Reviews */}
-            <section
-              className="detail-content-card reviews-section"
-              id="reviews"
-            >
-              <div className="reviews-heading">
-                <div>
-                  <h2>Student Reviews</h2>
-                  <p>
-                    See what students are saying about this course.
-                  </p>
-                </div>
-
-                <div className="overall-rating">
-                  <strong>{course.rating}</strong>
-                  <span className="rating-stars">★★★★★</span>
-                  <small>{course.reviews} reviews</small>
-                </div>
-              </div>
-
-              <div className="review-item">
-                <div className="review-avatar">AK</div>
-
-                <div className="review-content">
-                  <div className="review-top">
-                    <strong>Alex Kumar</strong>
-                    <span>★★★★★</span>
-                  </div>
-
-                  <p>
-                    Excellent course with clear explanations and
-                    practical examples. The lessons are easy to
-                    follow and very useful.
-                  </p>
-
-                  <small>2 weeks ago</small>
-                </div>
-              </div>
-
-              <div className="review-item">
-                <div className="review-avatar">RM</div>
-
-                <div className="review-content">
-                  <div className="review-top">
-                    <strong>Rachel Miller</strong>
-                    <span>★★★★★</span>
-                  </div>
-
-                  <p>
-                    I really enjoyed this course. The projects made
-                    the concepts much easier to understand.
-                  </p>
-
-                  <small>1 month ago</small>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          {/* Right Sidebar */}
-          <aside className="course-detail-right">
-            <div className="sticky-info-card">
-              <h3>Course information</h3>
-
-              <div className="info-row">
-                <span>Level</span>
-                <strong>{course.level}</strong>
-              </div>
-
-              <div className="info-row">
-                <span>Duration</span>
-                <strong>{course.duration}</strong>
-              </div>
-
-              <div className="info-row">
-                <span>Lessons</span>
-                <strong>{course.lessons}</strong>
-              </div>
-
-              <div className="info-row">
-                <span>Language</span>
-                <strong>{course.language}</strong>
-              </div>
-
-              <div className="info-row">
-                <span>Certificate</span>
-                <strong>
-                  {course.certificate ? "Included" : "Not included"}
-                </strong>
-              </div>
-
-              <hr />
-
-              <Link
-                to="/courses"
-                className="back-courses-button"
-              >
-                ← Browse More Courses
-              </Link>
             </div>
-          </aside>
+          </section>
+
+          <section className="cd-card" id="reviews">
+            <div className="cd-card-heading">
+              <h2>Student reviews</h2>
+              <p>
+                {hasRatings
+                  ? `${stats.ratingAvg} average from ${stats.ratingCount} review${
+                      stats.ratingCount === 1 ? "" : "s"
+                    }`
+                  : "No reviews yet."}
+              </p>
+            </div>
+
+            {canReview && (
+              <form className="cd-review-form" onSubmit={handleReviewSubmit}>
+                <strong>Leave a review</strong>
+
+                {progressPercent < 25 && (
+                  <p className="cd-muted">
+                    You can review this course once you've completed 25% of it
+                    (you're at {progressPercent}%).
+                  </p>
+                )}
+
+                <label htmlFor="cd-rating">Rating</label>
+                <select
+                  id="cd-rating"
+                  value={rating}
+                  onChange={(e) => setRating(Number(e.target.value))}
+                >
+                  <option value={5}>5 stars - Excellent</option>
+                  <option value={4}>4 stars - Very good</option>
+                  <option value={3}>3 stars - Good</option>
+                  <option value={2}>2 stars - Fair</option>
+                  <option value={1}>1 star - Poor</option>
+                </select>
+
+                <textarea
+                  rows={3}
+                  placeholder="Share what you thought of the course..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                />
+
+                {reviewMessage && (
+                  <Notice
+                    kind={reviewMessage.kind}
+                    message={reviewMessage.text}
+                  />
+                )}
+
+                <button
+                  type="submit"
+                  className="ev-btn"
+                  disabled={submittingReview || progressPercent < 25}
+                >
+                  {submittingReview ? "Submitting..." : "Submit review"}
+                </button>
+              </form>
+            )}
+
+            {reviews.length > 0 ? (
+              reviews.map((rev) => (
+                <div className="cd-review" key={rev._id}>
+                  <div className="cd-avatar">
+                    {getInitials(rev.student?.name, "S")}
+                  </div>
+                  <div className="cd-review-body">
+                    <div className="cd-review-top">
+                      <strong>{rev.student?.name || "Student"}</strong>
+                      <Stars value={rev.rating} />
+                    </div>
+                    {rev.comment && <p>{rev.comment}</p>}
+                    {rev.mentorReply?.text && (
+                      <div className="cd-reply">
+                        <small>Instructor reply</small>
+                        <p>{rev.mentorReply.text}</p>
+                      </div>
+                    )}
+                    <small className="cd-muted">
+                      {new Date(rev.createdAt).toLocaleDateString()}
+                    </small>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="cd-muted">Be the first to review this course.</p>
+            )}
+          </section>
         </div>
 
-        {/* Footer */}
-        <footer className="course-details-footer">
+        {/* STICKY CARD */}
+        <aside className="cd-aside">
+          <div className="cd-sticky-card">
+            <div className="cd-thumb">
+              {course.thumbnailUrl ? (
+                <img src={course.thumbnailUrl} alt={course.title} />
+              ) : (
+                <span>🎓</span>
+              )}
+            </div>
+
+            {embedUrl && (
+              <details className="cd-trailer">
+                <summary>▶ Watch course preview</summary>
+                <iframe title="Course preview" src={embedUrl} allowFullScreen />
+              </details>
+            )}
+
+            <div className="cd-card-body">
+              <div className="cd-price">
+                <strong>{PRICE_LABEL}</strong>
+                <span>Full lifetime access</span>
+              </div>
+
+              {isEnrolled && (
+                <div className="cd-progress">
+                  <div className="cd-progress-track">
+                    <div style={{ width: `${progressPercent}%` }}></div>
+                  </div>
+                  <small>{progressPercent}% complete</small>
+                </div>
+              )}
+
+              {enrollError && <Notice message={enrollError} />}
+
+              {isOwner ? (
+                <Link to="/mentor" className="ev-btn cd-full">
+                  Manage in Mentor Studio
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="ev-btn cd-full"
+                  onClick={handleEnroll}
+                  disabled={enrolling || (!isPublished && !isEnrolled)}
+                >
+                  {enrolling
+                    ? "Enrolling..."
+                    : isEnrolled
+                    ? "Go to course →"
+                    : !isAuthenticated
+                    ? "Log in to enroll"
+                    : "Enroll now"}
+                </button>
+              )}
+
+              {!isAuthenticated && (
+                <p className="cd-muted cd-center">
+                  New here? <Link to="/register">Create a free account</Link>
+                </p>
+              )}
+
+              <div className="cd-includes">
+                <h3>This course includes</h3>
+                <div>🎥 {formatDuration(stats.totalDurationMin)} of content</div>
+                <div>📝 {stats.lessonCount || 0} lessons</div>
+                {stats.quizCount > 0 && <div>✅ {stats.quizCount} quizzes</div>}
+                <div>📱 Access on mobile and desktop</div>
+                <div>🏆 Certificate of completion</div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <footer className="cd-footer">
+        <div className="cd-container cd-footer-inner">
+          <span>© 2026 Eduverse</span>
           <div>
-            <strong>LearnHub</strong>
-            <p>
-              Learn new skills. Build your future.
-            </p>
+            <Link to="/courses">Courses</Link>
+            <Link to="/discover">Discover</Link>
+            <Link to="/student/dashboard">Dashboard</Link>
           </div>
-
-          <div className="details-footer-links">
-            <Link to="/help">Help Center</Link>
-            <Link to="/privacy">Privacy</Link>
-            <Link to="/terms">Terms</Link>
-          </div>
-
-          <p>© 2026 LearnHub. All rights reserved.</p>
-        </footer>
-      </main>
+        </div>
+      </footer>
     </div>
   );
 }

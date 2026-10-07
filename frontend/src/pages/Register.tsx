@@ -1,30 +1,30 @@
-
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { api, getErrorMessage } from "../services/api";
+import { useAuth } from "../context/AuthContext";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
+import "./Register.css";
 
 function Register() {
   const navigate = useNavigate();
+  const { login, updateUser } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("student");
+  const [role, setRole] = useState<"student" | "mentor">("student");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState(false);
-
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     setError("");
 
     if (!name.trim()) {
@@ -32,23 +32,13 @@ function Register() {
       return;
     }
 
-    if (!email.trim()) {
-      setError("Please enter your email address.");
+    if (!email.trim() || !email.includes("@")) {
+      setError("Please enter a valid email address.");
       return;
     }
 
-    if (!password) {
-      setError("Please create a password.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
-
-    if (!confirmPassword) {
-      setError("Please confirm your password.");
+    if (!password || password.length < 8) {
+      setError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -58,513 +48,336 @@ function Register() {
     }
 
     if (!agreeToTerms) {
-      setError("Please agree to the Terms and Conditions.");
+      setError("Please agree to the Terms of Service & Privacy Policy.");
       return;
     }
 
     setLoading(true);
 
-    /*
-      TEMPORARY FRONTEND REGISTRATION
-
-      Later this will connect to Archie's backend:
-
-      POST /api/auth/register
-
-      Data:
-
-      {
-        name,
-        email,
-        password,
-        role
-      }
-    */
-
-    setTimeout(() => {
-      setLoading(false);
-
-      console.log("Registration information:", {
-        name,
-        email,
-        role,
+    try {
+      const response = await api.auth.register({
+        name: name.trim(),
+        email: email.trim(),
         password,
       });
 
-      alert("Registration successful! Please login to continue.");
+      if (!response.success || !response.token) {
+        setError(response.message || "Registration failed. Please try again.");
+        return;
+      }
 
-      navigate("/login");
-    }, 900);
+      login(response.token, response.user);
+
+      let destination = "/student/dashboard";
+
+      // Mentor signup: activate the mentor profile, then refresh the stored
+      // user from the response so roles are correct immediately (no stale
+      // "student only" user after navigation).
+      if (role === "mentor") {
+        try {
+          const mentorRes = await api.auth.becomeMentor({
+            headline: "Instructor at Eduverse",
+            bio: "Passionate about sharing knowledge and mentoring learners.",
+          });
+          if (mentorRes.user) {
+            updateUser(mentorRes.user);
+            destination = "/mentor";
+          }
+        } catch {
+          // The account exists; mentor activation can be retried from the dashboard.
+        }
+      }
+
+      navigate(destination);
+    } catch (err) {
+      setError(getErrorMessage(err, "Registration failed. Please try again."));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleGoogleRegister = () => {
-    setError("");
-    setGoogleLoading(true);
-
-    /*
-      TEMPORARY GOOGLE REGISTRATION
-
-      This button is currently only a frontend placeholder.
-
-      Later we can connect it to the backend/Firebase
-      Google authentication flow.
-
-      Example future flow:
-
-      Google Login
-          ↓
-      Firebase / Backend
-          ↓
-      Create or find user
-          ↓
-      Save role
-          ↓
-      Dashboard
-    */
-
-    setTimeout(() => {
-      setGoogleLoading(false);
-
-      console.log("Continue with Google clicked");
-
-      alert(
-        "Google registration will be connected when authentication is integrated."
-      );
-    }, 700);
+  const clearError = () => {
+    if (error) setError("");
   };
 
   return (
     <div className="professional-auth-page">
-      <div className="login-container">
-
-        {/* =========================================
-            LEFT BRAND SECTION
-        ========================================= */}
-
-        <section className="login-brand-section">
+      <div className="register-container">
+        {/* LEFT SIDE - BRANDING */}
+        <div className="register-brand-section">
           <div className="brand-content">
-
             <Link to="/" className="professional-logo">
-              <span className="logo-icon">L</span>
-              LearnHub
+              <span className="logo-icon">E</span>
+              <span>Eduverse</span>
             </Link>
 
             <div className="brand-message">
-
-              <span className="brand-badge">
-                Start Your Learning Journey
-              </span>
+              <span className="brand-badge">🚀 Start Your Future Today</span>
 
               <h1>
-                Learn Today.
-                <span>Grow Tomorrow.</span>
+                Join thousands of
+                <span> learners and creators.</span>
               </h1>
 
               <p>
-                Create your account and unlock a complete
-                learning experience designed to help you
-                build valuable skills and achieve your goals.
+                Create your free account to access interactive courses, take
+                real quizzes, and earn verifiable certificates.
               </p>
+            </div>
 
-              <div className="login-benefits">
-
-                <div className="benefit-item">
-                  <span className="benefit-icon">✓</span>
-
-                  <div>
-                    <strong>Access quality courses</strong>
-
-                    <p>
-                      Learn through structured courses
-                      created by instructors.
-                    </p>
-                  </div>
+            <div className="register-features">
+              <div className="register-feature-card">
+                <div className="register-feature-icon">📚</div>
+                <div>
+                  <strong>High Quality Courses</strong>
+                  <p>Curated tech, data, and design curriculum.</p>
                 </div>
+              </div>
 
-                <div className="benefit-item">
-                  <span className="benefit-icon">✓</span>
-
-                  <div>
-                    <strong>Track your progress</strong>
-
-                    <p>
-                      Monitor your learning journey
-                      from your dashboard.
-                    </p>
-                  </div>
+              <div className="register-feature-card">
+                <div className="register-feature-icon">📊</div>
+                <div>
+                  <strong>Smart Progress Tracking</strong>
+                  <p>Keep track of every lesson and quiz result.</p>
                 </div>
+              </div>
 
-                <div className="benefit-item">
-                  <span className="benefit-icon">✓</span>
-
-                  <div>
-                    <strong>Learn at your own pace</strong>
-
-                    <p>
-                      Study whenever and wherever
-                      you want.
-                    </p>
-                  </div>
+              <div className="register-feature-card">
+                <div className="register-feature-icon">🏆</div>
+                <div>
+                  <strong>Recognized Certificates</strong>
+                  <p>Earn verified credentials upon course completion.</p>
                 </div>
-
               </div>
             </div>
           </div>
 
           <div className="brand-footer">
-            © 2026 LearnHub. Empowering learners everywhere.
+            © 2026 Eduverse. Built for learners worldwide.
           </div>
-        </section>
+        </div>
 
-        {/* =========================================
-            RIGHT REGISTER SECTION
-        ========================================= */}
-
-        <section className="login-form-section">
-
-          {/* Mobile Logo */}
-
-          <div className="mobile-logo">
-            <Link to="/" className="professional-logo">
-              <span className="logo-icon">L</span>
-              LearnHub
-            </Link>
-          </div>
-
-          <div className="login-card register-card">
-
-            {/* Header */}
-
-            <div className="login-header">
-              <h2>Create your account</h2>
-
-              <p>
-                Join LearnHub and start your learning journey.
-              </p>
+        {/* RIGHT SIDE - REGISTER FORM */}
+        <div className="register-form-section">
+          <div className="register-card">
+            <div className="mobile-logo">
+              <Link to="/" className="professional-logo">
+                <span className="logo-icon">E</span>
+                <span>Eduverse</span>
+              </Link>
             </div>
 
-            {/* Error */}
+            <div className="register-header">
+              <h2>Create Account 🚀</h2>
+              <p>Join the learning platform in seconds</p>
+            </div>
 
             {error && (
-              <div className="professional-error">
+              <div className="professional-error" role="alert">
                 <span className="error-icon">!</span>
-
                 <span>{error}</span>
               </div>
             )}
 
-            {/* =========================================
-                REGISTRATION FORM
-            ========================================= */}
+            <GoogleSignInButton
+              text="Continue with Google"
+              roleToAssign={role}
+              onError={(msg) => setError(msg)}
+            />
+
+            <div className="professional-divider">
+              <span>OR REGISTER WITH EMAIL</span>
+            </div>
 
             <form
-              className="professional-login-form"
               onSubmit={handleSubmit}
+              className="professional-register-form"
+              noValidate
             >
-
-              {/* Full Name */}
-
+              {/* FULL NAME */}
               <div className="professional-form-group">
-                <label htmlFor="name">
-                  Full name
-                </label>
-
+                <label htmlFor="name">Full Name</label>
                 <div className="input-wrapper">
-                  <span className="input-icon">
-                    👤
-                  </span>
-
+                  <span className="input-icon">👤</span>
                   <input
                     id="name"
                     type="text"
-                    placeholder="Enter your full name"
+                    placeholder="e.g. Alex Rivera"
                     value={name}
-                    onChange={(event) => {
-                      setName(event.target.value);
-
-                      if (error) {
-                        setError("");
-                      }
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      clearError();
                     }}
                     autoComplete="name"
                   />
                 </div>
               </div>
 
-              {/* Email */}
-
+              {/* EMAIL */}
               <div className="professional-form-group">
-                <label htmlFor="register-email">
-                  Email address
-                </label>
-
+                <label htmlFor="email">Email address</label>
                 <div className="input-wrapper">
-                  <span className="input-icon">
-                    ✉
-                  </span>
-
+                  <span className="input-icon">✉</span>
                   <input
-                    id="register-email"
+                    id="email"
                     type="email"
                     placeholder="you@example.com"
                     value={email}
-                    onChange={(event) => {
-                      setEmail(event.target.value);
-
-                      if (error) {
-                        setError("");
-                      }
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      clearError();
                     }}
                     autoComplete="email"
                   />
                 </div>
               </div>
 
-              {/* Role */}
-
-              <div className="professional-form-group">
-                <label htmlFor="role">
-                  I want to join as
-                </label>
-
-                <div className="input-wrapper role-select-wrapper">
-                  <span className="input-icon">
-                    🎓
-                  </span>
-
-                  <select
-                    id="role"
-                    value={role}
-                    onChange={(event) =>
-                      setRole(event.target.value)
-                    }
+              {/* ROLE SELECTION */}
+              <div
+                className="professional-form-group"
+                role="group"
+                aria-labelledby="role-label"
+              >
+                <label id="role-label">I want to join as</label>
+                <div className="role-selector-grid">
+                  <button
+                    type="button"
+                    className={`role-option-btn ${
+                      role === "student" ? "active" : ""
+                    }`}
+                    aria-pressed={role === "student"}
+                    onClick={() => setRole("student")}
                   >
-                    <option value="student">
-                      Student
-                    </option>
-
-                    <option value="instructor">
-                      Instructor
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Password */}
-
-              <div className="professional-form-group">
-                <label htmlFor="register-password">
-                  Password
-                </label>
-
-                <div className="input-wrapper">
-                  <span className="input-icon">
-                    🔒
-                  </span>
-
-                  <input
-                    id="register-password"
-                    type={
-                      showPassword
-                        ? "text"
-                        : "password"
-                    }
-                    placeholder="Create a password"
-                    value={password}
-                    onChange={(event) => {
-                      setPassword(event.target.value);
-
-                      if (error) {
-                        setError("");
-                      }
-                    }}
-                    autoComplete="new-password"
-                  />
+                    <span className="role-icon">🎓</span>
+                    <div>
+                      <strong>Student</strong>
+                      <small>I want to learn skills</small>
+                    </div>
+                  </button>
 
                   <button
                     type="button"
-                    className="professional-password-toggle"
-                    onClick={() =>
-                      setShowPassword(!showPassword)
-                    }
-                    aria-label={
-                      showPassword
-                        ? "Hide password"
-                        : "Show password"
-                    }
+                    className={`role-option-btn ${
+                      role === "mentor" ? "active" : ""
+                    }`}
+                    aria-pressed={role === "mentor"}
+                    onClick={() => setRole("mentor")}
                   >
-                    {showPassword ? "🙈" : "👁️"}
+                    <span className="role-icon">👨‍🏫</span>
+                    <div>
+                      <strong>Mentor</strong>
+                      <small>I want to teach courses</small>
+                    </div>
                   </button>
                 </div>
-
-                <small className="password-hint">
-                  Use at least 6 characters.
-                </small>
               </div>
 
-              {/* Confirm Password */}
-
+              {/* PASSWORD */}
               <div className="professional-form-group">
-                <label htmlFor="confirm-password">
-                  Confirm password
-                </label>
-
+                <label htmlFor="password">Password (min. 8 characters)</label>
                 <div className="input-wrapper">
-                  <span className="input-icon">
-                    🔐
-                  </span>
-
+                  <span className="input-icon">🔒</span>
                   <input
-                    id="confirm-password"
-                    type={
-                      showConfirmPassword
-                        ? "text"
-                        : "password"
-                    }
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Create a strong password"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      clearError();
+                    }}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    className="professional-password-toggle"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? "🙈" : "👁"}
+                  </button>
+                </div>
+              </div>
+
+              {/* CONFIRM PASSWORD */}
+              <div className="professional-form-group">
+                <label htmlFor="confirmPassword">Confirm Password</label>
+                <div className="input-wrapper">
+                  <span className="input-icon">🔒</span>
+                  <input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm your password"
                     value={confirmPassword}
-                    onChange={(event) => {
-                      setConfirmPassword(
-                        event.target.value
-                      );
-
-                      if (error) {
-                        setError("");
-                      }
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      clearError();
                     }}
                     autoComplete="new-password"
                   />
-
                   <button
                     type="button"
                     className="professional-password-toggle"
-                    onClick={() =>
-                      setShowConfirmPassword(
-                        !showConfirmPassword
-                      )
-                    }
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     aria-label={
-                      showConfirmPassword
-                        ? "Hide password"
-                        : "Show password"
+                      showConfirmPassword ? "Hide password" : "Show password"
                     }
                   >
-                    {showConfirmPassword
-                      ? "🙈"
-                      : "👁️"}
+                    {showConfirmPassword ? "🙈" : "👁"}
                   </button>
                 </div>
               </div>
 
-              {/* Terms */}
+              {/* TERMS CHECKBOX */}
+              <div className="professional-login-options">
+                <label className="professional-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={agreeToTerms}
+                    onChange={(e) => {
+                      setAgreeToTerms(e.target.checked);
+                      clearError();
+                    }}
+                  />
+                  <span className="custom-checkbox"></span>
+                  <span>I agree to the Terms of Service & Privacy Policy</span>
+                </label>
+              </div>
 
-              <label className="professional-checkbox">
-                <input
-                  type="checkbox"
-                  checked={agreeToTerms}
-                  onChange={(event) =>
-                    setAgreeToTerms(
-                      event.target.checked
-                    )
-                  }
-                />
-
-                <span className="custom-checkbox"></span>
-
-                <span>
-                  I agree to the{" "}
-                  <a href="#terms">
-                    Terms and Conditions
-                  </a>
-                </span>
-              </label>
-
-              {/* Create Account Button */}
-
+              {/* SUBMIT BUTTON */}
               <button
                 type="submit"
                 className="professional-login-button"
-                disabled={loading || googleLoading}
+                disabled={loading}
               >
                 {loading ? (
                   <>
                     <span className="login-spinner"></span>
-                    Creating account...
+                    Creating Account...
                   </>
                 ) : (
                   <>
-                    Create account
-
-                    <span className="button-arrow">
-                      →
-                    </span>
+                    Create Account
+                    <span className="button-arrow">→</span>
                   </>
                 )}
               </button>
-
             </form>
-
-            {/* =========================================
-                DIVIDER
-            ========================================= */}
 
             <div className="professional-divider">
               <span>OR</span>
             </div>
 
-            {/* =========================================
-                GOOGLE REGISTER
-            ========================================= */}
-
-            <button
-              type="button"
-              className="google-auth-button"
-              onClick={handleGoogleRegister}
-              disabled={loading || googleLoading}
-            >
-              {googleLoading ? (
-                <>
-                  <span className="login-spinner"></span>
-                  Connecting to Google...
-                </>
-              ) : (
-                <>
-                  <span className="google-icon">
-                    G
-                  </span>
-
-                  <span>
-                    Continue with Google
-                  </span>
-                </>
-              )}
-            </button>
-
-            {/* =========================================
-                LOGIN LINK
-            ========================================= */}
-
             <div className="create-account">
-              <span>
-                Already have an account?
-              </span>
-
-              <Link to="/login">
-                Sign in
-              </Link>
+              <span>Already have an account?</span>
+              <Link to="/login">Sign in</Link>
             </div>
 
-            {/* Back Home */}
-
-            <Link
-              to="/"
-              className="professional-back-home"
-            >
-              ← Back to LearnHub
+            <Link to="/" className="professional-back-home">
+              ← Back to Eduverse
             </Link>
-
           </div>
-        </section>
+        </div>
       </div>
     </div>
   );

@@ -14,6 +14,10 @@ import Discover from "./pages/Discover";
 import Quizzes from "./pages/Quizzes";
 import Progress from "./pages/Progress";
 import Activities from "./pages/Activities";
+import Learn from "./pages/Learn";
+import MyCourses from "./pages/MyCourses";
+
+// Student Pages - Existing
 import Achievements from "./pages/Achievements";
 import Wishlist from "./pages/Wishlist";
 import Profile from "./pages/Profile";
@@ -31,93 +35,34 @@ import InstructorAnalytics from "./pages/InstructorAnalytics";
 import InstructorProfile from "./pages/InstructorProfile";
 import InstructorSettings from "./pages/InstructorSettings";
 
-import "./index.css";
-
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-
-        {/* =========================
-            LANDING & AUTHENTICATION
-           ========================= */}
-
+        {/* Landing & Authentication */}
         <Route path="/" element={<LandingPage />} />
-
         <Route path="/login" element={<Login />} />
-
         <Route path="/register" element={<Register />} />
 
+        {/* Student Routes */}
+        <Route path="/student/dashboard" element={<StudentDashboard />} />
+        <Route path="/courses" element={<Courses />} />
+        <Route path="/courses/:id" element={<CourseDetails />} />
+        <Route path="/discover" element={<Discover />} />
+        <Route path="/quizzes" element={<Quizzes />} />
+        <Route path="/progress" element={<Progress />} />
+        <Route path="/activities" element={<Activities />} />
+        <Route path="/learn" element={<Learn />} />
+        <Route path="/my-courses" element={<MyCourses />} />
 
-        {/* =========================
-            STUDENT ROUTES
-           ========================= */}
+        {/* Existing Student Routes */}
+        <Route path="/achievements" element={<Achievements />} />
+        <Route path="/wishlist" element={<Wishlist />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/help" element={<Help />} />
 
-        <Route
-          path="/student/dashboard"
-          element={<StudentDashboard />}
-        />
-
-        <Route
-          path="/courses"
-          element={<Courses />}
-        />
-
-        <Route
-          path="/courses/:id"
-          element={<CourseDetails />}
-        />
-
-        <Route
-          path="/discover"
-          element={<Discover />}
-        />
-
-        <Route
-          path="/quizzes"
-          element={<Quizzes />}
-        />
-
-        <Route
-          path="/progress"
-          element={<Progress />}
-        />
-
-        <Route
-          path="/activities"
-          element={<Activities />}
-        />
-
-        <Route
-          path="/achievements"
-          element={<Achievements />}
-        />
-
-        <Route
-          path="/wishlist"
-          element={<Wishlist />}
-        />
-
-        <Route
-          path="/profile"
-          element={<Profile />}
-        />
-
-        <Route
-          path="/settings"
-          element={<Settings />}
-        />
-
-        <Route
-          path="/help"
-          element={<Help />}
-        />
-
-
-        {/* =========================
-            INSTRUCTOR ROUTES
-           ========================= */}
-
+        {/* Instructor Routes */}
         <Route
           path="/instructor/dashboard"
           element={<InstructorDashboard />}
@@ -127,6 +72,7 @@ function App() {
           path="/instructor/courses"
           element={<InstructorCourses />}
         />
+
         <Route
           path="/instructor/courses/create"
           element={<CreateCourse />}
@@ -136,11 +82,12 @@ function App() {
           path="/instructor/lessons"
           element={<ManageLessons />}
         />
-       
+
         <Route
           path="/instructor/students"
           element={<InstructorStudents />}
         />
+
         <Route
           path="/instructor/quizzes"
           element={<InstructorQuizzes />}
@@ -156,10 +103,10 @@ function App() {
           element={<InstructorProfile />}
         />
 
-       <Route path="/instructor/settings" element={<InstructorSettings />} />
-
-   
-
+        <Route
+          path="/instructor/settings"
+          element={<InstructorSettings />}
+        />
       </Routes>
     </BrowserRouter>
   );
