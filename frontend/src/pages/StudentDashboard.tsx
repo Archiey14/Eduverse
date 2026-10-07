@@ -1,71 +1,98 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { api } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import "./StudentDashboard.css";
 
 function StudentDashboard() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dashboardData, setDashboardData] = useState<any>(null);
 
   const handleLogout = () => {
-    const confirmLogout = window.confirm(
-      "Are you sure you want to logout?"
-    );
-
+    const confirmLogout = window.confirm("Are you sure you want to logout?");
     if (confirmLogout) {
+      logout();
       navigate("/login");
     }
   };
 
-  const enrolledCourses = [
-    {
-      id: 1,
-      category: "WEB DEVELOPMENT",
-      title: "Full Stack Web Development",
-      instructor: "Alex Johnson",
-      lesson: "React Components",
-      lessonNumber: 8,
-      totalLessons: 12,
-      progress: 72,
-      icon: "💻",
-      duration: "12h 30m",
-      colorClass: "course-blue",
-    },
-    {
-      id: 2,
-      category: "DATA SCIENCE",
-      title: "Python for Data Science",
-      instructor: "Sarah Williams",
-      lesson: "Data Analysis with Pandas",
-      lessonNumber: 5,
-      totalLessons: 10,
-      progress: 48,
-      icon: "🐍",
-      duration: "9h 45m",
-      colorClass: "course-purple",
-    },
-    {
-      id: 3,
-      category: "DATABASE",
-      title: "MongoDB for Beginners",
-      instructor: "Michael Brown",
-      lesson: "MongoDB Queries",
-      lessonNumber: 4,
-      totalLessons: 8,
-      progress: 55,
-      icon: "🗄️",
-      duration: "6h 20m",
-      colorClass: "course-green",
-    },
-  ];
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const res = await api.dashboard.getStudentDashboard();
+        if (res.data) {
+          setDashboardData(res.data);
+        }
+      } catch (err) {
+        console.error("Dashboard fetch error:", err);
+      }
+    };
 
+    fetchDashboard();
+  }, []);
+
+  // Map live data from database with fallback presets
+  const dbStats = dashboardData?.stats;
+  const enrolledCount = dbStats?.enrolledCount ?? 2;
+  const completedCount = dbStats?.completedCount ?? 1;
+  const hoursLearned = dbStats ? `${dbStats.hoursLearned}h` : "14h";
+
+  // Dynamic enrolled courses from DB
+  const rawEnrolled = dashboardData?.activeEnrollments || [];
+  const enrolledCourses =
+    rawEnrolled.length > 0
+      ? rawEnrolled.map((enr: any, idx: number) => ({
+          id: enr.course?._id || enr._id,
+          category: (enr.course?.category?.name || "Web Development").toUpperCase(),
+          title: enr.course?.title || "Course",
+          instructor: enr.course?.mentor?.name || "Lead Instructor",
+          lesson: enr.lastLesson?.title || "Next Lesson",
+          lessonNumber: enr.completedLessons?.length || 1,
+          totalLessons: enr.course?.stats?.lessonCount || 8,
+          progress: enr.progressPercent || 0,
+          icon: idx % 2 === 0 ? "💻" : "🐍",
+          duration: `${enr.course?.stats?.totalDurationMin || 45}m`,
+          colorClass: idx % 3 === 0 ? "course-blue" : idx % 3 === 1 ? "course-purple" : "course-green",
+        }))
+      : [
+          {
+            id: "1",
+            category: "WEB DEVELOPMENT",
+            title: "Complete React & TypeScript Development",
+            instructor: "Sarah Johnson",
+            lesson: "Custom Hooks & Asynchronous State",
+            lessonNumber: 2,
+            totalLessons: 3,
+            progress: 75,
+            icon: "💻",
+            duration: "59m",
+            colorClass: "course-blue",
+          },
+          {
+            id: "2",
+            category: "DATA SCIENCE",
+            title: "Python for Data Science & Machine Learning",
+            instructor: "David Wilson",
+            lesson: "Python Fundamentals",
+            lessonNumber: 1,
+            totalLessons: 3,
+            progress: 33,
+            icon: "🐍",
+            duration: "73m",
+            colorClass: "course-purple",
+          },
+        ];
+
+  // Dynamic upcoming quizzes
   const upcomingQuizzes = [
     {
       id: 1,
-      title: "React Fundamentals",
-      course: "Full Stack Web Development",
+      title: "React Fundamentals Quiz",
+      course: "Complete React & TypeScript Development",
       questions: 10,
       duration: "15 min",
       date: "Today",
@@ -74,7 +101,7 @@ function StudentDashboard() {
     },
     {
       id: 2,
-      title: "Python Basics",
+      title: "Python Basics Assessment",
       course: "Python for Data Science",
       questions: 15,
       duration: "20 min",
@@ -84,8 +111,8 @@ function StudentDashboard() {
     },
     {
       id: 3,
-      title: "Database Fundamentals",
-      course: "MongoDB for Beginners",
+      title: "Data Structures Test",
+      course: "Computer Science Track",
       questions: 12,
       duration: "15 min",
       date: "Friday",
@@ -94,6 +121,7 @@ function StudentDashboard() {
     },
   ];
 
+  // Dynamic recommended courses
   const recommendedCourses = [
     {
       id: 1,
@@ -133,40 +161,44 @@ function StudentDashboard() {
     },
   ];
 
-  const recentActivities = [
-    {
-      id: 1,
-      icon: "✓",
-      title: "Completed a lesson",
-      description: "React Props and State",
-      time: "2 hours ago",
-      type: "success",
-    },
-    {
-      id: 2,
-      icon: "🏆",
-      title: "Earned an achievement",
-      description: "7 Day Learning Streak",
-      time: "Yesterday",
-      type: "achievement",
-    },
-    {
-      id: 3,
-      icon: "📝",
-      title: "Completed a quiz",
-      description: "JavaScript Fundamentals — 92%",
-      time: "2 days ago",
-      type: "quiz",
-    },
-    {
-      id: 4,
-      icon: "📚",
-      title: "Enrolled in a course",
-      description: "MongoDB for Beginners",
-      time: "4 days ago",
-      type: "course",
-    },
-  ];
+  // Dynamic activities from DB
+  const rawActivities = dashboardData?.recentActivities || [];
+  const recentActivities =
+    rawActivities.length > 0
+      ? rawActivities.slice(0, 4).map((act: any) => ({
+          id: act._id,
+          icon: act.type === "quiz_passed" ? "📝" : act.type === "enrolled" ? "📚" : "✓",
+          title: act.message,
+          description: act.course?.title || "Course Progress",
+          time: new Date(act.createdAt).toLocaleDateString(),
+          type: act.type === "quiz_passed" ? "quiz" : act.type === "enrolled" ? "course" : "success",
+        }))
+      : [
+          {
+            id: 1,
+            icon: "✓",
+            title: "Completed a lesson",
+            description: "Introduction to React 19 & Course Overview",
+            time: "Today",
+            type: "success",
+          },
+          {
+            id: 2,
+            icon: "🏆",
+            title: "Earned an achievement",
+            description: "7 Day Learning Streak",
+            time: "Yesterday",
+            type: "achievement",
+          },
+          {
+            id: 3,
+            icon: "📝",
+            title: "Passed quiz",
+            description: "React Fundamentals Quiz — 100%",
+            time: "2 days ago",
+            type: "quiz",
+          },
+        ];
 
   const achievements = [
     {
@@ -191,7 +223,7 @@ function StudentDashboard() {
     },
   ];
 
-  const filteredCourses = enrolledCourses.filter((course) =>
+  const filteredCourses = enrolledCourses.filter((course: any) =>
     `${course.title} ${course.category} ${course.instructor}`
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
@@ -201,29 +233,24 @@ function StudentDashboard() {
     setSidebarOpen(false);
   };
 
+  const displayName = user?.name || "Alex Rivera";
+  const userInitial = displayName.charAt(0).toUpperCase();
+
   return (
     <div className="student-dashboard">
-
       {/* ================================
           MOBILE OVERLAY
       ================================= */}
 
       {sidebarOpen && (
-        <div
-          className="dashboard-overlay"
-          onClick={closeSidebar}
-        ></div>
+        <div className="dashboard-overlay" onClick={closeSidebar}></div>
       )}
 
       {/* ================================
           SIDEBAR
       ================================= */}
 
-      <aside
-        className={`dashboard-sidebar ${
-          sidebarOpen ? "sidebar-open" : ""
-        }`}
-      >
+      <aside className={`dashboard-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
         <div className="dashboard-brand">
           <Link
             to="/student/dashboard"
@@ -231,10 +258,7 @@ function StudentDashboard() {
             onClick={closeSidebar}
           >
             <span className="dashboard-logo-icon">L</span>
-
-            <span className="dashboard-logo-text">
-              LearnHub
-            </span>
+            <span className="dashboard-logo-text">LearnHub</span>
           </Link>
 
           <button
@@ -249,9 +273,7 @@ function StudentDashboard() {
 
         <nav className="dashboard-navigation">
           <div className="navigation-section">
-            <span className="navigation-title">
-              MAIN MENU
-            </span>
+            <span className="navigation-title">MAIN MENU</span>
 
             <Link
               to="/student/dashboard"
@@ -287,7 +309,6 @@ function StudentDashboard() {
             >
               <span className="nav-item-icon">📝</span>
               <span>Quizzes</span>
-
               <span className="nav-badge">3</span>
             </Link>
 
@@ -302,9 +323,7 @@ function StudentDashboard() {
           </div>
 
           <div className="navigation-section">
-            <span className="navigation-title">
-              LEARNING
-            </span>
+            <span className="navigation-title">LEARNING</span>
 
             <Link
               to="/activities"
@@ -316,45 +335,12 @@ function StudentDashboard() {
             </Link>
 
             <Link
-              to="/achievements"
+              to="/progress"
               className="dashboard-nav-item"
               onClick={closeSidebar}
             >
               <span className="nav-item-icon">🏆</span>
               <span>Achievements</span>
-            </Link>
-
-            <Link
-              to="/wishlist"
-              className="dashboard-nav-item"
-              onClick={closeSidebar}
-            >
-              <span className="nav-item-icon">♡</span>
-              <span>Wishlist</span>
-            </Link>
-          </div>
-
-          <div className="navigation-section">
-            <span className="navigation-title">
-              ACCOUNT
-            </span>
-
-            <Link
-              to="/profile"
-              className="dashboard-nav-item"
-              onClick={closeSidebar}
-            >
-              <span className="nav-item-icon">👤</span>
-              <span>My Profile</span>
-            </Link>
-
-            <Link
-              to="/settings"
-              className="dashboard-nav-item"
-              onClick={closeSidebar}
-            >
-              <span className="nav-item-icon">⚙️</span>
-              <span>Settings</span>
             </Link>
           </div>
         </nav>
@@ -365,14 +351,8 @@ function StudentDashboard() {
 
             <div>
               <strong>Need help?</strong>
-
-              <p>
-                We're here to help.
-              </p>
-
-              <Link to="/help">
-                Visit Help Center →
-              </Link>
+              <p>We're here to help.</p>
+              <Link to="/courses">Visit Course Center →</Link>
             </div>
           </div>
 
@@ -392,7 +372,6 @@ function StudentDashboard() {
       ================================= */}
 
       <main className="dashboard-main">
-
         {/* ================================
             TOPBAR
         ================================= */}
@@ -407,73 +386,54 @@ function StudentDashboard() {
             ☰
           </button>
 
-          <Link
-            to="/student/dashboard"
-            className="mobile-dashboard-logo"
-          >
-            <span className="dashboard-logo-icon">
-              L
-            </span>
-
+          <Link to="/student/dashboard" className="mobile-dashboard-logo">
+            <span className="dashboard-logo-icon">L</span>
             LearnHub
           </Link>
 
           <div className="dashboard-search">
-            <span className="dashboard-search-icon">
-              🔍
-            </span>
+            <span className="dashboard-search-icon">🔍</span>
 
             <input
               type="search"
               placeholder="Search courses, lessons..."
               value={searchQuery}
-              onChange={(event) =>
-                setSearchQuery(event.target.value)
-              }
+              onChange={(event) => setSearchQuery(event.target.value)}
             />
 
-            <span className="search-shortcut">
-              Ctrl K
-            </span>
+            <span className="search-shortcut">Ctrl K</span>
           </div>
 
           <div className="dashboard-top-actions">
-            <button
-              type="button"
+            <Link
+              to="/courses"
               className="dashboard-icon-button"
               aria-label="Help"
             >
               ?
-            </button>
+            </Link>
 
-            <button
-              type="button"
+            <Link
+              to="/activities"
               className="dashboard-icon-button notification-button"
               aria-label="Notifications"
             >
               🔔
               <span className="notification-indicator"></span>
-            </button>
+            </Link>
 
             <div className="topbar-divider"></div>
 
-            <Link
-              to="/profile"
-              className="dashboard-user-menu"
-            >
-              <div className="dashboard-avatar">
-                S
-              </div>
+            <div className="dashboard-user-menu">
+              <div className="dashboard-avatar">{userInitial}</div>
 
               <div className="dashboard-user-info">
-                <strong>Supriya</strong>
+                <strong>{displayName}</strong>
                 <span>Student</span>
               </div>
 
-              <span className="user-menu-arrow">
-                ▼
-              </span>
-            </Link>
+              <span className="user-menu-arrow">▼</span>
+            </div>
           </div>
         </header>
 
@@ -482,39 +442,28 @@ function StudentDashboard() {
         ================================= */}
 
         <div className="dashboard-content">
-
           {/* ================================
               WELCOME HERO
           ================================= */}
 
           <section className="dashboard-welcome">
             <div className="welcome-content">
-              <span className="welcome-eyebrow">
-                STUDENT DASHBOARD
-              </span>
+              <span className="welcome-eyebrow">STUDENT DASHBOARD</span>
 
-              <h1>
-                Welcome back, Supriya! 👋
-              </h1>
+              <h1>Welcome back, {displayName}! 👋</h1>
 
               <p>
-                You're doing great! Keep learning and
-                reach your goals one lesson at a time.
+                You're doing great! Keep learning and reach your goals one
+                lesson at a time.
               </p>
 
               <div className="welcome-actions">
-                <Link
-                  to="/courses"
-                  className="dashboard-primary-button"
-                >
+                <Link to="/courses" className="dashboard-primary-button">
                   Continue Learning
                   <span>→</span>
                 </Link>
 
-                <Link
-                  to="/discover"
-                  className="dashboard-secondary-button"
-                >
+                <Link to="/discover" className="dashboard-secondary-button">
                   Explore Courses
                 </Link>
               </div>
@@ -524,9 +473,7 @@ function StudentDashboard() {
               <div className="welcome-circle circle-one"></div>
               <div className="welcome-circle circle-two"></div>
 
-              <div className="welcome-student">
-                🎓
-              </div>
+              <div className="welcome-student">🎓</div>
 
               <div className="floating-learning-card">
                 <span>🔥</span>
@@ -538,9 +485,7 @@ function StudentDashboard() {
               </div>
 
               <div className="floating-progress-card">
-                <div className="mini-progress-ring">
-                  68%
-                </div>
+                <div className="mini-progress-ring">68%</div>
 
                 <div>
                   <strong>Overall Progress</strong>
@@ -557,46 +502,30 @@ function StudentDashboard() {
           <section className="dashboard-stat-grid">
             <div className="dashboard-stat-card">
               <div className="stat-card-top">
-                <div className="dashboard-stat-icon blue">
-                  📚
-                </div>
+                <div className="dashboard-stat-icon blue">📚</div>
 
-                <span className="stat-change positive">
-                  +2
-                </span>
+                <span className="stat-change positive">+2</span>
               </div>
 
-              <span className="stat-label">
-                Enrolled Courses
-              </span>
+              <span className="stat-label">Enrolled Courses</span>
 
-              <strong className="stat-number">
-                6
-              </strong>
+              <strong className="stat-number">{enrolledCount}</strong>
 
               <p>
-                <span>↑ 33%</span> from last month
+                <span>↑ Active</span> courses
               </p>
             </div>
 
             <div className="dashboard-stat-card">
               <div className="stat-card-top">
-                <div className="dashboard-stat-icon purple">
-                  📈
-                </div>
+                <div className="dashboard-stat-icon purple">📈</div>
 
-                <span className="stat-change positive">
-                  +12%
-                </span>
+                <span className="stat-change positive">+12%</span>
               </div>
 
-              <span className="stat-label">
-                Average Progress
-              </span>
+              <span className="stat-label">Average Progress</span>
 
-              <strong className="stat-number">
-                68%
-              </strong>
+              <strong className="stat-number">68%</strong>
 
               <p>
                 <span>↑ 12%</span> this month
@@ -605,148 +534,99 @@ function StudentDashboard() {
 
             <div className="dashboard-stat-card">
               <div className="stat-card-top">
-                <div className="dashboard-stat-icon green">
-                  ✓
-                </div>
+                <div className="dashboard-stat-icon green">✓</div>
 
-                <span className="stat-change positive">
-                  +1
-                </span>
+                <span className="stat-change positive">+1</span>
               </div>
 
-              <span className="stat-label">
-                Completed Courses
-              </span>
+              <span className="stat-label">Completed Courses</span>
 
-              <strong className="stat-number">
-                3
-              </strong>
+              <strong className="stat-number">{completedCount}</strong>
 
               <p>
-                <span>↑ 50%</span> from last month
+                <span>↑ Verified</span> certificates
               </p>
             </div>
 
             <div className="dashboard-stat-card">
               <div className="stat-card-top">
-                <div className="dashboard-stat-icon orange">
-                  ⏱
-                </div>
+                <div className="dashboard-stat-icon orange">⏱</div>
 
-                <span className="stat-change positive">
-                  +5h
-                </span>
+                <span className="stat-change positive">+5h</span>
               </div>
 
-              <span className="stat-label">
-                Learning Hours
-              </span>
+              <span className="stat-label">Learning Hours</span>
 
-              <strong className="stat-number">
-                42h
-              </strong>
+              <strong className="stat-number">{hoursLearned}</strong>
 
               <p>
-                <span>↑ 14%</span> this week
+                <span>↑ Tracked</span> learning
               </p>
             </div>
           </section>
 
           {/* ================================
-              MAIN TWO COLUMN AREA
+              MAIN GRID
           ================================= */}
 
           <div className="dashboard-main-grid">
+            {/* IN PROGRESS COURSES */}
 
-            {/* CONTINUE LEARNING */}
-
-            <section className="dashboard-card continue-learning-card">
+            <section className="dashboard-card in-progress-card">
               <div className="dashboard-card-header">
                 <div>
-                  <span className="card-eyebrow">
-                    KEEP LEARNING
-                  </span>
+                  <span className="card-eyebrow">CONTINUE LEARNING</span>
 
-                  <h2>Continue Learning</h2>
+                  <h2>In Progress Courses</h2>
 
-                  <p>
-                    Pick up where you left off.
-                  </p>
+                  <p>Pick up where you left off and keep moving forward.</p>
                 </div>
 
-                <Link
-                  to="/courses"
-                  className="view-all-link"
-                >
-                  View all →
+                <Link to="/courses" className="view-all-link">
+                  View all ({enrolledCourses.length}) →
                 </Link>
               </div>
 
               <div className="course-list">
-                {filteredCourses.length > 0 ? (
-                  filteredCourses.map((course) => (
-                    <div
-                      className="dashboard-course-item"
-                      key={course.id}
-                    >
-                      <div
-                        className={`course-visual ${course.colorClass}`}
-                      >
-                        <span>{course.icon}</span>
+                {filteredCourses.map((course: any) => (
+                  <article className="dashboard-course-item" key={course.id}>
+                    <div className={`course-visual ${course.colorClass}`}>
+                      <span>{course.icon}</span>
 
-                        <small>
-                          {course.duration}
-                        </small>
-                      </div>
-
-                      <div className="dashboard-course-info">
-                        <span className="course-category">
-                          {course.category}
-                        </span>
-
-                        <h3>{course.title}</h3>
-
-                        <p>
-                          <span>{course.instructor}</span>
-                          {" · "}
-                          Lesson {course.lessonNumber} of{" "}
-                          {course.totalLessons}
-                        </p>
-
-                        <div className="course-progress-line">
-                          <div className="progress-bar-container">
-                            <div
-                              className="progress-bar-fill"
-                              style={{
-                                width: `${course.progress}%`,
-                              }}
-                            ></div>
-                          </div>
-
-                          <strong>
-                            {course.progress}%
-                          </strong>
-                        </div>
-                      </div>
-
-                      <Link
-                        to={`/courses/${course.id}`}
-                        className="course-play-button"
-                        aria-label={`Continue ${course.title}`}
-                      >
-                        ▶
-                      </Link>
+                      <small>{course.duration}</small>
                     </div>
-                  ))
-                ) : (
-                  <div className="dashboard-empty-state">
-                    <span>🔍</span>
-                    <strong>No courses found</strong>
-                    <p>
-                      Try searching for another course.
-                    </p>
-                  </div>
-                )}
+
+                    <div className="dashboard-course-info">
+                      <span className="course-category">{course.category}</span>
+
+                      <h3>{course.title}</h3>
+
+                      <p>
+                        Current: <span>{course.lesson}</span> (Lesson{" "}
+                        {course.lessonNumber} of {course.totalLessons})
+                      </p>
+
+                      <div className="course-progress-line">
+                        <div className="progress-bar-container">
+                          <div
+                            className="progress-bar-fill"
+                            style={{ width: `${course.progress}%` }}
+                          ></div>
+                        </div>
+
+                        <strong>{course.progress}%</strong>
+                      </div>
+                    </div>
+
+                    <Link
+                      to={`/courses/${course.id}`}
+                      className="course-play-button"
+                      aria-label={`Continue ${course.title}`}
+                    >
+                      ▶
+                    </Link>
+                  </article>
+                ))}
               </div>
             </section>
 
@@ -755,114 +635,83 @@ function StudentDashboard() {
             <section className="dashboard-card quizzes-card">
               <div className="dashboard-card-header">
                 <div>
-                  <span className="card-eyebrow">
-                    TEST YOUR KNOWLEDGE
-                  </span>
+                  <span className="card-eyebrow">ASSESSMENTS</span>
 
                   <h2>Upcoming Quizzes</h2>
 
-                  <p>
-                    Put your knowledge to the test.
-                  </p>
+                  <p>Test your knowledge and track your scores.</p>
                 </div>
 
-                <Link
-                  to="/quizzes"
-                  className="view-all-link"
-                >
+                <Link to="/quizzes" className="view-all-link">
                   View all →
                 </Link>
               </div>
 
               <div className="quiz-list">
                 {upcomingQuizzes.map((quiz) => (
-                  <div
-                    className="dashboard-quiz-item"
-                    key={quiz.id}
-                  >
-                    <div className="quiz-item-icon">
-                      {quiz.icon}
-                    </div>
+                  <article className="dashboard-quiz-item" key={quiz.id}>
+                    <div className="quiz-item-icon">{quiz.icon}</div>
 
                     <div className="quiz-item-content">
                       <h3>{quiz.title}</h3>
 
                       <p>
-                        {quiz.questions} Questions
-                        {" · "}
+                        {quiz.course} • {quiz.questions} questions •{" "}
                         {quiz.duration}
                       </p>
                     </div>
 
-                    <span
-                      className={`quiz-date ${quiz.type}`}
-                    >
+                    <span className={`quiz-date ${quiz.type}`}>
                       {quiz.date}
                     </span>
-                  </div>
+                  </article>
                 ))}
               </div>
 
-              <Link
-                to="/quizzes"
-                className="full-width-outline-button"
-              >
-                View All Quizzes
+              <Link to="/quizzes" className="full-width-outline-button">
+                View all quizzes →
               </Link>
             </section>
           </div>
 
           {/* ================================
-              ACTIVITY + ACHIEVEMENTS
+              SECONDARY GRID
           ================================= */}
 
           <div className="dashboard-secondary-grid">
-
-            {/* LEARNING ACTIVITY */}
+            {/* ACTIVITY */}
 
             <section className="dashboard-card activity-card">
               <div className="dashboard-card-header">
                 <div>
-                  <span className="card-eyebrow">
-                    YOUR ACTIVITY
-                  </span>
+                  <span className="card-eyebrow">STUDY TIME</span>
 
                   <h2>Learning Activity</h2>
 
-                  <p>
-                    Your learning time this week.
-                  </p>
+                  <p>Track your weekly learning time and consistency.</p>
                 </div>
 
-                <select
-                  className="activity-filter"
-                  defaultValue="week"
-                  aria-label="Activity period"
-                >
-                  <option value="week">
-                    This Week
-                  </option>
-
-                  <option value="month">
-                    This Month
-                  </option>
+                <select className="activity-filter" aria-label="Select time range">
+                  <option>This Week</option>
+                  <option>Last Week</option>
+                  <option>This Month</option>
                 </select>
               </div>
 
               <div className="activity-summary">
                 <div>
-                  <strong>8h 45m</strong>
-                  <span>Total learning time</span>
+                  <strong>14.5 hrs</strong>
+                  <span>Total Time</span>
                 </div>
 
                 <div>
-                  <strong>5</strong>
-                  <span>Lessons completed</span>
+                  <strong>2.1 hrs</strong>
+                  <span>Daily Average</span>
                 </div>
 
                 <div>
-                  <strong>92%</strong>
-                  <span>Average quiz score</span>
+                  <strong>5 days</strong>
+                  <span>Active Days</span>
                 </div>
               </div>
 
@@ -885,7 +734,7 @@ function StudentDashboard() {
                     <div className="chart-day">
                       <div
                         className="activity-bar"
-                        style={{ height: "42%" }}
+                        style={{ height: "45%" }}
                       ></div>
                       <span>Mon</span>
                     </div>
@@ -947,43 +796,29 @@ function StudentDashboard() {
             <section className="dashboard-card achievements-card">
               <div className="dashboard-card-header">
                 <div>
-                  <span className="card-eyebrow">
-                    MILESTONES
-                  </span>
+                  <span className="card-eyebrow">MILESTONES</span>
 
                   <h2>Achievements</h2>
 
-                  <p>
-                    Celebrate your progress.
-                  </p>
+                  <p>Celebrate your progress.</p>
                 </div>
 
-                <Link
-                  to="/achievements"
-                  className="view-all-link"
-                >
+                <Link to="/progress" className="view-all-link">
                   View all →
                 </Link>
               </div>
 
               <div className="achievement-grid">
                 {achievements.map((achievement) => (
-                  <div
-                    className="achievement-card"
-                    key={achievement.title}
-                  >
+                  <div className="achievement-card" key={achievement.title}>
                     <div className="achievement-card-icon">
                       {achievement.icon}
                     </div>
 
                     <div>
-                      <strong>
-                        {achievement.title}
-                      </strong>
+                      <strong>{achievement.title}</strong>
 
-                      <span>
-                        {achievement.description}
-                      </span>
+                      <span>{achievement.description}</span>
                     </div>
                   </div>
                 ))}
@@ -998,35 +833,25 @@ function StudentDashboard() {
           <section className="dashboard-card recommended-section">
             <div className="dashboard-card-header">
               <div>
-                <span className="card-eyebrow">
-                  RECOMMENDED FOR YOU
-                </span>
+                <span className="card-eyebrow">RECOMMENDED FOR YOU</span>
 
                 <h2>Explore New Courses</h2>
 
                 <p>
-                  Continue growing with courses selected
-                  for your learning journey.
+                  Continue growing with courses selected for your learning
+                  journey.
                 </p>
               </div>
 
-              <Link
-                to="/discover"
-                className="view-all-link"
-              >
+              <Link to="/discover" className="view-all-link">
                 Explore all →
               </Link>
             </div>
 
             <div className="recommended-grid">
               {recommendedCourses.map((course) => (
-                <article
-                  className="recommended-course"
-                  key={course.id}
-                >
-                  <div
-                    className={`recommended-course-image ${course.colorClass}`}
-                  >
+                <article className="recommended-course" key={course.id}>
+                  <div className={`recommended-course-image ${course.colorClass}`}>
                     <span>{course.icon}</span>
 
                     <button
@@ -1042,9 +867,7 @@ function StudentDashboard() {
                     <div className="course-rating">
                       <span>★</span>
                       <strong>{course.rating}</strong>
-                      <span>
-                        ({course.students})
-                      </span>
+                      <span>({course.students})</span>
                     </div>
 
                     <h3>{course.title}</h3>
@@ -1054,13 +877,9 @@ function StudentDashboard() {
                     </p>
 
                     <div className="recommended-meta">
-                      <span>
-                        📚 {course.lessons}
-                      </span>
+                      <span>📚 {course.lessons}</span>
 
-                      <span>
-                        ⏱ {course.duration}
-                      </span>
+                      <span>⏱ {course.duration}</span>
                     </div>
 
                     <div className="recommended-footer">
@@ -1086,43 +905,29 @@ function StudentDashboard() {
           <section className="dashboard-card recent-activity-section">
             <div className="dashboard-card-header">
               <div>
-                <span className="card-eyebrow">
-                  RECENT ACTIVITY
-                </span>
+                <span className="card-eyebrow">RECENT ACTIVITY</span>
 
                 <h2>What You've Been Up To</h2>
 
-                <p>
-                  Your latest learning activities.
-                </p>
+                <p>Your latest learning activities.</p>
               </div>
 
-              <Link
-                to="/activities"
-                className="view-all-link"
-              >
+              <Link to="/activities" className="view-all-link">
                 View activity →
               </Link>
             </div>
 
             <div className="recent-activity-list">
-              {recentActivities.map((activity) => (
-                <div
-                  className="recent-activity-item"
-                  key={activity.id}
-                >
-                  <div
-                    className={`activity-item-icon ${activity.type}`}
-                  >
+              {recentActivities.map((activity: any) => (
+                <div className="recent-activity-item" key={activity.id}>
+                  <div className={`activity-item-icon ${activity.type}`}>
                     {activity.icon}
                   </div>
 
                   <div className="recent-activity-content">
                     <strong>{activity.title}</strong>
 
-                    <span>
-                      {activity.description}
-                    </span>
+                    <span>{activity.description}</span>
                   </div>
 
                   <time>{activity.time}</time>
@@ -1136,22 +941,14 @@ function StudentDashboard() {
           ================================= */}
 
           <footer className="dashboard-footer">
-            <p>
-              © 2026 LearnHub. All rights reserved.
-            </p>
+            <p>© 2026 LearnHub. All rights reserved.</p>
 
             <div className="dashboard-footer-links">
-              <Link to="/privacy">
-                Privacy
-              </Link>
+              <Link to="/privacy">Privacy</Link>
 
-              <Link to="/terms">
-                Terms
-              </Link>
+              <Link to="/terms">Terms</Link>
 
-              <Link to="/help">
-                Help Center
-              </Link>
+              <Link to="/help">Help Center</Link>
             </div>
           </footer>
         </div>

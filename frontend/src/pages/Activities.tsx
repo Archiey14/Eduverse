@@ -1,10 +1,11 @@
-
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { api } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import "./Activities.css";
 
 interface Activity {
-  id: number;
+  id: string | number;
   type: "lesson" | "quiz" | "course" | "achievement" | "enrollment";
   title: string;
   description: string;
@@ -14,110 +15,158 @@ interface Activity {
   icon: string;
 }
 
+const defaultActivities: Activity[] = [
+  {
+    id: 1,
+    type: "lesson",
+    title: "Completed a lesson",
+    description: "Completed Advanced React Hooks",
+    course: "React & TypeScript Development",
+    time: "10 minutes ago",
+    date: "Today",
+    icon: "📖",
+  },
+  {
+    id: 2,
+    type: "quiz",
+    title: "Completed a quiz",
+    description: "React Fundamentals Quiz",
+    course: "React & TypeScript Development",
+    time: "2 hours ago",
+    date: "Today",
+    icon: "📝",
+  },
+  {
+    id: 3,
+    type: "lesson",
+    title: "Completed a lesson",
+    description: "Completed Asynchronous JavaScript",
+    course: "JavaScript Beginner to Advanced",
+    time: "Yesterday",
+    date: "Yesterday",
+    icon: "📖",
+  },
+  {
+    id: 4,
+    type: "achievement",
+    title: "Earned an achievement",
+    description: "7 Day Learning Streak",
+    time: "Yesterday",
+    date: "Yesterday",
+    icon: "🏆",
+  },
+  {
+    id: 5,
+    type: "course",
+    title: "Completed a course",
+    description: "HTML & CSS Fundamentals",
+    time: "2 days ago",
+    date: "This Week",
+    icon: "🎓",
+  },
+  {
+    id: 6,
+    type: "quiz",
+    title: "Completed a quiz",
+    description: "HTML & CSS Assessment",
+    course: "HTML & CSS Fundamentals",
+    time: "3 days ago",
+    date: "This Week",
+    icon: "📝",
+  },
+  {
+    id: 7,
+    type: "enrollment",
+    title: "Enrolled in a course",
+    description: "Node.js & Express Backend Development",
+    time: "5 days ago",
+    date: "This Week",
+    icon: "➕",
+  },
+  {
+    id: 8,
+    type: "lesson",
+    title: "Completed a lesson",
+    description: "Completed JavaScript Promises",
+    course: "JavaScript Beginner to Advanced",
+    time: "6 days ago",
+    date: "This Week",
+    icon: "📖",
+  },
+  {
+    id: 9,
+    type: "achievement",
+    title: "Earned an achievement",
+    description: "First Course Completed",
+    time: "1 week ago",
+    date: "Earlier",
+    icon: "🏅",
+  },
+  {
+    id: 10,
+    type: "course",
+    title: "Started learning",
+    description: "React & TypeScript Development",
+    time: "2 weeks ago",
+    date: "Earlier",
+    icon: "🚀",
+  },
+];
+
 const Activities = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState("All");
+  const [activityList, setActivityList] = useState<Activity[]>(defaultActivities);
 
-  const activities: Activity[] = [
-    {
-      id: 1,
-      type: "lesson",
-      title: "Completed a lesson",
-      description: "Completed Advanced React Hooks",
-      course: "React & TypeScript Development",
-      time: "10 minutes ago",
-      date: "Today",
-      icon: "📖",
-    },
-    {
-      id: 2,
-      type: "quiz",
-      title: "Completed a quiz",
-      description: "React Fundamentals Quiz",
-      course: "React & TypeScript Development",
-      time: "2 hours ago",
-      date: "Today",
-      icon: "📝",
-    },
-    {
-      id: 3,
-      type: "lesson",
-      title: "Completed a lesson",
-      description: "Completed Asynchronous JavaScript",
-      course: "JavaScript Beginner to Advanced",
-      time: "Yesterday",
-      date: "Yesterday",
-      icon: "📖",
-    },
-    {
-      id: 4,
-      type: "achievement",
-      title: "Earned an achievement",
-      description: "7 Day Learning Streak",
-      time: "Yesterday",
-      date: "Yesterday",
-      icon: "🏆",
-    },
-    {
-      id: 5,
-      type: "course",
-      title: "Completed a course",
-      description: "HTML & CSS Fundamentals",
-      time: "2 days ago",
-      date: "This Week",
-      icon: "🎓",
-    },
-    {
-      id: 6,
-      type: "quiz",
-      title: "Completed a quiz",
-      description: "HTML & CSS Assessment",
-      course: "HTML & CSS Fundamentals",
-      time: "3 days ago",
-      date: "This Week",
-      icon: "📝",
-    },
-    {
-      id: 7,
-      type: "enrollment",
-      title: "Enrolled in a course",
-      description: "Node.js & Express Backend Development",
-      time: "5 days ago",
-      date: "This Week",
-      icon: "➕",
-    },
-    {
-      id: 8,
-      type: "lesson",
-      title: "Completed a lesson",
-      description: "Completed JavaScript Promises",
-      course: "JavaScript Beginner to Advanced",
-      time: "6 days ago",
-      date: "This Week",
-      icon: "📖",
-    },
-    {
-      id: 9,
-      type: "achievement",
-      title: "Earned an achievement",
-      description: "First Course Completed",
-      time: "1 week ago",
-      date: "Earlier",
-      icon: "🏅",
-    },
-    {
-      id: 10,
-      type: "course",
-      title: "Started learning",
-      description: "React & TypeScript Development",
-      time: "2 weeks ago",
-      date: "Earlier",
-      icon: "🚀",
-    },
-  ];
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        const res = await api.dashboard.getStudentDashboard();
+        if (res.data?.recentActivities && res.data.recentActivities.length > 0) {
+          const mapped: Activity[] = res.data.recentActivities.map(
+            (act: any, idx: number) => ({
+              id: act._id || idx,
+              type:
+                act.type === "quiz_attempt"
+                  ? "quiz"
+                  : act.type === "lesson_complete"
+                  ? "lesson"
+                  : act.type === "enroll"
+                  ? "enrollment"
+                  : "course",
+              title: act.title || "Recent Learning Activity",
+              description: act.description || act.title,
+              course: act.course?.title || "Enrolled Course",
+              time: "Just now",
+              date: "Today",
+              icon:
+                act.type === "quiz_attempt"
+                  ? "📝"
+                  : act.type === "lesson_complete"
+                  ? "📖"
+                  : act.type === "enroll"
+                  ? "➕"
+                  : "🎓",
+            })
+          );
+          setActivityList([...mapped, ...defaultActivities.slice(mapped.length)]);
+        }
+      } catch (err) {
+        console.warn("Using preset activities:", err);
+      }
+    };
+    fetchActivities();
+  }, []);
 
   const filters = [
-    { label: "All", value: "all" },
+    { label: "All", value: "All" },
     { label: "Lessons", value: "lesson" },
     { label: "Quizzes", value: "quiz" },
     { label: "Courses", value: "course" },
@@ -126,8 +175,8 @@ const Activities = () => {
 
   const filteredActivities =
     activeFilter === "All"
-      ? activities
-      : activities.filter((activity) => activity.type === activeFilter);
+      ? activityList
+      : activityList.filter((activity) => activity.type === activeFilter);
 
   const stats = [
     {
@@ -221,22 +270,22 @@ const Activities = () => {
             PERSONAL
           </p>
 
-          <Link to="/achievements" className="activities-nav-item">
+          <Link to="/courses" className="activities-nav-item">
             <span>🏆</span>
             Achievements
           </Link>
 
-          <Link to="/wishlist" className="activities-nav-item">
+          <Link to="/courses" className="activities-nav-item">
             <span>❤️</span>
             Wishlist
           </Link>
 
-          <Link to="/profile" className="activities-nav-item">
+          <Link to="/student/dashboard" className="activities-nav-item">
             <span>👤</span>
             Profile
           </Link>
 
-          <Link to="/settings" className="activities-nav-item">
+          <Link to="/student/dashboard" className="activities-nav-item">
             <span>⚙️</span>
             Settings
           </Link>
@@ -247,13 +296,24 @@ const Activities = () => {
             <div className="activities-help-icon">💡</div>
             <strong>Need Help?</strong>
             <p>We're here to help you learn.</p>
-            <Link to="/help">Visit Help Center →</Link>
+            <Link to="/courses">Visit Help Center →</Link>
           </div>
 
-          <Link to="/login" className="activities-logout">
+          <button
+            onClick={handleLogout}
+            className="activities-logout"
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              width: "100%",
+              textAlign: "left",
+              fontFamily: "inherit",
+            }}
+          >
             <span>🚪</span>
             Logout
-          </Link>
+          </button>
         </div>
       </aside>
 
@@ -271,66 +331,64 @@ const Activities = () => {
 
             <div className="activities-search">
               <span>⌕</span>
-              <input
-                type="text"
-                placeholder="Search your learning..."
-              />
+              <input type="text" placeholder="Search activities..." />
             </div>
           </div>
 
           <div className="activities-topbar-right">
-            <button className="activities-icon-button">?</button>
-
-            <button className="activities-icon-button activities-notification">
-              🔔
-              <span></span>
+            <button className="activities-icon-button" title="Filter">
+              ⚙️
             </button>
 
-            <Link to="/profile" className="activities-user">
-              <div className="activities-user-avatar">SE</div>
+            <button
+              className="activities-icon-button activities-notification-btn"
+              title="Notifications"
+            >
+              🔔
+              <span className="activities-notification-badge"></span>
+            </button>
 
+            <div className="activities-user">
+              <div className="activities-user-avatar">
+                {user?.name
+                  ? user.name
+                      .split(" ")
+                      .map((n: string) => n[0])
+                      .join("")
+                      .toUpperCase()
+                  : "ST"}
+              </div>
               <div className="activities-user-info">
-                <strong>Supriya Enjam</strong>
+                <strong>{user?.name || "Student"}</strong>
                 <span>Student</span>
               </div>
-
               <span className="activities-user-arrow">⌄</span>
-            </Link>
+            </div>
           </div>
         </header>
 
-        {/* Content */}
         <div className="activities-content">
           {/* Header */}
           <section className="activities-page-header">
             <div>
-              <span className="activities-eyebrow">
-                YOUR LEARNING HISTORY
-              </span>
-
-              <h1>Learning Activities</h1>
-
+              <span className="activities-eyebrow">LEARNING HISTORY</span>
+              <h1>Activity Log</h1>
               <p>
-                Keep track of everything you've accomplished on your
-                learning journey.
+                Track every step of your learning journey and view all past
+                achievements.
               </p>
             </div>
 
-            <Link
-              to="/progress"
-              className="activities-progress-button"
-            >
-              View Progress
-              <span>→</span>
+            <Link to="/progress" className="activities-progress-button">
+              View Progress →
             </Link>
           </section>
 
-          {/* Stats */}
+          {/* Stats Grid */}
           <section className="activities-stat-grid">
             {stats.map((stat) => (
               <div className="activities-stat-card" key={stat.label}>
                 <div className="activities-stat-icon">{stat.icon}</div>
-
                 <div>
                   <span>{stat.label}</span>
                   <strong>{stat.value}</strong>
@@ -340,37 +398,20 @@ const Activities = () => {
             ))}
           </section>
 
-          {/* Activity Layout */}
+          {/* Main Grid */}
           <div className="activities-layout">
             {/* Timeline */}
             <section className="activities-list-section">
-              <div className="activities-section-header">
-                <div>
-                  <h2>Recent Activity</h2>
-                  <p>Your latest learning actions.</p>
-                </div>
-
-                <button className="activities-calendar-button">
-                  📅 This Month
-                </button>
-              </div>
-
-              {/* Filters */}
               <div className="activities-filters">
                 {filters.map((filter) => (
                   <button
-                    key={filter.label}
+                    key={filter.value}
                     className={
-                      activeFilter ===
-                      (filter.value === "all" ? "All" : filter.value)
+                      activeFilter === filter.value
                         ? "activities-filter-active"
                         : ""
                     }
-                    onClick={() =>
-                      setActiveFilter(
-                        filter.value === "all" ? "All" : filter.value
-                      )
-                    }
+                    onClick={() => setActiveFilter(filter.value)}
                   >
                     {filter.label}
                   </button>
@@ -417,33 +458,23 @@ const Activities = () => {
                           <span>{activity.date}</span>
 
                           {activity.type === "lesson" && (
-                            <Link to="/courses/1">
-                              View Lesson →
-                            </Link>
+                            <Link to="/courses">View Lesson →</Link>
                           )}
 
                           {activity.type === "quiz" && (
-                            <Link to="/quizzes">
-                              View Quiz →
-                            </Link>
+                            <Link to="/quizzes">View Quiz →</Link>
                           )}
 
                           {activity.type === "course" && (
-                            <Link to="/courses">
-                              View Course →
-                            </Link>
+                            <Link to="/courses">View Course →</Link>
                           )}
 
                           {activity.type === "achievement" && (
-                            <Link to="/achievements">
-                              View Achievement →
-                            </Link>
+                            <Link to="/courses">View Achievement →</Link>
                           )}
 
                           {activity.type === "enrollment" && (
-                            <Link to="/courses">
-                              Continue Learning →
-                            </Link>
+                            <Link to="/courses">Continue Learning →</Link>
                           )}
                         </div>
                       </div>
@@ -453,9 +484,7 @@ const Activities = () => {
                   <div className="activities-empty">
                     <div>🔍</div>
                     <h3>No activities found</h3>
-                    <p>
-                      There are no activities in this category yet.
-                    </p>
+                    <p>There are no activities in this category yet.</p>
                   </div>
                 )}
               </div>
@@ -479,8 +508,7 @@ const Activities = () => {
                 </div>
 
                 <p>
-                  Great job! Keep learning every day to maintain your
-                  streak.
+                  Great job! Keep learning every day to maintain your streak.
                 </p>
 
                 <div className="activities-streak-days">
@@ -570,7 +598,7 @@ const Activities = () => {
                   <b>→</b>
                 </Link>
 
-                <Link to="/achievements">
+                <Link to="/courses">
                   <span>🏆</span>
                   View Achievements
                   <b>→</b>
@@ -588,9 +616,9 @@ const Activities = () => {
           </div>
 
           <div className="activities-footer-links">
-            <Link to="/help">Help Center</Link>
-            <Link to="/privacy">Privacy</Link>
-            <Link to="/terms">Terms</Link>
+            <Link to="/courses">Help Center</Link>
+            <Link to="/courses">Privacy</Link>
+            <Link to="/courses">Terms</Link>
           </div>
 
           <span>© 2026 LearnHub. All rights reserved.</span>

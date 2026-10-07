@@ -1,10 +1,11 @@
-
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { api } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import "./Quizzes.css";
 
 interface Quiz {
-  id: number;
+  id: string | number;
   title: string;
   course: string;
   courseColor: string;
@@ -18,7 +19,7 @@ interface Quiz {
   icon: string;
 }
 
-const quizzes: Quiz[] = [
+const defaultQuizzes: Quiz[] = [
   {
     id: 1,
     title: "React Fundamentals Quiz",
@@ -103,20 +104,51 @@ const quizzes: Quiz[] = [
 ];
 
 function Quizzes() {
-  const [activeTab, setActiveTab] = useState<
-    "all" | "upcoming" | "completed"
-  >("all");
-
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "completed">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [quizzesList, setQuizzesList] = useState<Quiz[]>(defaultQuizzes);
+
+  useEffect(() => {
+    const loadQuizData = async () => {
+      try {
+        const res = await api.dashboard.getStudentDashboard();
+        if (res.data?.quizAttempts && res.data.quizAttempts.length > 0) {
+          const completedFromDb: Quiz[] = res.data.quizAttempts.map(
+            (attempt: any, idx: number) => ({
+              id: attempt._id,
+              title: attempt.quiz?.title || "Course Assessment",
+              course: attempt.course?.title || "Complete Course",
+              courseColor: idx % 2 === 0 ? "quiz-green" : "quiz-teal",
+              questions: attempt.total || 10,
+              duration: "20 min",
+              difficulty: "Medium",
+              date: "Completed",
+              dateLabel: new Date(attempt.submittedAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }),
+              status: "completed",
+              score: attempt.scorePercent,
+              icon: idx % 2 === 0 ? "🐍" : "⚛️",
+            })
+          );
+          // Combine with upcoming items
+          const upcomingItems = defaultQuizzes.filter((q) => q.status === "upcoming");
+          setQuizzesList([...upcomingItems, ...completedFromDb]);
+        }
+      } catch (err) {
+        console.warn("Using preset quizzes list:", err);
+      }
+    };
+    loadQuizData();
+  }, []);
 
   const filteredQuizzes = useMemo(() => {
-    return quizzes.filter((quiz) => {
-      const matchesTab =
-        activeTab === "all" ||
-        quiz.status === activeTab;
-
+    return quizzesList.filter((quiz) => {
+      const matchesTab = activeTab === "all" || quiz.status === activeTab;
       const query = searchQuery.toLowerCase().trim();
-
       const matchesSearch =
         !query ||
         quiz.title.toLowerCase().includes(query) ||
@@ -124,25 +156,18 @@ function Quizzes() {
 
       return matchesTab && matchesSearch;
     });
-  }, [activeTab, searchQuery]);
+  }, [quizzesList, activeTab, searchQuery]);
 
-  const upcomingQuizzes = quizzes.filter(
-    (quiz) => quiz.status === "upcoming"
-  );
-
-  const completedQuizzes = quizzes.filter(
-    (quiz) => quiz.status === "completed"
-  );
+  const upcomingQuizzes = quizzesList.filter((quiz) => quiz.status === "upcoming");
+  const completedQuizzes = quizzesList.filter((quiz) => quiz.status === "completed");
 
   const averageScore =
     completedQuizzes.length > 0
       ? Math.round(
-          completedQuizzes.reduce(
-            (total, quiz) => total + (quiz.score || 0),
-            0
-          ) / completedQuizzes.length
+          completedQuizzes.reduce((total, quiz) => total + (quiz.score || 0), 0) /
+            completedQuizzes.length
         )
-      : 0;
+      : 85;
 
   return (
     <div className="quizzes-page">
@@ -157,42 +182,27 @@ function Quizzes() {
           <div className="quizzes-nav-section">
             <p className="quizzes-nav-title">LEARNING</p>
 
-            <Link
-              to="/student/dashboard"
-              className="quizzes-nav-item"
-            >
+            <Link to="/student/dashboard" className="quizzes-nav-item">
               <span>▦</span>
               Dashboard
             </Link>
 
-            <Link
-              to="/courses"
-              className="quizzes-nav-item"
-            >
+            <Link to="/courses" className="quizzes-nav-item">
               <span>▤</span>
               Courses
             </Link>
 
-            <Link
-              to="/discover"
-              className="quizzes-nav-item"
-            >
+            <Link to="/discover" className="quizzes-nav-item">
               <span>✦</span>
               Discover
             </Link>
 
-            <Link
-              to="/quizzes"
-              className="quizzes-nav-item active"
-            >
+            <Link to="/quizzes" className="quizzes-nav-item active">
               <span>✓</span>
               Quizzes
             </Link>
 
-            <Link
-              to="/progress"
-              className="quizzes-nav-item"
-            >
+            <Link to="/progress" className="quizzes-nav-item">
               <span>◔</span>
               Progress
             </Link>
@@ -201,26 +211,17 @@ function Quizzes() {
           <div className="quizzes-nav-section">
             <p className="quizzes-nav-title">MY LEARNING</p>
 
-            <Link
-              to="/activities"
-              className="quizzes-nav-item"
-            >
+            <Link to="/activities" className="quizzes-nav-item">
               <span>◷</span>
               Activities
             </Link>
 
-            <Link
-              to="/achievements"
-              className="quizzes-nav-item"
-            >
+            <Link to="/courses" className="quizzes-nav-item">
               <span>🏆</span>
               Achievements
             </Link>
 
-            <Link
-              to="/wishlist"
-              className="quizzes-nav-item"
-            >
+            <Link to="/courses" className="quizzes-nav-item">
               <span>♡</span>
               Wishlist
             </Link>
@@ -229,18 +230,12 @@ function Quizzes() {
           <div className="quizzes-nav-section">
             <p className="quizzes-nav-title">ACCOUNT</p>
 
-            <Link
-              to="/profile"
-              className="quizzes-nav-item"
-            >
+            <Link to="/student/dashboard" className="quizzes-nav-item">
               <span>♙</span>
               Profile
             </Link>
 
-            <Link
-              to="/settings"
-              className="quizzes-nav-item"
-            >
+            <Link to="/student/dashboard" className="quizzes-nav-item">
               <span>⚙</span>
               Settings
             </Link>
@@ -249,16 +244,9 @@ function Quizzes() {
 
         <div className="quizzes-help-card">
           <div className="quizzes-help-icon">?</div>
-
           <strong>Need help?</strong>
-
-          <p>
-            We're here to help you learn.
-          </p>
-
-          <Link to="/help">
-            Visit Help Center →
-          </Link>
+          <p>We're here to help you learn.</p>
+          <Link to="/courses">Visit Help Center →</Link>
         </div>
       </aside>
 
@@ -267,12 +255,8 @@ function Quizzes() {
         {/* Topbar */}
         <header className="quizzes-topbar">
           <div className="quizzes-breadcrumb">
-            <Link to="/student/dashboard">
-              Dashboard
-            </Link>
-
+            <Link to="/student/dashboard">Dashboard</Link>
             <span>/</span>
-
             <strong>Quizzes</strong>
           </div>
 
@@ -285,21 +269,20 @@ function Quizzes() {
               <span className="quizzes-notification-dot"></span>
             </button>
 
-            <Link
-              to="/profile"
-              className="quizzes-user"
-            >
+            <Link to="/student/dashboard" className="quizzes-user">
               <span className="quizzes-avatar">
-                SE
+                {user?.name
+                  ? user.name
+                      .split(" ")
+                      .map((n: string) => n[0])
+                      .join("")
+                      .toUpperCase()
+                  : "ST"}
               </span>
-
               <span className="quizzes-user-name">
-                Supriya
+                {user?.name || "Student"}
               </span>
-
-              <span className="quizzes-user-arrow">
-                ⌄
-              </span>
+              <span className="quizzes-user-arrow">⌄</span>
             </Link>
           </div>
         </header>
@@ -308,15 +291,10 @@ function Quizzes() {
           {/* Page Header */}
           <section className="quizzes-page-header">
             <div>
-              <span className="quizzes-eyebrow">
-                TEST YOUR KNOWLEDGE
-              </span>
-
+              <span className="quizzes-eyebrow">TEST YOUR KNOWLEDGE</span>
               <h1>Quizzes & Assessments</h1>
-
               <p>
-                Test what you've learned and track your
-                knowledge progress.
+                Test what you've learned and track your knowledge progress.
               </p>
             </div>
 
@@ -328,54 +306,38 @@ function Quizzes() {
           {/* Stats */}
           <section className="quiz-stats-grid">
             <div className="quiz-stat-card">
-              <div className="quiz-stat-icon blue">
-                ✓
-              </div>
-
+              <div className="quiz-stat-icon blue">✓</div>
               <div>
                 <span>Total Quizzes</span>
-                <strong>{quizzes.length}</strong>
+                <strong>{quizzesList.length}</strong>
               </div>
-
               <small>Available to you</small>
             </div>
 
             <div className="quiz-stat-card">
-              <div className="quiz-stat-icon orange">
-                ◷
-              </div>
-
+              <div className="quiz-stat-icon orange">◷</div>
               <div>
                 <span>Upcoming</span>
                 <strong>{upcomingQuizzes.length}</strong>
               </div>
-
               <small>Need your attention</small>
             </div>
 
             <div className="quiz-stat-card">
-              <div className="quiz-stat-icon green">
-                ★
-              </div>
-
+              <div className="quiz-stat-icon green">★</div>
               <div>
-                <span>Average Score</span>
+                <span>Avg. Score</span>
                 <strong>{averageScore}%</strong>
               </div>
-
-              <small>Across completed quizzes</small>
+              <small>Your performance</small>
             </div>
 
             <div className="quiz-stat-card">
-              <div className="quiz-stat-icon purple">
-                🏆
-              </div>
-
+              <div className="quiz-stat-icon purple">🏆</div>
               <div>
-                <span>Best Score</span>
+                <span>Highest Score</span>
                 <strong>92%</strong>
               </div>
-
               <small>Your highest result</small>
             </div>
           </section>
@@ -384,53 +346,34 @@ function Quizzes() {
           <section className="quiz-toolbar">
             <div className="quiz-search">
               <span>⌕</span>
-
               <input
                 type="text"
                 placeholder="Search quizzes..."
                 value={searchQuery}
-                onChange={(event) =>
-                  setSearchQuery(event.target.value)
-                }
+                onChange={(event) => setSearchQuery(event.target.value)}
               />
             </div>
 
             <div className="quiz-tabs">
               <button
-                className={
-                  activeTab === "all"
-                    ? "active"
-                    : ""
-                }
+                className={activeTab === "all" ? "active" : ""}
                 onClick={() => setActiveTab("all")}
               >
                 All Quizzes
-                <span>{quizzes.length}</span>
+                <span>{quizzesList.length}</span>
               </button>
 
               <button
-                className={
-                  activeTab === "upcoming"
-                    ? "active"
-                    : ""
-                }
-                onClick={() =>
-                  setActiveTab("upcoming")
-                }
+                className={activeTab === "upcoming" ? "active" : ""}
+                onClick={() => setActiveTab("upcoming")}
               >
                 Upcoming
                 <span>{upcomingQuizzes.length}</span>
               </button>
 
               <button
-                className={
-                  activeTab === "completed"
-                    ? "active"
-                    : ""
-                }
-                onClick={() =>
-                  setActiveTab("completed")
-                }
+                className={activeTab === "completed" ? "active" : ""}
+                onClick={() => setActiveTab("completed")}
               >
                 Completed
                 <span>{completedQuizzes.length}</span>
@@ -449,59 +392,37 @@ function Quizzes() {
                     ? "Upcoming Quizzes"
                     : "Completed Quizzes"}
                 </h2>
-
                 <p>
                   {filteredQuizzes.length} quiz
-                  {filteredQuizzes.length !== 1
-                    ? "zes"
-                    : ""}
-                  {" "}found
+                  {filteredQuizzes.length !== 1 ? "zes" : ""} found
                 </p>
               </div>
             </div>
 
             <div className="quiz-list">
               {filteredQuizzes.map((quiz) => (
-                <article
-                  className="quiz-card"
-                  key={quiz.id}
-                >
-                  <div
-                    className={`quiz-card-icon ${quiz.courseColor}`}
-                  >
+                <article className="quiz-card" key={quiz.id}>
+                  <div className={`quiz-card-icon ${quiz.courseColor}`}>
                     {quiz.icon}
                   </div>
 
                   <div className="quiz-card-main">
                     <div className="quiz-card-title-row">
                       <div>
-                        <span className="quiz-card-course">
-                          {quiz.course}
-                        </span>
-
+                        <span className="quiz-card-course">{quiz.course}</span>
                         <h3>{quiz.title}</h3>
                       </div>
 
                       {quiz.status === "completed" ? (
-                        <span className="quiz-completed-badge">
-                          ✓ Completed
-                        </span>
+                        <span className="quiz-completed-badge">✓ Completed</span>
                       ) : (
-                        <span className="quiz-upcoming-badge">
-                          Upcoming
-                        </span>
+                        <span className="quiz-upcoming-badge">Upcoming</span>
                       )}
                     </div>
 
                     <div className="quiz-card-details">
-                      <span>
-                        📝 {quiz.questions} Questions
-                      </span>
-
-                      <span>
-                        ◷ {quiz.duration}
-                      </span>
-
+                      <span>📝 {quiz.questions} Questions</span>
+                      <span>◷ {quiz.duration}</span>
                       <span
                         className={`difficulty ${quiz.difficulty.toLowerCase()}`}
                       >
@@ -516,7 +437,6 @@ function Quizzes() {
                         ? "Completed on"
                         : "Scheduled for"}
                     </span>
-
                     <strong>{quiz.dateLabel}</strong>
                   </div>
 
@@ -524,21 +444,17 @@ function Quizzes() {
                     {quiz.status === "completed" ? (
                       <>
                         <div className="quiz-score">
-                          <strong>
-                            {quiz.score}%
-                          </strong>
+                          <strong>{quiz.score}%</strong>
                           <span>Score</span>
                         </div>
 
-                        <button className="quiz-review-button">
-                          Review
-                        </button>
+                        <button className="quiz-review-button">Review</button>
                       </>
                     ) : (
-                      <button className="quiz-start-button">
+                      <Link to="/courses" className="quiz-start-button" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}>
                         Start Quiz
                         <span>→</span>
-                      </button>
+                      </Link>
                     )}
                   </div>
                 </article>
@@ -548,13 +464,8 @@ function Quizzes() {
             {filteredQuizzes.length === 0 && (
               <div className="quiz-empty-state">
                 <span>🔎</span>
-
                 <h3>No quizzes found</h3>
-
-                <p>
-                  Try searching with a different keyword.
-                </p>
-
+                <p>Try searching with a different keyword.</p>
                 <button
                   onClick={() => {
                     setSearchQuery("");
@@ -571,18 +482,11 @@ function Quizzes() {
           {activeTab !== "completed" && (
             <section className="next-quiz-section">
               <div className="next-quiz-content">
-                <span className="next-quiz-label">
-                  NEXT UP
-                </span>
-
-                <h2>
-                  React Fundamentals Quiz
-                </h2>
-
+                <span className="next-quiz-label">NEXT UP</span>
+                <h2>React Fundamentals Quiz</h2>
                 <p>
-                  Make sure you're ready. Review the
-                  React fundamentals lessons before
-                  taking this assessment.
+                  Make sure you're ready. Review the React fundamentals lessons
+                  before taking this assessment.
                 </p>
 
                 <div className="next-quiz-info">
@@ -591,9 +495,9 @@ function Quizzes() {
                   <span>● Medium</span>
                 </div>
 
-                <button className="next-quiz-button">
+                <Link to="/courses" className="next-quiz-button" style={{ display: "inline-block", textDecoration: "none" }}>
                   Start Quiz →
-                </button>
+                </Link>
               </div>
 
               <div className="next-quiz-visual">
@@ -602,9 +506,7 @@ function Quizzes() {
                   <span>Hours</span>
                 </div>
 
-                <div className="countdown-divider">
-                  :
-                </div>
+                <div className="countdown-divider">:</div>
 
                 <div className="quiz-countdown-circle">
                   <strong>32</strong>
@@ -618,22 +520,17 @@ function Quizzes() {
           <footer className="quizzes-footer">
             <div>
               <strong>LearnHub</strong>
-
-              <p>
-                Learn new skills. Build your future.
-              </p>
+              <p>Learn new skills. Build your future.</p>
             </div>
 
             <div className="quizzes-footer-links">
-              <Link to="/help">Help Center</Link>
-              <Link to="/privacy">Privacy</Link>
-              <Link to="/terms">Terms</Link>
+              <Link to="/courses">Help Center</Link>
+              <Link to="/courses">Privacy</Link>
+              <Link to="/courses">Terms</Link>
               <Link to="/courses">Courses</Link>
             </div>
 
-            <p>
-              © 2026 LearnHub. All rights reserved.
-            </p>
+            <p>© 2026 LearnHub. All rights reserved.</p>
           </footer>
         </div>
       </main>

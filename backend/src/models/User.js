@@ -1,0 +1,59 @@
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
+
+const mentorProfileSchema = new mongoose.Schema(
+  {
+    headline: { type: String, trim: true, default: "" },
+    bio: { type: String, trim: true, default: "" },
+    expertise: [{ type: String, trim: true }],
+  },
+  { _id: false }
+);
+
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, "Name is required"],
+      trim: true,
+    },
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    passwordHash: {
+      type: String,
+      required: [true, "Password is required"],
+      select: false,
+    },
+    roles: {
+      type: [String],
+      enum: ["student", "mentor", "admin"],
+      default: ["student"],
+    },
+    mentorProfile: {
+      type: mentorProfileSchema,
+      default: () => ({ headline: "", bio: "", expertise: [] }),
+    },
+    avatarUrl: {
+      type: String,
+      default: "",
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.passwordHash);
+};
+
+export const User = mongoose.model("User", userSchema);
