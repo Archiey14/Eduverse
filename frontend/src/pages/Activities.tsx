@@ -115,43 +115,56 @@ const defaultActivities: Activity[] = [
 
 const Activities = () => {
   const [activeFilter, setActiveFilter] = useState("All");
-  const [activityList, setActivityList] = useState<Activity[]>(defaultActivities);
+  const [activityList, setActivityList] = useState<Activity[]>([]);
+  const [stats, setStats] = useState([
+    { label: "Total Activities", value: "0", change: "", icon: "⚡" },
+    { label: "Lessons Completed", value: "0", change: "", icon: "📖" },
+    { label: "Quizzes Completed", value: "0", change: "", icon: "📝" },
+    { label: "Learning Days", value: "0", change: "", icon: "🔥" },
+  ]);
 
   useEffect(() => {
     const fetchActivities = async () => {
       try {
-        const res = await api.dashboard.getStudentDashboard();
-        if (res.data?.recentActivities && res.data.recentActivities.length > 0) {
-          const mapped: Activity[] = res.data.recentActivities.map(
+        const res = await api.activity.getMyActivities();
+        if (res.data && res.data.length > 0) {
+          const mapped: Activity[] = res.data.map(
             (act: any, idx: number) => ({
               id: act._id || idx,
               type:
-                act.type === "quiz_attempt"
-                  ? "quiz"
-                  : act.type === "lesson_complete"
-                  ? "lesson"
-                  : act.type === "enroll"
-                  ? "enrollment"
+                act.type === "quiz_attempt" ? "quiz"
+                  : act.type === "lesson_complete" ? "lesson"
+                  : act.type === "enroll" ? "enrollment"
                   : "course",
               title: act.title || "Recent Learning Activity",
               description: act.description || act.title,
               course: act.course?.title || "Enrolled Course",
-              time: "Just now",
-              date: "Today",
+              time: new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              date: new Date(act.createdAt).toLocaleDateString(),
               icon:
-                act.type === "quiz_attempt"
-                  ? "📝"
-                  : act.type === "lesson_complete"
-                  ? "📖"
-                  : act.type === "enroll"
-                  ? "➕"
+                act.type === "quiz_attempt" ? "📝"
+                  : act.type === "lesson_complete" ? "📖"
+                  : act.type === "enroll" ? "➕"
                   : "🎓",
             })
           );
-          setActivityList([...mapped, ...defaultActivities.slice(mapped.length)]);
+          setActivityList(mapped);
+
+          const lessons = mapped.filter((a) => a.type === "lesson").length;
+          const quizzes = mapped.filter((a) => a.type === "quiz").length;
+          const days = new Set(mapped.map((a) => a.date)).size;
+
+          setStats([
+            { label: "Total Activities", value: mapped.length.toString(), change: "Dynamic", icon: "⚡" },
+            { label: "Lessons Completed", value: lessons.toString(), change: "Dynamic", icon: "📖" },
+            { label: "Quizzes Completed", value: quizzes.toString(), change: "Dynamic", icon: "📝" },
+            { label: "Learning Days", value: days.toString(), change: "Dynamic", icon: "🔥" },
+          ]);
+        } else {
+          setActivityList([]);
         }
       } catch (err) {
-        console.warn("Using preset activities:", err);
+        console.error("Failed to fetch activities:", err);
       }
     };
     fetchActivities();
@@ -169,33 +182,6 @@ const Activities = () => {
     activeFilter === "All"
       ? activityList
       : activityList.filter((activity) => activity.type === activeFilter);
-
-  const stats = [
-    {
-      label: "Total Activities",
-      value: "48",
-      change: "+12 this week",
-      icon: "⚡",
-    },
-    {
-      label: "Lessons Completed",
-      value: "76",
-      change: "+8 this week",
-      icon: "📖",
-    },
-    {
-      label: "Quizzes Completed",
-      value: "18",
-      change: "+3 this week",
-      icon: "📝",
-    },
-    {
-      label: "Learning Days",
-      value: "42",
-      change: "12 day streak",
-      icon: "🔥",
-    },
-  ];
 
   return (
     <StudentLayout

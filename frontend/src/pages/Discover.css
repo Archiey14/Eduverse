@@ -1016,15 +1016,16 @@
 .featured-instructor-details {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  padding: 13px 0;
+  gap: 8px;
+  padding: 16px 0;
   border-top: 1px solid #eef0f4;
-  border-bottom: 1px solid #eef0f4;
   color: #7e8798;
-  font-size: 9px;
+  font-size: 13px;
+  text-align: left;
+  margin-top: auto;
 }
 
-.featured-instructor-details span:first-child {
+.featured-instructor-details span:first-child strong {
   color: #e19c34;
 }
 

@@ -154,6 +154,63 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
                   borderWidth: "1px 0 0",
                 }}
               />
+              {!user?.roles?.includes("mentor") && (
+                <button
+                  type="button"
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    background: "none",
+                    border: "none",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "#4f46e5",
+                    cursor: "pointer",
+                  }}
+                  onClick={async () => {
+                    setMenuOpen(false);
+                    if (window.confirm("Do you want to upgrade your account to Instructor?")) {
+                      try {
+                        await api.auth.becomeMentor({ headline: "New Instructor" });
+                        alert("Success! You are now an instructor. Please login again to apply changes.");
+                        logout();
+                        navigate("/login");
+                      } catch (err) {
+                        alert("Failed to upgrade account");
+                      }
+                    }
+                  }}
+                >
+                  🎓 Become Instructor
+                </button>
+              )}
+              {user?.roles?.includes("mentor") && (
+                <Link
+                  to="/instructor/dashboard"
+                  style={{
+                    display: "block",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "#4f46e5",
+                    textDecoration: "none",
+                  }}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  🎓 Instructor Dashboard
+                </Link>
+              )}
+              <hr
+                style={{
+                  margin: "6px 0",
+                  borderColor: "#f3f4f6",
+                  borderStyle: "solid",
+                  borderWidth: "1px 0 0",
+                }}
+              />
               <button
                 type="button"
                 style={{

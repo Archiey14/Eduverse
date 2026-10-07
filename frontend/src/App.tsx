@@ -1,5 +1,5 @@
-
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
 // Landing & Authentication
 import LandingPage from "./pages/LandingPage";
@@ -16,8 +16,6 @@ import Progress from "./pages/Progress";
 import Activities from "./pages/Activities";
 import Learn from "./pages/Learn";
 import MyCourses from "./pages/MyCourses";
-
-// Student Pages - Existing
 import Achievements from "./pages/Achievements";
 import Wishlist from "./pages/Wishlist";
 import Profile from "./pages/Profile";
@@ -35,80 +33,81 @@ import InstructorAnalytics from "./pages/InstructorAnalytics";
 import InstructorProfile from "./pages/InstructorProfile";
 import InstructorSettings from "./pages/InstructorSettings";
 
+import "./index.css";
+
+// Protected Route Component
+const ProtectedRoute = ({
+  children,
+  requireRole,
+}: {
+  children: React.ReactNode;
+  requireRole?: "mentor" | "admin" | "student";
+}) => {
+  const { isAuthenticated, isMentor, isAdmin } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requireRole === "mentor" && !isMentor && !isAdmin) {
+    return <Navigate to="/student/dashboard" replace />;
+  }
+
+  if (requireRole === "admin" && !isAdmin) {
+    return <Navigate to="/student/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+function AppRoutes() {
+  return (
+    <Routes>
+      {/* Public Pages */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/courses" element={<Courses />} />
+      <Route path="/courses/:id" element={<CourseDetails />} />
+      <Route path="/discover" element={<Discover />} />
+
+      {/* Protected Student Routes */}
+      <Route path="/student/dashboard" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+      <Route path="/quizzes" element={<ProtectedRoute><Quizzes /></ProtectedRoute>} />
+      <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
+      <Route path="/activities" element={<ProtectedRoute><Activities /></ProtectedRoute>} />
+      <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
+      <Route path="/my-courses" element={<ProtectedRoute><MyCourses /></ProtectedRoute>} />
+      <Route path="/achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
+      <Route path="/wishlist" element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
+
+      {/* Protected Instructor Routes */}
+      <Route path="/instructor/dashboard" element={<ProtectedRoute requireRole="mentor"><InstructorDashboard /></ProtectedRoute>} />
+      <Route path="/instructor/courses" element={<ProtectedRoute requireRole="mentor"><InstructorCourses /></ProtectedRoute>} />
+      <Route path="/instructor/courses/create" element={<ProtectedRoute requireRole="mentor"><CreateCourse /></ProtectedRoute>} />
+      <Route path="/instructor/lessons" element={<ProtectedRoute requireRole="mentor"><ManageLessons /></ProtectedRoute>} />
+      <Route path="/instructor/students" element={<ProtectedRoute requireRole="mentor"><InstructorStudents /></ProtectedRoute>} />
+      <Route path="/instructor/quizzes" element={<ProtectedRoute requireRole="mentor"><InstructorQuizzes /></ProtectedRoute>} />
+      <Route path="/instructor/analytics" element={<ProtectedRoute requireRole="mentor"><InstructorAnalytics /></ProtectedRoute>} />
+      <Route path="/instructor/profile" element={<ProtectedRoute requireRole="mentor"><InstructorProfile /></ProtectedRoute>} />
+      <Route path="/instructor/settings" element={<ProtectedRoute requireRole="mentor"><InstructorSettings /></ProtectedRoute>} />
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Landing & Authentication */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-
-        {/* Student Routes */}
-        <Route path="/student/dashboard" element={<StudentDashboard />} />
-        <Route path="/courses" element={<Courses />} />
-        <Route path="/courses/:id" element={<CourseDetails />} />
-        <Route path="/discover" element={<Discover />} />
-        <Route path="/quizzes" element={<Quizzes />} />
-        <Route path="/progress" element={<Progress />} />
-        <Route path="/activities" element={<Activities />} />
-        <Route path="/learn" element={<Learn />} />
-        <Route path="/my-courses" element={<MyCourses />} />
-
-        {/* Existing Student Routes */}
-        <Route path="/achievements" element={<Achievements />} />
-        <Route path="/wishlist" element={<Wishlist />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/help" element={<Help />} />
-
-        {/* Instructor Routes */}
-        <Route
-          path="/instructor/dashboard"
-          element={<InstructorDashboard />}
-        />
-
-        <Route
-          path="/instructor/courses"
-          element={<InstructorCourses />}
-        />
-
-        <Route
-          path="/instructor/courses/create"
-          element={<CreateCourse />}
-        />
-
-        <Route
-          path="/instructor/lessons"
-          element={<ManageLessons />}
-        />
-
-        <Route
-          path="/instructor/students"
-          element={<InstructorStudents />}
-        />
-
-        <Route
-          path="/instructor/quizzes"
-          element={<InstructorQuizzes />}
-        />
-
-        <Route
-          path="/instructor/analytics"
-          element={<InstructorAnalytics />}
-        />
-
-        <Route
-          path="/instructor/profile"
-          element={<InstructorProfile />}
-        />
-
-        <Route
-          path="/instructor/settings"
-          element={<InstructorSettings />}
-        />
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
+import Navbar from "../components/Navbar";
+import { useAuth } from "../context/AuthContext";
 import StudentLayout from "../components/StudentLayout";
 import "./Courses.css";
 
@@ -120,6 +122,7 @@ const defaultCourses: Course[] = [
 const levels = ["All Levels", "Beginner", "Intermediate", "Advanced"];
 
 function Courses() {
+  const { isAuthenticated } = useAuth();
   const [dbCourses, setDbCourses] = useState<Course[]>([]);
   const [myEnrollments, setMyEnrollments] = useState<EnrolledCourse[]>([]);
   const [currentTab, setCurrentTab] = useState<"all" | "enrolled">("all");
@@ -264,10 +267,10 @@ function Courses() {
     setSortBy("popular");
   };
 
-  return (
-    <div className="landing-page">
-      <Navbar />
-      <main className="landing-container" style={{ padding: "40px 0" }}>
+  const content = (
+    <div className={isAuthenticated ? "courses-page in-dashboard" : "landing-page"} style={isAuthenticated ? {} : { minHeight: "100vh" }}>
+      {!isAuthenticated && <Navbar />}
+      <main className={isAuthenticated ? "" : "landing-container"} style={isAuthenticated ? { padding: "0px" } : { padding: "40px 0" }}>
         <div className="courses-content" style={{ padding: "0" }}>
         {/* Page Header */}
         <section className="courses-page-header">
@@ -679,6 +682,14 @@ function Courses() {
       </div>
       </main>
     </div>
+  );
+
+  return isAuthenticated ? (
+    <StudentLayout activeItem="catalog">
+      {content}
+    </StudentLayout>
+  ) : (
+    content
   );
 }
 

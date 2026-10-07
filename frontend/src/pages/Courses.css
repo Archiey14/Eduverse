@@ -3,7 +3,7 @@
    COURSES PAGE
    ========================================= */
 
-.courses-page {
+:root {
   --courses-primary: #4f46e5;
   --courses-primary-dark: #4338ca;
   --courses-primary-light: #eef2ff;
@@ -18,7 +18,9 @@
 
   --courses-success: #10b981;
   --courses-warning: #f59e0b;
+}
 
+.courses-page {
   min-height: 100vh;
   display: flex;
   background: var(--courses-background);

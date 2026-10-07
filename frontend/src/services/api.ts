@@ -233,6 +233,13 @@ export const api = {
       request<any>(`/mentor/courses/${id}/unpublish`, json("POST")),
     addSection: (courseId: string, body: { title: string }) =>
       request<any>(`/mentor/courses/${courseId}/sections`, json("POST", body)),
+    deleteSection: (courseId: string, sectionId: string, force = true) =>
+      request<any>(
+        `/mentor/courses/${courseId}/sections/${sectionId}${force ? "?force=true" : ""}`,
+        json("DELETE")
+      ),
+    getCourseStudents: (courseId: string, page = 1) =>
+      request<any>(`/mentor/courses/${courseId}/students?page=${page}`),
     addLesson: (courseId: string, body: any) =>
       request<any>(`/mentor/courses/${courseId}/lessons`, json("POST", body)),
     deleteLesson: (lessonId: string) =>

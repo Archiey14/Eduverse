@@ -29,129 +29,9 @@ interface Instructor {
   colorClass: string;
 }
 
-const defaultCourses: DiscoverCourse[] = [
-  {
-    id: "1",
-    title: "Complete React & TypeScript Development",
-    instructor: "Sarah Johnson",
-    category: "Web Development",
-    level: "Intermediate",
-    duration: "18h 30m",
-    rating: 4.9,
-    students: 1248,
-    price: 49,
-    imageClass: "discover-blue",
-    icon: "⚛️",
-    badge: "Bestseller",
-  },
-  {
-    id: "2",
-    title: "JavaScript From Beginner to Advanced",
-    instructor: "Michael Brown",
-    category: "Web Development",
-    level: "Beginner",
-    duration: "21h 15m",
-    rating: 4.8,
-    students: 2156,
-    price: 39,
-    imageClass: "discover-yellow",
-    icon: "JS",
-    badge: "Popular",
-  },
-  {
-    id: "3",
-    title: "Python Programming Masterclass",
-    instructor: "David Wilson",
-    category: "Programming",
-    level: "Beginner",
-    duration: "24h 10m",
-    rating: 4.9,
-    students: 3421,
-    price: 45,
-    imageClass: "discover-green",
-    icon: "🐍",
-    badge: "Top Rated",
-  },
-  {
-    id: "4",
-    title: "UI/UX Design Fundamentals",
-    instructor: "Emily Carter",
-    category: "Design",
-    level: "Beginner",
-    duration: "12h 45m",
-    rating: 4.7,
-    students: 987,
-    price: 35,
-    imageClass: "discover-purple",
-    icon: "🎨",
-  },
-  {
-    id: "5",
-    title: "Node.js & Express Backend Development",
-    instructor: "James Anderson",
-    category: "Backend Development",
-    level: "Intermediate",
-    duration: "16h 20m",
-    rating: 4.8,
-    students: 1456,
-    price: 44,
-    imageClass: "discover-teal",
-    icon: "🟢",
-    badge: "New",
-  },
-  {
-    id: "6",
-    title: "MongoDB Database Essentials",
-    instructor: "Daniel Martinez",
-    category: "Database",
-    level: "Intermediate",
-    duration: "10h 35m",
-    rating: 4.7,
-    students: 876,
-    price: 32,
-    imageClass: "discover-dark-green",
-    icon: "🍃",
-  },
-];
+const defaultCourses: DiscoverCourse[] = [];
 
-const instructors: Instructor[] = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    role: "Senior Frontend Developer",
-    students: "12.4K",
-    courses: 8,
-    avatar: "SJ",
-    colorClass: "instructor-indigo",
-  },
-  {
-    id: 2,
-    name: "David Wilson",
-    role: "Python & Data Educator",
-    students: "18.7K",
-    courses: 11,
-    avatar: "DW",
-    colorClass: "instructor-green",
-  },
-  {
-    id: 3,
-    name: "Emily Carter",
-    role: "UI/UX Designer",
-    students: "9.2K",
-    courses: 6,
-    avatar: "EC",
-    colorClass: "instructor-purple",
-  },
-  {
-    id: 4,
-    name: "Michael Brown",
-    role: "JavaScript Developer",
-    students: "15.8K",
-    courses: 9,
-    avatar: "MB",
-    colorClass: "instructor-orange",
-  },
-];
+const defaultInstructors: Instructor[] = [];
 
 const categories = [
   {
@@ -198,45 +78,67 @@ function Discover() {
   const [activeTab, setActiveTab] = useState("Trending");
   const [coursesList, setCoursesList] = useState<DiscoverCourse[]>(defaultCourses);
 
+  const [instructorsList, setInstructorsList] = useState<Instructor[]>([]);
+
   useEffect(() => {
     const fetchCourses = async () => {
       try {
         const res = await api.courses.getAll({ limit: 12 });
         if (res.data && res.data.length > 0) {
-          const mapped: DiscoverCourse[] = res.data.map((c: any, idx: number) => ({
-            id: c._id || c.slug,
-            title: c.title,
-            instructor: c.mentor?.name || "Instructor",
-            category: c.category?.name || "Web Development",
-            level: c.level ? c.level.charAt(0).toUpperCase() + c.level.slice(1) : "Intermediate",
-            duration: `${Math.round((c.stats?.totalDurationMin || 120) / 60)}h ${
-              (c.stats?.totalDurationMin || 120) % 60
-            }m`,
-            rating: c.stats?.ratingAvg || 4.9,
-            students: c.stats?.enrollmentCount || 1200 + idx * 150,
-            price: 49,
-            imageClass:
-              idx % 4 === 0
-                ? "discover-blue"
-                : idx % 4 === 1
-                ? "discover-yellow"
-                : idx % 4 === 2
-                ? "discover-green"
-                : "discover-purple",
-            icon:
-              idx % 4 === 0
-                ? "⚛️"
-                : idx % 4 === 1
-                ? "JS"
-                : idx % 4 === 2
-                ? "🐍"
-                : "🎨",
-            badge: idx === 0 ? "Bestseller" : idx === 1 ? "Popular" : undefined,
-          }));
+          const uniqueMentors = new Map<string, Instructor>();
+          
+          const mapped: DiscoverCourse[] = res.data.map((c: any, idx: number) => {
+            const mentorName = c.mentor?.name || "Instructor";
+            const mentorId = c.mentor?._id || `temp-${idx}`;
+            
+            if (!uniqueMentors.has(mentorId)) {
+              uniqueMentors.set(mentorId, {
+                id: mentorId,
+                name: mentorName,
+                role: c.mentor?.mentorProfile?.headline || "Expert Instructor",
+                students: `${((c.stats?.enrollmentCount || 1200) / 1000).toFixed(1)}K`,
+                courses: 1,
+                avatar: mentorName.substring(0, 2).toUpperCase(),
+                colorClass: idx % 2 === 0 ? "instructor-indigo" : "instructor-green"
+              });
+            } else {
+              const existing = uniqueMentors.get(mentorId);
+              if (existing) existing.courses += 1;
+            }
+            
+            return {
+              id: c._id || c.slug,
+              title: c.title,
+              instructor: mentorName,
+              category: c.category?.name || "Web Development",
+              level: c.level ? c.level.charAt(0).toUpperCase() + c.level.slice(1) : "Intermediate",
+              duration: `${Math.round((c.stats?.totalDurationMin || 120) / 60)}h ${
+                (c.stats?.totalDurationMin || 120) % 60
+              }m`,
+              rating: c.stats?.ratingAvg || 4.9,
+              students: c.stats?.enrollmentCount || 1200 + idx * 150,
+              price: 49,
+              imageClass:
+                idx % 4 === 0 ? "discover-blue"
+                  : idx % 4 === 1 ? "discover-yellow"
+                  : idx % 4 === 2 ? "discover-green"
+                  : "discover-purple",
+              icon:
+                idx % 4 === 0 ? "⚛️"
+                  : idx % 4 === 1 ? "JS"
+                  : idx % 4 === 2 ? "🐍"
+                  : "🎨",
+              badge: idx === 0 ? "Bestseller" : idx === 1 ? "Popular" : undefined,
+            };
+          });
+          
           setCoursesList(mapped);
+          setInstructorsList(Array.from(uniqueMentors.values()).slice(0, 4));
+        } else {
+          setCoursesList([]);
         }
       } catch {
-        // Fallback to default courses
+        setCoursesList([]);
       }
     };
     fetchCourses();
@@ -537,7 +439,7 @@ function Discover() {
             </div>
 
             <div className="instructor-grid">
-              {instructors.map((instructor) => (
+              {instructorsList.map((instructor) => (
                 <article
                   className="featured-instructor"
                   key={instructor.id}
@@ -552,10 +454,10 @@ function Discover() {
 
                   <p>{instructor.role}</p>
 
-                  <div className="instructor-details">
-                    <span>★ 4.9 Rating</span>
-                    <span>👥 {instructor.students} Students</span>
-                    <span>▣ {instructor.courses} Courses</span>
+                  <div className="featured-instructor-details">
+                    <span><strong style={{ color: "#293247" }}>★ 4.9</strong> Rating</span>
+                    <span><strong style={{ color: "#293247" }}>👥 {instructor.students}</strong> Students</span>
+                    <span><strong style={{ color: "#293247" }}>▣ {instructor.courses}</strong> Courses</span>
                   </div>
 
                   <button className="view-instructor-button">

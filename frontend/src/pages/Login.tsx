@@ -52,7 +52,18 @@ function Login() {
       if (response.success && response.token) {
         // "Remember me" unchecked -> session only (cleared when the tab closes)
         login(response.token, response.user, rememberMe);
-        navigate(redirectTo, { replace: true });
+        
+        // Role-based redirect
+        let finalRedirect = redirectTo;
+        if (redirectTo === "/student/dashboard" || !redirectTo) {
+          if (response.user.roles?.includes("mentor")) {
+            finalRedirect = "/instructor/dashboard";
+          } else {
+            finalRedirect = "/student/dashboard";
+          }
+        }
+        
+        navigate(finalRedirect, { replace: true });
       } else {
         setError(response.message || "Failed to log in.");
       }
