@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
+
 import {
   ApiError,
   getToken,
@@ -15,13 +16,31 @@ import {
   api,
 } from "../services/api";
 
+/* =========================================================
+   USER TYPE
+========================================================= */
+
 export interface User {
   id: string;
   name: string;
   email: string;
+
+  /*
+   * A user can have multiple roles.
+   *
+   * Examples:
+   * ["student"]
+   * ["mentor"]
+   * ["admin"]
+   * ["student", "admin"]
+   * ["mentor", "admin"]
+   */
   roles: string[];
+
   avatarUrl?: string;
+
   createdAt?: string;
+
   mentorProfile?: {
     headline?: string;
     bio?: string;
@@ -29,83 +48,228 @@ export interface User {
   };
 }
 
+/* =========================================================
+   AUTH CONTEXT TYPE
+========================================================= */
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
+
   isAuthenticated: boolean;
+
   isMentor: boolean;
   isAdmin: boolean;
-  /** Human readable role label for UI chips ("Admin" | "Mentor" | "Student") */
+
   roleLabel: string;
-  login: (token: string, user: User, remember?: boolean) => void;
+
+  login: (
+    token: string,
+    user: User,
+    remember?: boolean
+  ) => void;
+
   updateUser: (user: User) => void;
+
   logout: () => void;
+
   refreshUser: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+/* =========================================================
+   CONTEXT
+========================================================= */
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const [token, setTokenState] = useState<string | null>(getToken());
-  const [user, setUserState] = useState<User | null>(getStoredUser());
+const AuthContext = createContext<AuthContextType | undefined>(
+  undefined
+);
 
-  const login = (newToken: string, newUser: User, remember = true) => {
+/* =========================================================
+   AUTH PROVIDER
+========================================================= */
+
+export const AuthProvider: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
+  /* -------------------------------------------------------
+     INITIAL AUTH STATE
+  ------------------------------------------------------- */
+
+  const [token, setTokenState] = useState<string | null>(
+    getToken()
+  );
+
+  const [user, setUserState] = useState<User | null>(
+    getStoredUser()
+  );
+
+  /* -------------------------------------------------------
+     LOGIN
+  ------------------------------------------------------- */
+
+  const login = (
+    newToken: string,
+    newUser: User,
+    remember = true
+  ) => {
     saveToken(newToken, remember);
+
     setStoredUser(newUser);
+
     setTokenState(newToken);
     setUserState(newUser);
   };
 
-  /** Replace the stored user (e.g. after becoming a mentor) without touching the token. */
+  /* -------------------------------------------------------
+     UPDATE USER
+  ------------------------------------------------------- */
+
   const updateUser = (newUser: User) => {
     setStoredUser(newUser);
     setUserState(newUser);
   };
 
+  /* -------------------------------------------------------
+     LOGOUT
+  ------------------------------------------------------- */
+
   const logout = useCallback(() => {
     removeToken();
+
     setTokenState(null);
     setUserState(null);
   }, []);
 
+  /* -------------------------------------------------------
+     REFRESH CURRENT USER
+     
+     IMPORTANT:
+     This gets the latest user directly from the backend.
+
+     This means if Archie changes your role in MongoDB from:
+
+     ["student"]
+
+     to:
+
+     ["student", "admin"]
+
+     the frontend can receive the new role without
+     requiring the old stored user information.
+  ------------------------------------------------------- */
+
   const refreshUser = useCallback(async () => {
-    if (!getToken()) return;
+    const currentToken = getToken();
+
+    if (!currentToken) {
+      return;
+    }
+
     try {
-      const res = await api.auth.getMe();
-      if (res.user) {
-        setStoredUser(res.user);
-        setUserState(res.user);
+      const response = await api.auth.getMe();
+
+      console.log(
+        "[AuthContext] Current user from backend:",
+        response.user
+      );
+
+      if (response.user) {
+        /*
+         * Always replace the old stored user with the
+         * latest backend user.
+         */
+        setStoredUser(response.user);
+
+        setUserState(response.user);
       }
-    } catch (err) {
-      // Only an authentication failure should end the session. Network errors,
-      // backend restarts and 5xx responses keep the user signed in.
-      if (err instanceof ApiError && err.status === 401) {
+    } catch (error) {
+      console.error(
+        "[AuthContext] Failed to refresh user:",
+        error
+      );
+
+      /*
+       * Only logout when authentication is actually invalid.
+       */
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
         logout();
       }
     }
   }, [logout]);
 
+  /* -------------------------------------------------------
+     REFRESH USER WHEN TOKEN EXISTS
+     
+     This runs when the application starts and whenever
+     the token changes.
+  ------------------------------------------------------- */
+
   useEffect(() => {
-    if (token) {
-      refreshUser();
+    if (!token) {
+      return;
     }
+
+    refreshUser();
   }, [token, refreshUser]);
 
-  const isMentor = !!user?.roles?.includes("mentor");
-  const isAdmin = !!user?.roles?.includes("admin");
-  const roleLabel = isAdmin ? "Admin" : isMentor ? "Mentor" : "Student";
+  /* =======================================================
+     ROLE CHECKS
+  ======================================================= */
+
+  /*
+   * Make sure roles is always an array.
+   *
+   * This prevents errors if an older stored user object
+   * does not contain roles.
+   */
+
+  const roles = Array.isArray(user?.roles)
+    ? user.roles
+    : [];
+
+  /* -------------------------------------------------------
+     MENTOR
+  ------------------------------------------------------- */
+
+  const isMentor = roles.includes("mentor");
+
+  /* -------------------------------------------------------
+     ADMIN
+  ------------------------------------------------------- */
+
+  const isAdmin = roles.includes("admin");
+
+  /* -------------------------------------------------------
+     ROLE LABEL
+  ------------------------------------------------------- */
+
+  const roleLabel = isAdmin
+    ? "Admin"
+    : isMentor
+    ? "Mentor"
+    : "Student";
+
+  /* =======================================================
+     PROVIDER
+  ======================================================= */
 
   return (
     <AuthContext.Provider
       value={{
         user,
         token,
-        isAuthenticated: !!user && !!token,
+
+        isAuthenticated:
+          !!user && !!token,
+
         isMentor,
         isAdmin,
+
         roleLabel,
+
         login,
         updateUser,
         logout,
@@ -117,11 +281,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
+/* =========================================================
+   USE AUTH HOOK
+========================================================= */
+
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
+
   if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error(
+      "useAuth must be used within an AuthProvider"
+    );
   }
+
   return context;
 };

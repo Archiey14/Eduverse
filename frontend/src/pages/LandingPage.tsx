@@ -1,18 +1,14 @@
-
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { useAuth } from "../context/AuthContext";
 
 function LandingPage() {
+  const { isAuthenticated, isAdmin } = useAuth();
+
   return (
     <div className="landing-page">
-      {/* =========================================
-          NAVBAR
-      ========================================= */}
       <Navbar />
 
-      {/* =========================================
-          MAIN CONTENT
-      ========================================= */}
       <main>
         {/* =========================================
             HERO SECTION
@@ -36,7 +32,6 @@ function LandingPage() {
                 tracking your progress.
               </p>
 
-              {/* HERO BUTTONS */}
               <div className="hero-buttons">
                 <Link to="/register" className="hero-primary-btn">
                   Get Started
@@ -66,9 +61,7 @@ function LandingPage() {
               </div>
             </div>
 
-            {/* =========================================
-                HERO LEARNING DASHBOARD
-            ========================================= */}
+            {/* HERO VISUAL */}
             <div className="hero-visual">
               <div className="hero-glow"></div>
 
@@ -142,7 +135,7 @@ function LandingPage() {
                 </div>
               </div>
 
-              {/* Floating Quiz Card */}
+              {/* FLOATING QUIZ CARD */}
               <div className="floating-quiz-card">
                 <div className="floating-icon">📝</div>
 
@@ -154,7 +147,7 @@ function LandingPage() {
                 <div className="quiz-check">✓</div>
               </div>
 
-              {/* Floating Certificate */}
+              {/* FLOATING CERTIFICATE */}
               <div className="floating-certificate">
                 <div className="certificate-icon">🏆</div>
 
@@ -168,7 +161,7 @@ function LandingPage() {
         </section>
 
         {/* =========================================
-            STATS
+            STATS SECTION
         ========================================= */}
         <section className="landing-stats">
           <div className="landing-container stats-grid">
@@ -195,7 +188,7 @@ function LandingPage() {
         </section>
 
         {/* =========================================
-            FEATURES
+            FEATURES SECTION
         ========================================= */}
         <section
           id="features"
@@ -217,7 +210,7 @@ function LandingPage() {
             </div>
 
             <div className="feature-grid">
-              {/* Feature 1 */}
+              {/* FEATURE 1 */}
               <div className="professional-feature-card">
                 <div className="professional-feature-icon blue-icon">
                   🎓
@@ -237,7 +230,7 @@ function LandingPage() {
                 </Link>
               </div>
 
-              {/* Feature 2 */}
+              {/* FEATURE 2 */}
               <div className="professional-feature-card">
                 <div className="professional-feature-icon purple-icon">
                   📝
@@ -257,7 +250,7 @@ function LandingPage() {
                 </Link>
               </div>
 
-              {/* Feature 3 */}
+              {/* FEATURE 3 */}
               <div className="professional-feature-card">
                 <div className="professional-feature-icon green-icon">
                   📊
@@ -277,7 +270,7 @@ function LandingPage() {
                 </Link>
               </div>
 
-              {/* Feature 4 */}
+              {/* FEATURE 4 */}
               <div className="professional-feature-card">
                 <div className="professional-feature-icon orange-icon">
                   👨‍🏫
@@ -303,7 +296,7 @@ function LandingPage() {
         {/* =========================================
             HOW IT WORKS
         ========================================= */}
-        <section id="how-it-works" className="how-it-works">
+        <section className="how-it-works" id="how-it-works">
           <div className="landing-container">
             <div className="section-heading">
               <span className="section-label">HOW IT WORKS</span>
@@ -320,7 +313,7 @@ function LandingPage() {
             </div>
 
             <div className="steps-grid">
-              {/* Step 1 */}
+              {/* STEP 1 */}
               <div className="step-card">
                 <div className="step-number">01</div>
 
@@ -336,7 +329,7 @@ function LandingPage() {
 
               <div className="step-connector">→</div>
 
-              {/* Step 2 */}
+              {/* STEP 2 */}
               <div className="step-card">
                 <div className="step-number">02</div>
 
@@ -352,7 +345,7 @@ function LandingPage() {
 
               <div className="step-connector">→</div>
 
-              {/* Step 3 */}
+              {/* STEP 3 */}
               <div className="step-card">
                 <div className="step-number">03</div>
 
@@ -370,7 +363,7 @@ function LandingPage() {
         </section>
 
         {/* =========================================
-            STUDENT / INSTRUCTOR SECTION
+            COMMUNITY SECTION
         ========================================= */}
         <section className="learning-community">
           <div className="landing-container community-grid">
@@ -389,7 +382,6 @@ function LandingPage() {
               </p>
 
               <div className="community-points">
-                {/* Students */}
                 <div>
                   <span className="community-check">✓</span>
 
@@ -403,7 +395,6 @@ function LandingPage() {
                   </div>
                 </div>
 
-                {/* Instructors */}
                 <div>
                   <span className="community-check">✓</span>
 
@@ -434,6 +425,7 @@ function LandingPage() {
               </div>
             </div>
 
+            {/* COMMUNITY VISUAL */}
             <div className="community-visual">
               <div className="community-main-card">
                 <div className="community-card-header">
@@ -443,7 +435,9 @@ function LandingPage() {
 
                 <div className="community-users">
                   <div className="community-user">
-                    <div className="user-avatar avatar-one">A</div>
+                    <div className="user-avatar avatar-one">
+                      A
+                    </div>
 
                     <div>
                       <strong>Alex</strong>
@@ -454,7 +448,9 @@ function LandingPage() {
                   </div>
 
                   <div className="community-user">
-                    <div className="user-avatar avatar-two">R</div>
+                    <div className="user-avatar avatar-two">
+                      R
+                    </div>
 
                     <div>
                       <strong>Rahul</strong>
@@ -465,7 +461,9 @@ function LandingPage() {
                   </div>
 
                   <div className="community-user">
-                    <div className="user-avatar avatar-three">M</div>
+                    <div className="user-avatar avatar-three">
+                      M
+                    </div>
 
                     <div>
                       <strong>Maya</strong>
@@ -490,7 +488,7 @@ function LandingPage() {
         </section>
 
         {/* =========================================
-            CTA
+            CTA SECTION
         ========================================= */}
         <section className="landing-cta">
           <div className="landing-container">
@@ -538,9 +536,13 @@ function LandingPage() {
       <footer className="landing-footer">
         <div className="landing-container">
           <div className="footer-main">
-            {/* Footer Brand */}
+
+            {/* FOOTER BRAND */}
             <div className="footer-brand">
-              <Link to="/" className="footer-logo">
+              <Link
+                to="/"
+                className="footer-logo"
+              >
                 <span className="landing-logo-icon">L</span>
                 <span>Eduverse</span>
               </Link>
@@ -551,11 +553,13 @@ function LandingPage() {
               </p>
             </div>
 
-            {/* Platform */}
+            {/* PLATFORM */}
             <div className="footer-column">
               <h4>Platform</h4>
 
-              <Link to="/">Home</Link>
+              <Link to="/">
+                Home
+              </Link>
 
               <Link to="/courses">
                 Courses
@@ -572,9 +576,21 @@ function LandingPage() {
               <Link to="/instructor/login">
                 Instructor Login
               </Link>
+
+              {/* ADMIN LOGIN */}
+              <Link to="/login">
+                🛡️ Admin Login
+              </Link>
+
+              {/* ADMIN DASHBOARD */}
+              {isAuthenticated && isAdmin && (
+                <Link to="/admin/dashboard">
+                  🛡️ Admin Dashboard
+                </Link>
+              )}
             </div>
 
-            {/* Learning */}
+            {/* LEARNING */}
             <div className="footer-column">
               <h4>Learning</h4>
 
@@ -595,7 +611,7 @@ function LandingPage() {
               </Link>
             </div>
 
-            {/* Get Started */}
+            {/* GET STARTED */}
             <div className="footer-column">
               <h4>Get Started</h4>
 
@@ -616,9 +632,18 @@ function LandingPage() {
               >
                 Instructor Login →
               </Link>
+
+              {/* ADMIN LOGIN BUTTON */}
+              <Link
+                to="/login"
+                className="footer-instructor-btn"
+              >
+                🛡️ Admin Login →
+              </Link>
             </div>
           </div>
 
+          {/* FOOTER BOTTOM */}
           <div className="footer-bottom">
             <p>
               © 2026 Eduverse. All rights reserved.
