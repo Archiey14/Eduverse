@@ -1,6 +1,7 @@
 
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./InstructorStudents.css";
 
 interface Student {
@@ -152,6 +153,7 @@ const students: Student[] = [
 
 function InstructorStudents() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [courseFilter, setCourseFilter] = useState("All Courses");
@@ -159,8 +161,7 @@ function InstructorStudents() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    logout();
     navigate("/login");
   };
 

@@ -1,3 +1,4 @@
+
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
@@ -20,7 +21,7 @@ interface DiscoverCourse {
 }
 
 interface Instructor {
-  id: number;
+  id: string;
   name: string;
   role: string;
   students: string;
@@ -30,8 +31,6 @@ interface Instructor {
 }
 
 const defaultCourses: DiscoverCourse[] = [];
-
-const defaultInstructors: Instructor[] = [];
 
 const categories = [
   {
@@ -76,7 +75,9 @@ function Discover() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [activeTab, setActiveTab] = useState("Trending");
-  const [coursesList, setCoursesList] = useState<DiscoverCourse[]>(defaultCourses);
+
+  const [coursesList, setCoursesList] =
+    useState<DiscoverCourse[]>(defaultCourses);
 
   const [instructorsList, setInstructorsList] = useState<Instructor[]>([]);
 
@@ -84,75 +85,113 @@ function Discover() {
     const fetchCourses = async () => {
       try {
         const res = await api.courses.getAll({ limit: 12 });
+
         if (res.data && res.data.length > 0) {
           const uniqueMentors = new Map<string, Instructor>();
-          
-          const mapped: DiscoverCourse[] = res.data.map((c: any, idx: number) => {
-            const mentorName = c.mentor?.name || "Instructor";
-            const mentorId = c.mentor?._id || `temp-${idx}`;
-            
-            if (!uniqueMentors.has(mentorId)) {
-              uniqueMentors.set(mentorId, {
-                id: mentorId,
-                name: mentorName,
-                role: c.mentor?.mentorProfile?.headline || "Expert Instructor",
-                students: `${((c.stats?.enrollmentCount || 1200) / 1000).toFixed(1)}K`,
-                courses: 1,
-                avatar: mentorName.substring(0, 2).toUpperCase(),
-                colorClass: idx % 2 === 0 ? "instructor-indigo" : "instructor-green"
-              });
-            } else {
-              const existing = uniqueMentors.get(mentorId);
-              if (existing) existing.courses += 1;
+
+          const mapped: DiscoverCourse[] = res.data.map(
+            (c: any, idx: number) => {
+              const mentorName = c.mentor?.name || "Instructor";
+              const mentorId = c.mentor?._id || `temp-${idx}`;
+
+              if (!uniqueMentors.has(mentorId)) {
+                uniqueMentors.set(mentorId, {
+                  id: mentorId,
+                  name: mentorName,
+                  role:
+                    c.mentor?.mentorProfile?.headline ||
+                    "Expert Instructor",
+                  students: `${(
+                    (c.stats?.enrollmentCount || 1200) / 1000
+                  ).toFixed(1)}K`,
+                  courses: 1,
+                  avatar: mentorName.substring(0, 2).toUpperCase(),
+                  colorClass:
+                    idx % 2 === 0
+                      ? "instructor-indigo"
+                      : "instructor-green",
+                });
+              } else {
+                const existing = uniqueMentors.get(mentorId);
+
+                if (existing) {
+                  existing.courses += 1;
+                }
+              }
+
+              return {
+                id: c._id || c.slug,
+                title: c.title,
+                instructor: mentorName,
+                category: c.category?.name || "Web Development",
+                level: c.level
+                  ? c.level.charAt(0).toUpperCase() + c.level.slice(1)
+                  : "Intermediate",
+                duration: `${Math.round(
+                  (c.stats?.totalDurationMin || 120) / 60
+                )}h ${
+                  (c.stats?.totalDurationMin || 120) % 60
+                }m`,
+                rating: c.stats?.ratingAvg || 4.9,
+                students:
+                  c.stats?.enrollmentCount || 1200 + idx * 150,
+                price: 49,
+                imageClass:
+                  idx % 4 === 0
+                    ? "discover-blue"
+                    : idx % 4 === 1
+                    ? "discover-yellow"
+                    : idx % 4 === 2
+                    ? "discover-green"
+                    : "discover-purple",
+                icon:
+                  idx % 4 === 0
+                    ? "⚛️"
+                    : idx % 4 === 1
+                    ? "JS"
+                    : idx % 4 === 2
+                    ? "🐍"
+                    : "🎨",
+                badge:
+                  idx === 0
+                    ? "Bestseller"
+                    : idx === 1
+                    ? "Popular"
+                    : undefined,
+              };
             }
-            
-            return {
-              id: c._id || c.slug,
-              title: c.title,
-              instructor: mentorName,
-              category: c.category?.name || "Web Development",
-              level: c.level ? c.level.charAt(0).toUpperCase() + c.level.slice(1) : "Intermediate",
-              duration: `${Math.round((c.stats?.totalDurationMin || 120) / 60)}h ${
-                (c.stats?.totalDurationMin || 120) % 60
-              }m`,
-              rating: c.stats?.ratingAvg || 4.9,
-              students: c.stats?.enrollmentCount || 1200 + idx * 150,
-              price: 49,
-              imageClass:
-                idx % 4 === 0 ? "discover-blue"
-                  : idx % 4 === 1 ? "discover-yellow"
-                  : idx % 4 === 2 ? "discover-green"
-                  : "discover-purple",
-              icon:
-                idx % 4 === 0 ? "⚛️"
-                  : idx % 4 === 1 ? "JS"
-                  : idx % 4 === 2 ? "🐍"
-                  : "🎨",
-              badge: idx === 0 ? "Bestseller" : idx === 1 ? "Popular" : undefined,
-            };
-          });
-          
+          );
+
           setCoursesList(mapped);
-          setInstructorsList(Array.from(uniqueMentors.values()).slice(0, 4));
+          setInstructorsList(
+            Array.from(uniqueMentors.values()).slice(0, 4)
+          );
         } else {
           setCoursesList([]);
+          setInstructorsList([]);
         }
-      } catch {
+      } catch (error) {
+        console.warn("Failed to load discover courses:", error);
         setCoursesList([]);
+        setInstructorsList([]);
       }
     };
+
     fetchCourses();
   }, []);
 
   const filteredCourses = useMemo(() => {
     return coursesList.filter((course) => {
+      const query = searchQuery.toLowerCase().trim();
+
       const matchesSearch =
-        course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        course.instructor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        course.category.toLowerCase().includes(searchQuery.toLowerCase());
+        course.title.toLowerCase().includes(query) ||
+        course.instructor.toLowerCase().includes(query) ||
+        course.category.toLowerCase().includes(query);
 
       const matchesCategory =
-        selectedCategory === "All" || course.category === selectedCategory;
+        selectedCategory === "All" ||
+        course.category === selectedCategory;
 
       return matchesSearch && matchesCategory;
     });
@@ -161,12 +200,18 @@ function Discover() {
   return (
     <div className="landing-page">
       <Navbar />
-      <main className="landing-container" style={{ padding: "40px 0" }}>
+
+      <main
+        className="landing-container"
+        style={{ padding: "40px 0" }}
+      >
         <div className="discover-content" style={{ padding: "0" }}>
           {/* Hero */}
           <section className="discover-hero">
             <div className="discover-hero-content">
-              <span className="discover-eyebrow">✦ EXPLORE & LEARN</span>
+              <span className="discover-eyebrow">
+                ✦ EXPLORE & LEARN
+              </span>
 
               <h1>
                 Discover your next
@@ -174,8 +219,8 @@ function Discover() {
               </h1>
 
               <p>
-                Explore courses, discover new skills, and find instructors who
-                can help you reach your goals.
+                Explore courses, discover new skills, and find
+                instructors who can help you reach your goals.
               </p>
 
               <div className="discover-search">
@@ -185,7 +230,9 @@ function Discover() {
                   type="text"
                   placeholder="What do you want to learn?"
                   value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onChange={(event) =>
+                    setSearchQuery(event.target.value)
+                  }
                 />
 
                 <button>Search</button>
@@ -194,12 +241,29 @@ function Discover() {
               <div className="popular-searches">
                 <span>Popular:</span>
 
-                <button onClick={() => setSearchQuery("React")}>React</button>
-                <button onClick={() => setSearchQuery("Python")}>Python</button>
-                <button onClick={() => setSearchQuery("JavaScript")}>
+                <button
+                  onClick={() => setSearchQuery("React")}
+                >
+                  React
+                </button>
+
+                <button
+                  onClick={() => setSearchQuery("Python")}
+                >
+                  Python
+                </button>
+
+                <button
+                  onClick={() => setSearchQuery("JavaScript")}
+                >
                   JavaScript
                 </button>
-                <button onClick={() => setSearchQuery("UI/UX")}>UI/UX</button>
+
+                <button
+                  onClick={() => setSearchQuery("UI/UX")}
+                >
+                  UI/UX
+                </button>
               </div>
             </div>
 
@@ -213,6 +277,7 @@ function Discover() {
 
               <div className="floating-discover-card card-one">
                 <span>⚛️</span>
+
                 <div>
                   <strong>React</strong>
                   <small>Trending skill</small>
@@ -221,6 +286,7 @@ function Discover() {
 
               <div className="floating-discover-card card-two">
                 <span>🐍</span>
+
                 <div>
                   <strong>Python</strong>
                   <small>3.4K learners</small>
@@ -229,6 +295,7 @@ function Discover() {
 
               <div className="floating-discover-card card-three">
                 <span>🎨</span>
+
                 <div>
                   <strong>Design</strong>
                   <small>Popular category</small>
@@ -241,7 +308,10 @@ function Discover() {
           <section className="discover-section">
             <div className="discover-section-header">
               <div>
-                <span className="section-eyebrow">EXPLORE BY TOPIC</span>
+                <span className="section-eyebrow">
+                  EXPLORE BY TOPIC
+                </span>
+
                 <h2>Browse categories</h2>
               </div>
 
@@ -253,9 +323,13 @@ function Discover() {
                 <button
                   key={category.name}
                   className={`discover-category-card ${category.className}`}
-                  onClick={() => setSelectedCategory(category.name)}
+                  onClick={() =>
+                    setSelectedCategory(category.name)
+                  }
                 >
-                  <span className="category-icon">{category.icon}</span>
+                  <span className="category-icon">
+                    {category.icon}
+                  </span>
 
                   <strong>{category.name}</strong>
 
@@ -271,30 +345,46 @@ function Discover() {
           <section className="discover-section">
             <div className="discover-section-header">
               <div>
-                <span className="section-eyebrow">RECOMMENDED FOR YOU</span>
+                <span className="section-eyebrow">
+                  RECOMMENDED FOR YOU
+                </span>
+
                 <h2>Courses you'll love</h2>
               </div>
 
-              <Link to="/courses">Browse all courses →</Link>
+              <Link to="/courses">
+                Browse all courses →
+              </Link>
             </div>
 
             <div className="discover-tabs">
-              {["Trending", "Popular", "Top Rated", "New"].map((tab) => (
-                <button
-                  key={tab}
-                  className={activeTab === tab ? "active" : ""}
-                  onClick={() => setActiveTab(tab)}
-                >
-                  {tab}
-                </button>
-              ))}
+              {["Trending", "Popular", "Top Rated", "New"].map(
+                (tab) => (
+                  <button
+                    key={tab}
+                    className={
+                      activeTab === tab ? "active" : ""
+                    }
+                    onClick={() => setActiveTab(tab)}
+                  >
+                    {tab}
+                  </button>
+                )
+              )}
             </div>
 
             <div className="discover-course-grid">
               {filteredCourses.slice(0, 4).map((course) => (
-                <article className="discover-course-card" key={course.id}>
-                  <div className={`discover-course-image ${course.imageClass}`}>
-                    <span className="discover-course-icon">{course.icon}</span>
+                <article
+                  className="discover-course-card"
+                  key={course.id}
+                >
+                  <div
+                    className={`discover-course-image ${course.imageClass}`}
+                  >
+                    <span className="discover-course-icon">
+                      {course.icon}
+                    </span>
 
                     {course.badge && (
                       <span className="discover-course-badge">
@@ -324,7 +414,9 @@ function Discover() {
                     <div className="discover-course-rating">
                       <strong>{course.rating}</strong>
                       <span>★★★★★</span>
-                      <small>({course.students.toLocaleString()})</small>
+                      <small>
+                        ({course.students.toLocaleString()})
+                      </small>
                     </div>
 
                     <div className="discover-course-meta">
@@ -347,8 +439,12 @@ function Discover() {
             {filteredCourses.length === 0 && (
               <div className="discover-no-results">
                 <span>🔎</span>
+
                 <h3>No courses found</h3>
-                <p>Try searching for another skill or category.</p>
+
+                <p>
+                  Try searching for another skill or category.
+                </p>
 
                 <button
                   onClick={() => {
@@ -366,20 +462,29 @@ function Discover() {
           <section className="discover-section">
             <div className="discover-section-header">
               <div>
-                <span className="section-eyebrow">LEARN WITH PURPOSE</span>
+                <span className="section-eyebrow">
+                  LEARN WITH PURPOSE
+                </span>
+
                 <h2>Popular learning paths</h2>
               </div>
             </div>
 
             <div className="learning-path-grid">
-              <Link to="/courses" className="learning-path-card path-web">
+              <Link
+                to="/courses"
+                className="learning-path-card path-web"
+              >
                 <div className="path-icon">💻</div>
 
                 <div className="path-content">
                   <span>CAREER PATH</span>
+
                   <h3>Full-Stack Developer</h3>
+
                   <p>
-                    Master frontend, backend, databases and deployment.
+                    Master frontend, backend, databases and
+                    deployment.
                   </p>
 
                   <div className="path-bottom">
@@ -389,14 +494,20 @@ function Discover() {
                 </div>
               </Link>
 
-              <Link to="/courses" className="learning-path-card path-data">
+              <Link
+                to="/courses"
+                className="learning-path-card path-data"
+              >
                 <div className="path-icon">📊</div>
 
                 <div className="path-content">
                   <span>CAREER PATH</span>
+
                   <h3>Data Scientist</h3>
+
                   <p>
-                    Learn Python, data analysis, statistics and machine learning.
+                    Learn Python, data analysis, statistics and
+                    machine learning.
                   </p>
 
                   <div className="path-bottom">
@@ -406,14 +517,20 @@ function Discover() {
                 </div>
               </Link>
 
-              <Link to="/courses" className="learning-path-card path-design">
+              <Link
+                to="/courses"
+                className="learning-path-card path-design"
+              >
                 <div className="path-icon">🎨</div>
 
                 <div className="path-content">
                   <span>CAREER PATH</span>
+
                   <h3>UI/UX Designer</h3>
+
                   <p>
-                    Build beautiful interfaces and meaningful user experiences.
+                    Build beautiful interfaces and meaningful
+                    user experiences.
                   </p>
 
                   <div className="path-bottom">
@@ -429,7 +546,10 @@ function Discover() {
           <section className="discover-section">
             <div className="discover-section-header">
               <div>
-                <span className="section-eyebrow">LEARN FROM THE BEST</span>
+                <span className="section-eyebrow">
+                  LEARN FROM THE BEST
+                </span>
+
                 <h2>Featured instructors</h2>
               </div>
 
@@ -455,9 +575,26 @@ function Discover() {
                   <p>{instructor.role}</p>
 
                   <div className="featured-instructor-details">
-                    <span><strong style={{ color: "#293247" }}>★ 4.9</strong> Rating</span>
-                    <span><strong style={{ color: "#293247" }}>👥 {instructor.students}</strong> Students</span>
-                    <span><strong style={{ color: "#293247" }}>▣ {instructor.courses}</strong> Courses</span>
+                    <span>
+                      <strong style={{ color: "#293247" }}>
+                        ★ 4.9
+                      </strong>{" "}
+                      Rating
+                    </span>
+
+                    <span>
+                      <strong style={{ color: "#293247" }}>
+                        👥 {instructor.students}
+                      </strong>{" "}
+                      Students
+                    </span>
+
+                    <span>
+                      <strong style={{ color: "#293247" }}>
+                        ▣ {instructor.courses}
+                      </strong>{" "}
+                      Courses
+                    </span>
                   </div>
 
                   <button className="view-instructor-button">
@@ -503,11 +640,14 @@ function Discover() {
               </h2>
 
               <p>
-                Explore our complete course library and start learning something
-                new today.
+                Explore our complete course library and start
+                learning something new today.
               </p>
 
-              <Link to="/courses" className="discover-cta-button">
+              <Link
+                to="/courses"
+                className="discover-cta-button"
+              >
                 Explore All Courses →
               </Link>
             </div>

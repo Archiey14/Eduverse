@@ -29,6 +29,7 @@ export const getStudentDashboard = asyncHandler(async (req, res, next) => {
         .limit(5)
         .lean(),
       Activity.find({ user: studentId })
+        .populate("course", "title slug")
         .sort({ createdAt: -1 })
         .limit(10)
         .lean(),
