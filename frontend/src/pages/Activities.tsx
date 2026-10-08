@@ -35,19 +35,19 @@ const Activities = () => {
             (act: any, idx: number) => ({
               id: act._id || idx,
               type:
-                act.type === "quiz_attempt" ? "quiz"
-                  : act.type === "lesson_complete" ? "lesson"
-                  : act.type === "enroll" ? "enrollment"
-                  : "course",
-              title: act.title || "Recent Learning Activity",
-              description: act.description || act.title,
+                (act.type?.includes("quiz") ? "quiz"
+                  : act.type?.includes("lesson") ? "lesson"
+                  : act.type?.includes("enroll") ? "enrollment"
+                  : "course") as Activity["type"],
+              title: act.message || act.title || "Recent Learning Activity",
+              description: act.course?.title ? `Course: ${act.course.title}` : (act.description || act.message),
               course: act.course?.title || "Enrolled Course",
               time: new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               date: new Date(act.createdAt).toLocaleDateString(),
               icon:
-                act.type === "quiz_attempt" ? "📝"
-                  : act.type === "lesson_complete" ? "📖"
-                  : act.type === "enroll" ? "➕"
+                act.type?.includes("quiz") ? "📝"
+                  : act.type?.includes("lesson") ? "📖"
+                  : act.type?.includes("enroll") ? "➕"
                   : "🎓",
             })
           );

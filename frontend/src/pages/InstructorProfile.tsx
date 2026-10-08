@@ -1,20 +1,24 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { api } from "../services/api";
 import "./InstructorProfile.css";
 
 const InstructorProfile = () => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const [name, setName] = useState("Supriya Enjam");
-  const [email, setEmail] = useState("supriya@example.com");
+  const [name, setName] = useState(user?.name || "Instructor");
+  const [email, setEmail] = useState(user?.email || "instructor@example.com");
   const [phone, setPhone] = useState("+91 98765 43210");
   const [location, setLocation] = useState("Telangana, India");
   const [bio, setBio] = useState(
-    "Passionate instructor focused on helping students build practical skills in modern web development."
+    user?.mentorProfile?.bio ||
+      "Passionate instructor focused on helping students build practical skills in modern web development."
   );
   const [expertise, setExpertise] = useState([
     "React",
@@ -26,15 +30,35 @@ const InstructorProfile = () => {
 
   const [newExpertise, setNewExpertise] = useState("");
 
+  useEffect(() => {
+    if (user) {
+      if (user.name) setName(user.name);
+      if (user.email) setEmail(user.email);
+      if (user.mentorProfile?.bio) setBio(user.mentorProfile.bio);
+      if (user.mentorProfile?.expertise?.length) setExpertise(user.mentorProfile.expertise);
+    }
+  }, [user]);
+
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    logout();
     navigate("/login");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsEditing(false);
-    alert("Instructor profile updated successfully!");
+    try {
+      await api.auth.updateMe({
+        name,
+        mentorProfile: {
+          headline: user?.mentorProfile?.headline || "Instructor",
+          bio,
+          expertise,
+        },
+      });
+      alert("Instructor profile updated successfully!");
+    } catch {
+      alert("Profile updated locally.");
+    }
   };
 
   const handleCancel = () => {

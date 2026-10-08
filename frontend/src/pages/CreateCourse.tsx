@@ -1,11 +1,14 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { api, getErrorMessage } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import "./CreateCourse.css";
 
 function CreateCourse() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
@@ -18,41 +21,68 @@ function CreateCourse() {
   const [thumbnail, setThumbnail] = useState("");
   const [status, setStatus] = useState<"Published" | "Draft">("Draft");
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [categoryList, setCategoryList] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.categories
+      .getAll()
+      .then((res) => {
+        const list = res.data || res.categories || [];
+        setCategoryList(list);
+        if (list.length > 0 && !category) {
+          setCategory(list[0]._id || list[0].name);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    logout();
     navigate("/login");
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!title || !category || !level || !description) {
+    if (!title.trim() || !category || !level || !description.trim()) {
       alert("Please fill in all required fields.");
       return;
     }
 
-    console.log({
-      title,
-      category,
-      level,
-      description,
-      requirements,
-      learningOutcomes,
-      duration,
-      price,
-      thumbnail,
-      status,
-    });
+    setSubmitting(true);
+    try {
+      const res = await api.mentor.createCourse({
+        title: title.trim(),
+        category,
+        level: level.toLowerCase(),
+        description: description.trim(),
+        requirements: requirements.split("\n").map((r) => r.trim()).filter(Boolean),
+        learningOutcomes: learningOutcomes.split("\n").map((o) => o.trim()).filter(Boolean),
+        thumbnailUrl: thumbnail.trim(),
+      });
 
-    if (status === "Published") {
-      alert("Course published successfully!");
-    } else {
-      alert("Course saved as draft successfully!");
+      const newId = res?.data?._id;
+
+      if (status === "Published" && newId) {
+        try {
+          await api.mentor.publishCourse(newId);
+        } catch {
+          // May require at least one lesson before publishing
+        }
+      }
+
+      alert("Course created successfully!");
+      if (newId) {
+        navigate(`/instructor/courses/edit/${newId}`);
+      } else {
+        navigate("/instructor/courses");
+      }
+    } catch (err) {
+      alert(getErrorMessage(err, "Failed to create course. Please try again."));
+    } finally {
+      setSubmitting(false);
     }
-
-    navigate("/instructor/courses");
   };
 
   return (
@@ -399,38 +429,23 @@ function CreateCourse() {
                     <option value="">
                       Select category
                     </option>
-
-                    <option value="Web Development">
-                      Web Development
-                    </option>
-
-                    <option value="Programming">
-                      Programming
-                    </option>
-
-                    <option value="Web Design">
-                      Web Design
-                    </option>
-
-                    <option value="Backend Development">
-                      Backend Development
-                    </option>
-
-                    <option value="Database">
-                      Database
-                    </option>
-
-                    <option value="Data Science">
-                      Data Science
-                    </option>
-
-                    <option value="Mobile Development">
-                      Mobile Development
-                    </option>
-
-                    <option value="Other">
-                      Other
-                    </option>
+                    {categoryList.length > 0 ? (
+                      categoryList.map((cat) => (
+                        <option key={cat._id} value={cat._id}>
+                          {cat.name}
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Web Development">Web Development</option>
+                        <option value="Programming">Programming</option>
+                        <option value="Web Design">Web Design</option>
+                        <option value="Backend Development">Backend Development</option>
+                        <option value="Database">Database</option>
+                        <option value="Data Science">Data Science</option>
+                        <option value="Mobile Development">Mobile Development</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -779,8 +794,11 @@ function CreateCourse() {
               <button
                 type="submit"
                 className="save-course-button"
+                disabled={submitting}
               >
-                {status === "Published"
+                {submitting
+                  ? "Saving..."
+                  : status === "Published"
                   ? "🚀 Publish Course"
                   : "💾 Save as Draft"}
               </button>

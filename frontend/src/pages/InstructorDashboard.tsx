@@ -1,10 +1,12 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { api } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import "./InstructorDashboard.css";
 
 interface Course {
-  id: number;
+  id: string | number;
   title: string;
   category: string;
   students: number;
@@ -15,7 +17,7 @@ interface Course {
 }
 
 interface Activity {
-  id: number;
+  id: string | number;
   type: "enrollment" | "completion" | "review" | "quiz";
   student: string;
   message: string;
@@ -23,7 +25,7 @@ interface Activity {
   course: string;
 }
 
-const courses: Course[] = [
+const initialCourses: Course[] = [
   {
     id: 1,
     title: "Complete React & TypeScript",
@@ -66,7 +68,7 @@ const courses: Course[] = [
   },
 ];
 
-const activities: Activity[] = [
+const initialActivities: Activity[] = [
   {
     id: 1,
     type: "enrollment",
@@ -103,11 +105,52 @@ const activities: Activity[] = [
 
 function InstructorDashboard() {
   const navigate = useNavigate();
+  const { logout, user } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [courses, setCourses] = useState<Course[]>(initialCourses);
+  const [activities, setActivities] = useState<Activity[]>(initialActivities);
+  const [dbStats, setDbStats] = useState<any>(null);
+
+  useEffect(() => {
+    api.mentor.getDashboard()
+      .then((res) => {
+        if (res.data) {
+          setDbStats(res.data.stats);
+          if (res.data.courses && res.data.courses.length > 0) {
+            setCourses(
+              res.data.courses.map((c: any) => ({
+                id: c._id,
+                title: c.title,
+                category: c.category?.name || "Web Development",
+                students: c.stats?.enrollmentCount || 0,
+                lessons: c.stats?.lessonCount || 0,
+                rating: c.stats?.ratingAvg || 0,
+                status: c.status === "published" ? "Published" : "Draft",
+                progress: 100,
+              }))
+            );
+          }
+          if (res.data.recentEnrollments && res.data.recentEnrollments.length > 0) {
+            setActivities(
+              res.data.recentEnrollments.map((e: any, idx: number) => ({
+                id: e._id || idx,
+                type: "enrollment",
+                student: e.student?.name || "Learner",
+                message: "enrolled in your course",
+                time: e.enrolledAt ? new Date(e.enrolledAt).toLocaleDateString() : "Recently",
+                course: e.course?.title || "Course",
+              }))
+            );
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not fetch mentor dashboard data:", err);
+      });
+  }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    logout();
     navigate("/login");
   };
 
@@ -126,14 +169,13 @@ function InstructorDashboard() {
     }
   };
 
-  const publishedCourses = courses.filter(
-    (course) => course.status === "Published"
-  ).length;
+  const publishedCourses = dbStats
+    ? dbStats.publishedCourses
+    : courses.filter((course) => course.status === "Published").length;
 
-  const totalStudents = courses.reduce(
-    (total, course) => total + course.students,
-    0
-  );
+  const totalStudents = dbStats
+    ? dbStats.totalEnrollments
+    : courses.reduce((total, course) => total + course.students, 0);
 
   const totalLessons = courses.reduce(
     (total, course) => total + course.lessons,
@@ -142,15 +184,16 @@ function InstructorDashboard() {
 
   const ratedCourses = courses.filter((course) => course.rating > 0);
 
-  const averageRating =
-    ratedCourses.length > 0
-      ? (
-          ratedCourses.reduce(
-            (total, course) => total + course.rating,
-            0
-          ) / ratedCourses.length
-        ).toFixed(1)
-      : "0.0";
+  const averageRating = dbStats?.overallRating
+    ? dbStats.overallRating.toFixed(1)
+    : ratedCourses.length > 0
+    ? (
+        ratedCourses.reduce(
+          (total, course) => total + course.rating,
+          0
+        ) / ratedCourses.length
+      ).toFixed(1)
+    : "0.0";
 
   return (
     <div className="instructor-dashboard">
@@ -313,10 +356,12 @@ function InstructorDashboard() {
                   setShowProfileMenu(!showProfileMenu)
                 }
               >
-                <div className="instructor-avatar">S</div>
+                <div className="instructor-avatar">
+                  {(user?.name || "I").charAt(0).toUpperCase()}
+                </div>
 
                 <div className="instructor-user-info">
-                  <strong>Supriya Enjam</strong>
+                  <strong>{user?.name || "Instructor"}</strong>
                   <span>Instructor</span>
                 </div>
 

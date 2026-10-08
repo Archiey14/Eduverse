@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { api } from "../services/api";
 
 interface StudentTopbarProps {
   onOpenSidebar: () => void;

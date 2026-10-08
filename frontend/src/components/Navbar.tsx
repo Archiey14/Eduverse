@@ -1,82 +1,98 @@
+
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 
-export const Navbar: React.FC = () => {
-  const { isAuthenticated, user } = useAuth();
+const Navbar: React.FC = () => {
   const location = useLocation();
+
+  const isActive = (path: string) => {
+    if (path === "/") {
+      return location.pathname === "/";
+    }
+
+    return location.pathname === path;
+  };
 
   return (
     <header className="landing-navbar">
       <div className="landing-container navbar-inner">
+
+        {/* ================================
+            LOGO
+        ================================= */}
         <Link to="/" className="landing-logo">
           <span className="landing-logo-icon">L</span>
           <span>LearnHub</span>
         </Link>
 
+        {/* ================================
+            NAVIGATION
+        ================================= */}
         <nav className="landing-nav-links">
-          <Link to="/" className={location.pathname === "/" ? "active" : ""}>
+
+          {/* Home */}
+          <Link
+            to="/"
+            className={isActive("/") ? "active" : ""}
+          >
             Home
           </Link>
+
+          {/* Discover */}
           <Link
             to="/discover"
-            className={location.pathname === "/discover" ? "active" : ""}
+            className={isActive("/discover") ? "active" : ""}
           >
             Discover
           </Link>
+
+          {/* Courses */}
           <Link
             to="/courses"
-            className={location.pathname === "/courses" ? "active" : ""}
+            className={isActive("/courses") ? "active" : ""}
           >
             Courses
           </Link>
 
-          {!isAuthenticated ? (
-            <>
-              <Link
-                to="/login"
-                className={location.pathname === "/login" ? "active" : ""}
-              >
-                Login
-              </Link>
-              <Link to="/register" className="navbar-register-btn">
-                Get Started
-              </Link>
-            </>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <Link
-                to="/student/dashboard"
-                style={{
-                  fontWeight: 600,
-                  fontSize: "14px",
-                  color: "#4f46e5",
-                  textDecoration: "none",
-                }}
-              >
-                Go to Dashboard →
-              </Link>
-              <div
-                className="dashboard-avatar"
-                style={{
-                  width: "36px",
-                  height: "36px",
-                  fontSize: "14px",
-                  margin: 0,
-                  background: "#4f46e5",
-                  color: "white",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "50%",
-                  fontWeight: "bold",
-                }}
-                title={user?.name || "Student"}
-              >
-                {user?.name?.charAt(0).toUpperCase() || "S"}
-              </div>
-            </div>
-          )}
+          {/* ================================
+              INSTRUCTOR LOGIN
+          ================================= */}
+          <Link
+            to="/instructor/login"
+            className={
+              isActive("/instructor/login")
+                ? "active instructor-login-link"
+                : "instructor-login-link"
+            }
+          >
+            Instructor Login
+          </Link>
+
+          {/* ================================
+              STUDENT LOGIN
+          ================================= */}
+          <Link
+            to="/login"
+            className={
+              isActive("/login")
+                ? "active navbar-login-link"
+                : "navbar-login-link"
+            }
+          >
+            Login
+          </Link>
+
+          {/* ================================
+              GET STARTED
+          ================================= */}
+          <Link
+            to="/register"
+            className="navbar-register-btn"
+          >
+            Get Started
+            <span className="navbar-btn-arrow">→</span>
+          </Link>
+
         </nav>
       </div>
     </header>

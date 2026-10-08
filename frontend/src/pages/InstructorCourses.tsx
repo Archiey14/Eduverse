@@ -1,10 +1,12 @@
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { api, getErrorMessage } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import "./InstructorCourses.css";
 
 interface Course {
-  id: number;
+  id: string | number;
   title: string;
   category: string;
   description: string;
@@ -100,11 +102,40 @@ const initialCourses: Course[] = [
 function InstructorCourses() {
   const navigate = useNavigate();
 
+  const { logout } = useAuth();
   const [courses, setCourses] = useState<Course[]>(initialCourses);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+
+  useEffect(() => {
+    const loadCourses = async () => {
+      try {
+        const res = await api.mentor.getMyCourses({ limit: 50 });
+        if (res.data && res.data.length > 0) {
+          const mapped: Course[] = res.data.map((c: any) => ({
+            id: c._id,
+            title: c.title,
+            category: c.category?.name || "General",
+            description: c.description || "",
+            students: c.stats?.enrollmentCount || 0,
+            lessons: c.stats?.lessonCount || 0,
+            rating: c.stats?.ratingAvg || 0,
+            status: c.status === "published" ? "Published" : "Draft",
+            updated: c.updatedAt
+              ? new Date(c.updatedAt).toLocaleDateString()
+              : "Recently",
+            image: "📚",
+          }));
+          setCourses(mapped);
+        }
+      } catch (err) {
+        console.warn("Could not load backend courses:", err);
+      }
+    };
+    loadCourses();
+  }, []);
 
   /* ============================================
      DERIVED DATA
@@ -177,13 +208,11 @@ function InstructorCourses() {
   ============================================ */
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-
+    logout();
     navigate("/login");
   };
 
-  const handleDeleteCourse = (courseId: number) => {
+  const handleDeleteCourse = async (courseId: string | number) => {
     const course = courses.find(
       (item) => item.id === courseId
     );
@@ -198,6 +227,15 @@ function InstructorCourses() {
 
     if (!confirmed) {
       return;
+    }
+
+    if (typeof courseId === "string" && courseId.length === 24) {
+      try {
+        await api.mentor.deleteCourse(courseId);
+      } catch (err) {
+        alert(getErrorMessage(err, "Failed to delete course."));
+        return;
+      }
     }
 
     setCourses((currentCourses) =>

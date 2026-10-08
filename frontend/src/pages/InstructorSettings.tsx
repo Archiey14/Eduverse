@@ -1,15 +1,24 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./InstructorSettings.css";
 
 function InstructorSettings() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
-  const [email, setEmail] = useState("supriya@example.com");
-  const [fullName, setFullName] = useState("Supriya Enjam");
+  const [email, setEmail] = useState(user?.email || "instructor@example.com");
+  const [fullName, setFullName] = useState(user?.name || "Instructor");
+
+  useEffect(() => {
+    if (user) {
+      if (user.email) setEmail(user.email);
+      if (user.name) setFullName(user.name);
+    }
+  }, [user]);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -37,6 +46,7 @@ function InstructorSettings() {
 
   const handleLogout = () => {
     setProfileMenuOpen(false);
+    logout();
     navigate("/login");
   };
 

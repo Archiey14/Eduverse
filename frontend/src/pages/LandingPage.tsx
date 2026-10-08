@@ -36,14 +36,18 @@ function LandingPage() {
                 tracking your progress.
               </p>
 
+              {/* HERO BUTTONS */}
               <div className="hero-buttons">
-                <Link to="/courses" className="hero-primary-btn">
-                  Explore Courses
+                <Link to="/register" className="hero-primary-btn">
+                  Get Started
                   <span>→</span>
                 </Link>
 
-                <Link to="/register" className="hero-secondary-btn">
-                  Get Started
+                <Link
+                  to="/instructor/login"
+                  className="hero-secondary-btn"
+                >
+                  Instructor Login
                 </Link>
               </div>
 
@@ -62,7 +66,9 @@ function LandingPage() {
               </div>
             </div>
 
-            {/* Hero Learning Dashboard */}
+            {/* =========================================
+                HERO LEARNING DASHBOARD
+            ========================================= */}
             <div className="hero-visual">
               <div className="hero-glow"></div>
 
@@ -211,6 +217,7 @@ function LandingPage() {
             </div>
 
             <div className="feature-grid">
+              {/* Feature 1 */}
               <div className="professional-feature-card">
                 <div className="professional-feature-icon blue-icon">
                   🎓
@@ -225,9 +232,12 @@ function LandingPage() {
                   instructors and learn practical skills step by step.
                 </p>
 
-                <Link to="/courses">Explore courses →</Link>
+                <Link to="/courses">
+                  Explore courses →
+                </Link>
               </div>
 
+              {/* Feature 2 */}
               <div className="professional-feature-card">
                 <div className="professional-feature-icon purple-icon">
                   📝
@@ -242,9 +252,12 @@ function LandingPage() {
                   how well you have mastered each lesson.
                 </p>
 
-                <Link to="/register">Start learning →</Link>
+                <Link to="/register">
+                  Start learning →
+                </Link>
               </div>
 
+              {/* Feature 3 */}
               <div className="professional-feature-card">
                 <div className="professional-feature-icon green-icon">
                   📊
@@ -259,9 +272,12 @@ function LandingPage() {
                   and your overall learning journey.
                 </p>
 
-                <Link to="/register">Track progress →</Link>
+                <Link to="/register">
+                  Track progress →
+                </Link>
               </div>
 
+              {/* Feature 4 */}
               <div className="professional-feature-card">
                 <div className="professional-feature-icon orange-icon">
                   👨‍🏫
@@ -276,8 +292,8 @@ function LandingPage() {
                   you toward achieving your learning goals.
                 </p>
 
-                <Link to="/mentor/dashboard">
-                  Instructor Portal →
+                <Link to="/instructor/login">
+                  Instructor Login →
                 </Link>
               </div>
             </div>
@@ -304,6 +320,7 @@ function LandingPage() {
             </div>
 
             <div className="steps-grid">
+              {/* Step 1 */}
               <div className="step-card">
                 <div className="step-number">01</div>
 
@@ -319,6 +336,7 @@ function LandingPage() {
 
               <div className="step-connector">→</div>
 
+              {/* Step 2 */}
               <div className="step-card">
                 <div className="step-number">02</div>
 
@@ -334,6 +352,7 @@ function LandingPage() {
 
               <div className="step-connector">→</div>
 
+              {/* Step 3 */}
               <div className="step-card">
                 <div className="step-number">03</div>
 
@@ -370,6 +389,7 @@ function LandingPage() {
               </p>
 
               <div className="community-points">
+                {/* Students */}
                 <div>
                   <span className="community-check">✓</span>
 
@@ -383,6 +403,7 @@ function LandingPage() {
                   </div>
                 </div>
 
+                {/* Instructors */}
                 <div>
                   <span className="community-check">✓</span>
 
@@ -397,15 +418,18 @@ function LandingPage() {
               </div>
 
               <div className="community-buttons">
-                <Link to="/register" className="community-btn">
+                <Link
+                  to="/register"
+                  className="community-btn"
+                >
                   Join as Student →
                 </Link>
 
                 <Link
-                  to="/mentor/dashboard"
+                  to="/instructor/login"
                   className="community-instructor-btn"
                 >
-                  Instructor Portal →
+                  Instructor Login →
                 </Link>
               </div>
             </div>
@@ -488,12 +512,18 @@ function LandingPage() {
               </p>
 
               <div className="cta-buttons">
-                <Link to="/register" className="cta-primary-btn">
+                <Link
+                  to="/register"
+                  className="cta-primary-btn"
+                >
                   Create Your Account
                   <span>→</span>
                 </Link>
 
-                <Link to="/courses" className="cta-secondary-btn">
+                <Link
+                  to="/courses"
+                  className="cta-secondary-btn"
+                >
                   Browse Courses
                 </Link>
               </div>
@@ -508,6 +538,7 @@ function LandingPage() {
       <footer className="landing-footer">
         <div className="landing-container">
           <div className="footer-main">
+            {/* Footer Brand */}
             <div className="footer-brand">
               <Link to="/" className="footer-logo">
                 <span className="landing-logo-icon">L</span>
@@ -520,46 +551,87 @@ function LandingPage() {
               </p>
             </div>
 
+            {/* Platform */}
             <div className="footer-column">
               <h4>Platform</h4>
 
               <Link to="/">Home</Link>
-              <Link to="/courses">Courses</Link>
-              <Link to="/login">Login</Link>
-              <Link to="/register">Register</Link>
 
-              <Link to="/mentor/dashboard">
-                Instructor Portal
+              <Link to="/courses">
+                Courses
+              </Link>
+
+              <Link to="/login">
+                Student Login
+              </Link>
+
+              <Link to="/register">
+                Register
+              </Link>
+
+              <Link to="/instructor/login">
+                Instructor Login
               </Link>
             </div>
 
+            {/* Learning */}
             <div className="footer-column">
               <h4>Learning</h4>
 
-              <a href="#features">Features</a>
-              <a href="#how-it-works">How It Works</a>
+              <a href="#features">
+                Features
+              </a>
 
-              <Link to="/courses">Explore Courses</Link>
-              <Link to="/register">Start Learning</Link>
+              <a href="#how-it-works">
+                How It Works
+              </a>
+
+              <Link to="/courses">
+                Explore Courses
+              </Link>
+
+              <Link to="/register">
+                Start Learning
+              </Link>
             </div>
 
+            {/* Get Started */}
             <div className="footer-column">
               <h4>Get Started</h4>
 
-              <p>Ready to begin your learning journey?</p>
+              <p>
+                Ready to begin your learning journey?
+              </p>
 
-              <Link to="/register" className="footer-register-btn">
+              <Link
+                to="/register"
+                className="footer-register-btn"
+              >
                 Create Account →
+              </Link>
+
+              <Link
+                to="/instructor/login"
+                className="footer-instructor-btn"
+              >
+                Instructor Login →
               </Link>
             </div>
           </div>
 
           <div className="footer-bottom">
-            <p>© 2026 LearnHub. All rights reserved.</p>
+            <p>
+              © 2026 LearnHub. All rights reserved.
+            </p>
 
             <div className="footer-bottom-links">
-              <a href="#">Privacy Policy</a>
-              <a href="#">Terms & Conditions</a>
+              <a href="#privacy">
+                Privacy Policy
+              </a>
+
+              <a href="#terms">
+                Terms & Conditions
+              </a>
             </div>
           </div>
         </div>

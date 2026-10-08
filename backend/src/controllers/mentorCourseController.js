@@ -1,6 +1,8 @@
+import mongoose from "mongoose";
 import { Course } from "../models/Course.js";
 import { Lesson } from "../models/Lesson.js";
 import { Quiz } from "../models/Quiz.js";
+import { Category } from "../models/Category.js";
 import { Enrollment } from "../models/Enrollment.js";
 import { Review } from "../models/Review.js";
 import { QuizAttempt } from "../models/QuizAttempt.js";
@@ -91,6 +93,28 @@ export const createDraftCourse = asyncHandler(async (req, res, next) => {
     );
   }
 
+  let categoryId = null;
+  if (/^[a-f\d]{24}$/i.test(category)) {
+    const catDoc = await Category.findById(category);
+    if (catDoc) categoryId = catDoc._id;
+  }
+  if (!categoryId) {
+    let catDoc = await Category.findOne({
+      $or: [
+        { name: new RegExp(`^${category}$`, "i") },
+        { slug: slugify(category) },
+      ],
+    });
+    if (!catDoc) {
+      catDoc = await Category.findOne();
+    }
+    if (catDoc) categoryId = catDoc._id;
+  }
+
+  if (!categoryId) {
+    return next(new AppError(400, "Invalid category specified."));
+  }
+
   let slug = slugify(title);
   const existingSlug = await Course.findOne({ slug });
   if (existingSlug) {
@@ -103,8 +127,8 @@ export const createDraftCourse = asyncHandler(async (req, res, next) => {
     slug,
     subtitle: subtitle || "",
     description: description.trim(),
-    category,
-    level: level || "beginner",
+    category: categoryId,
+    level: level ? level.toLowerCase() : "beginner",
     language: language || "English",
     thumbnailUrl: thumbnailUrl || "",
     previewVideoUrl: previewVideoUrl || "",
@@ -182,10 +206,32 @@ export const updateCourse = asyncHandler(async (req, res, next) => {
   ];
 
   allowedFields.forEach((field) => {
-    if (req.body[field] !== undefined) {
+    if (field !== "category" && req.body[field] !== undefined) {
       course[field] = req.body[field];
     }
   });
+
+  if (req.body.category !== undefined) {
+    let catVal = req.body.category;
+    if (typeof catVal === "object" && catVal?._id) catVal = catVal._id;
+    let catId = null;
+    if (/^[a-f\d]{24}$/i.test(catVal)) {
+      const catDoc = await Category.findById(catVal);
+      if (catDoc) catId = catDoc._id;
+    }
+    if (!catId) {
+      const catDoc = await Category.findOne({
+        $or: [
+          { name: new RegExp(`^${catVal}$`, "i") },
+          { slug: slugify(String(catVal)) },
+        ],
+      });
+      if (catDoc) catId = catDoc._id;
+    }
+    if (catId) {
+      course.category = catId;
+    }
+  }
 
   if (req.body.title && req.body.title !== course.title) {
     let slug = slugify(req.body.title);

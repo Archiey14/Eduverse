@@ -207,8 +207,24 @@ function Learn() {
   );
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!courseId) {
+      api.dashboard
+        .getStudentDashboard()
+        .then((res) => {
+          const first = res.data?.activeEnrollments?.[0]?.course?._id;
+          if (first) {
+            navigate(`/learn/${first}`, { replace: true });
+          } else {
+            navigate("/student/courses", { replace: true });
+          }
+        })
+        .catch(() => {
+          navigate("/courses", { replace: true });
+        });
+    } else {
+      load();
+    }
+  }, [courseId, load, navigate]);
 
   const sections = useMemo(() => {
     if (!data) return [];

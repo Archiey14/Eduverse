@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./InstructorQuizzes.css";
 
 interface Question {
@@ -168,9 +169,10 @@ function InstructorQuizzes() {
     "Node.js & Express",
   ];
 
+  const { logout } = useAuth();
+
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    logout();
     navigate("/login");
   };
 
