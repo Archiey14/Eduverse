@@ -15,6 +15,10 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
+  const [step, setStep] = useState<"login" | "otp">("login");
+  const [otpCode, setOtpCode] = useState("");
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -49,6 +53,13 @@ function Login() {
         password,
       });
 
+      if (response.success && response.requires2FA) {
+        setPendingUserId(response.userId);
+        setStep("otp");
+        setError("");
+        return;
+      }
+
       if (response.success && response.token) {
         // "Remember me" unchecked -> session only (cleared when the tab closes)
         login(response.token, response.user, rememberMe);
@@ -69,6 +80,45 @@ function Login() {
       }
     } catch (err) {
       setError(getErrorMessage(err, "Invalid email or password. Please try again."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+
+    if (!otpCode.trim() || !pendingUserId) {
+      setError("Please enter the 6-digit code.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await api.auth.verifyOTP({
+        userId: pendingUserId,
+        code: otpCode.trim(),
+      });
+
+      if (response.success && response.token) {
+        login(response.token, response.user, rememberMe);
+        
+        let finalRedirect = redirectTo;
+        if (redirectTo === "/student/dashboard" || !redirectTo) {
+          if (response.user.roles?.includes("mentor")) {
+            finalRedirect = "/instructor/dashboard";
+          } else {
+            finalRedirect = "/student/dashboard";
+          }
+        }
+        
+        navigate(finalRedirect, { replace: true });
+      } else {
+        setError(response.message || "Failed to verify OTP.");
+      }
+    } catch (err) {
+      setError(getErrorMessage(err, "Invalid OTP code. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -153,21 +203,71 @@ function Login() {
               </div>
             )}
 
-            <GoogleSignInButton
-              text="Continue with Google"
-              redirectTo={redirectTo}
-              onError={(msg) => setError(msg)}
-            />
+            {step === "otp" ? (
+              <form onSubmit={handleOtpSubmit} className="professional-login-form" noValidate>
+                <div className="professional-form-group">
+                  <label htmlFor="otpCode">One-Time Password</label>
+                  <div className="input-wrapper">
+                    <span className="input-icon">🔐</span>
+                    <input
+                      id="otpCode"
+                      type="text"
+                      placeholder="Enter 6-digit code"
+                      value={otpCode}
+                      onChange={(event) => {
+                        setOtpCode(event.target.value);
+                        if (error) setError("");
+                      }}
+                      maxLength={6}
+                      autoComplete="one-time-code"
+                    />
+                  </div>
+                  <small style={{ display: "block", marginTop: "8px", color: "#6b7280" }}>
+                    We've sent a code to your email. (Check server logs for testing).
+                  </small>
+                </div>
 
-            <div className="professional-divider">
-              <span>OR CONTINUE WITH EMAIL</span>
-            </div>
+                <button type="submit" className="professional-login-button" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <span className="login-spinner"></span>
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      Verify Code
+                      <span className="button-arrow">→</span>
+                    </>
+                  )}
+                </button>
 
-            <form
-              onSubmit={handleSubmit}
-              className="professional-login-form"
-              noValidate
-            >
+                <div style={{ textAlign: "center", marginTop: "20px" }}>
+                  <button 
+                    type="button" 
+                    onClick={() => { setStep("login"); setError(""); }}
+                    style={{ background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontWeight: 600 }}
+                  >
+                    ← Back to Login
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <GoogleSignInButton
+                  text="Continue with Google"
+                  redirectTo={redirectTo}
+                  onError={(msg) => setError(msg)}
+                />
+
+                <div className="professional-divider">
+                  <span>OR CONTINUE WITH EMAIL</span>
+                </div>
+
+                <form
+                  onSubmit={handleSubmit}
+                  className="professional-login-form"
+                  noValidate
+                >
               {/* EMAIL */}
               <div className="professional-form-group">
                 <label htmlFor="email">Email address</label>
@@ -260,6 +360,8 @@ function Login() {
               <span>Don't have an account?</span>
               <Link to="/register">Create an account</Link>
             </div>
+            </>
+            )}
 
             <Link to="/" className="professional-back-home">
               ← Back to Eduverse

@@ -52,6 +52,22 @@ export const register = asyncHandler(async (req, res, next) => {
     roles: ["student"],
   });
 
+  if (user.is2FAEnabled) {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otpCode = otp;
+    user.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    await user.save();
+
+    console.log(`\n=========================================\n[OTP GENERATED for ${user.email}]: ${otp}\n=========================================\n`);
+
+    return res.status(201).json({
+      success: true,
+      requires2FA: true,
+      message: "Please verify your email with the OTP sent.",
+      userId: user._id,
+    });
+  }
+
   const token = generateToken(user._id);
 
   res.status(201).json({
@@ -82,6 +98,56 @@ export const login = asyncHandler(async (req, res, next) => {
       new AppError(401, "Your account is deactivated. Please contact support.")
     );
   }
+
+  // Handle 2FA if enabled
+  if (user.is2FAEnabled) {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otpCode = otp;
+    user.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    await user.save();
+
+    // In a real app, send this via email using nodemailer. For now, we log it.
+    console.log(`\n=========================================\n[OTP GENERATED for ${user.email}]: ${otp}\n=========================================\n`);
+
+    return res.status(200).json({
+      success: true,
+      requires2FA: true,
+      message: "OTP generated. Please check your email (or server logs for testing).",
+      userId: user._id,
+    });
+  }
+
+  const token = generateToken(user._id);
+
+  res.status(200).json({
+    success: true,
+    message: "Login successful",
+    token,
+    user: userPayload(user),
+  });
+});
+
+export const verifyOTP = asyncHandler(async (req, res, next) => {
+  const { userId, code } = req.body;
+
+  if (!userId || !code) {
+    return next(new AppError(400, "Please provide userId and code."));
+  }
+
+  const user = await User.findById(userId).select("+otpCode +otpExpiresAt");
+
+  if (!user || user.otpCode !== code) {
+    return next(new AppError(401, "Invalid OTP code."));
+  }
+
+  if (user.otpExpiresAt < Date.now()) {
+    return next(new AppError(401, "OTP has expired. Please log in again."));
+  }
+
+  // Clear OTP
+  user.otpCode = undefined;
+  user.otpExpiresAt = undefined;
+  await user.save();
 
   const token = generateToken(user._id);
 

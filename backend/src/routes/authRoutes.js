@@ -7,6 +7,7 @@ import {
   becomeMentor,
   updateMe,
   updatePassword,
+  verifyOTP,
 } from "../controllers/authController.js";
 import { protect } from "../middleware/auth.js";
 import { authLimiter } from "../middleware/rateLimit.js";
@@ -15,6 +16,7 @@ const router = Router();
 
 router.post("/register", authLimiter, register);
 router.post("/login", authLimiter, login);
+router.post("/verify-otp", authLimiter, verifyOTP);
 router.post("/google", authLimiter, googleAuth);
 
 router.get("/me", protect, getMe);

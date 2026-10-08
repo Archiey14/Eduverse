@@ -23,6 +23,10 @@ function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [step, setStep] = useState<"register" | "otp">("register");
+  const [otpCode, setOtpCode] = useState("");
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
@@ -61,8 +65,15 @@ function Register() {
         password,
       });
 
-      if (!response.success || !response.token) {
+      if (!response.success) {
         setError(response.message || "Registration failed. Please try again.");
+        return;
+      }
+
+      if (response.requires2FA) {
+        setPendingUserId(response.userId);
+        setStep("otp");
+        setError("");
         return;
       }
 
@@ -91,6 +102,53 @@ function Register() {
       navigate(destination);
     } catch (err) {
       setError(getErrorMessage(err, "Registration failed. Please try again."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+
+    if (!otpCode.trim() || !pendingUserId) {
+      setError("Please enter the 6-digit code.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await api.auth.verifyOTP({
+        userId: pendingUserId,
+        code: otpCode.trim(),
+      });
+
+      if (response.success && response.token) {
+        login(response.token, response.user);
+        
+        let destination = "/student/dashboard";
+
+        if (role === "mentor") {
+          try {
+            const mentorRes = await api.auth.becomeMentor({
+              headline: "Instructor at Eduverse",
+              bio: "Passionate about sharing knowledge and mentoring learners.",
+            });
+            if (mentorRes.user) {
+              updateUser(mentorRes.user);
+              destination = "/instructor/dashboard";
+            }
+          } catch {
+            // fallback
+          }
+        }
+        
+        navigate(destination);
+      } else {
+        setError(response.message || "Failed to verify OTP.");
+      }
+    } catch (err) {
+      setError(getErrorMessage(err, "Invalid OTP code. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -179,21 +237,61 @@ function Register() {
               </div>
             )}
 
-            <GoogleSignInButton
-              text="Continue with Google"
-              roleToAssign={role}
-              onError={(msg) => setError(msg)}
-            />
+            {step === "otp" ? (
+              <form onSubmit={handleOtpSubmit} className="professional-register-form" noValidate>
+                <div className="professional-form-group">
+                  <label htmlFor="otpCode">Verify Your Email</label>
+                  <div className="input-wrapper">
+                    <span className="input-icon">🔐</span>
+                    <input
+                      id="otpCode"
+                      type="text"
+                      placeholder="Enter 6-digit code"
+                      value={otpCode}
+                      onChange={(event) => {
+                        setOtpCode(event.target.value);
+                        clearError();
+                      }}
+                      maxLength={6}
+                      autoComplete="one-time-code"
+                    />
+                  </div>
+                  <small style={{ display: "block", marginTop: "8px", color: "#6b7280" }}>
+                    We've sent a code to your email. (Check server logs for testing).
+                  </small>
+                </div>
 
-            <div className="professional-divider">
-              <span>OR REGISTER WITH EMAIL</span>
-            </div>
+                <button type="submit" className="professional-login-button" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <span className="login-spinner"></span>
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      Verify Code
+                      <span className="button-arrow">→</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <>
+                <GoogleSignInButton
+                  text="Continue with Google"
+                  roleToAssign={role}
+                  onError={(msg) => setError(msg)}
+                />
 
-            <form
-              onSubmit={handleSubmit}
-              className="professional-register-form"
-              noValidate
-            >
+                <div className="professional-divider">
+                  <span>OR REGISTER WITH EMAIL</span>
+                </div>
+
+                <form
+                  onSubmit={handleSubmit}
+                  className="professional-register-form"
+                  noValidate
+                >
               {/* FULL NAME */}
               <div className="professional-form-group">
                 <label htmlFor="name">Full Name</label>
@@ -372,6 +470,8 @@ function Register() {
               <span>Already have an account?</span>
               <Link to="/login">Sign in</Link>
             </div>
+            </>
+            )}
 
             <Link to="/" className="professional-back-home">
               ← Back to Eduverse

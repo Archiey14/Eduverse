@@ -152,6 +152,8 @@ export const api = {
       request<any>("/auth/register", json("POST", body)),
     login: (body: { email: string; password: string }) =>
       request<any>("/auth/login", json("POST", body)),
+    verifyOTP: (body: { userId: string; code: string }) =>
+      request<any>("/auth/verify-otp", json("POST", body)),
     googleAuth: (body: {
       email: string;
       name?: string;
