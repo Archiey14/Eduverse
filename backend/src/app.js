@@ -20,6 +20,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import activityRoutes from "./routes/activityRoutes.js";
 import certificateRoutes from "./routes/certificateRoutes.js";
+import wishlistRoutes from "./routes/wishlistRoutes.js";
 
 const app = express();
 
@@ -73,6 +74,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/activity", activityRoutes);
 app.use("/api/certificates", certificateRoutes);
+app.use("/api/wishlist", wishlistRoutes);
 
 // 404 Handler for undefined routes
 app.all("*", (req, res, next) => {

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import StudentLayout from "../components/StudentLayout";
+import { formatDuration, PRICE_LABEL } from "../utils/format";
 import "./StudentDashboard.css";
 
 function StudentDashboard() {
@@ -16,31 +17,42 @@ function StudentDashboard() {
       try {
         const [dashRes, coursesRes] = await Promise.all([
           api.dashboard.getStudentDashboard(),
-          api.courses.getAll(),
+          api.courses.getAll({ limit: 12 }),
         ]);
 
-        if (dashRes.data) {
-          setDashboardData(dashRes.data);
+        const dashData = dashRes.data || null;
+        if (dashData) {
+          setDashboardData(dashData);
         }
 
         if (coursesRes.data && coursesRes.data.length > 0) {
-          const mapped = coursesRes.data.slice(0, 3).map((c: any, idx: number) => ({
-            id: c._id || c.slug,
-            title: c.title,
-            instructor: c.mentor?.name || "Lead Instructor",
-            rating: c.stats?.ratingAvg || 0,
-            students: `${c.stats?.enrollmentCount || 0}`,
-            lessons: `${c.stats?.lessonCount || 8} lessons`,
-            duration: `${c.stats?.totalDurationMin || 45}m`,
-            price: c.price ? `$${c.price}` : "Free",
-            icon: idx % 3 === 0 ? "🟨" : idx % 3 === 1 ? "🎨" : "🟢",
-            colorClass:
-              idx % 3 === 0
-                ? "recommend-yellow"
-                : idx % 3 === 1
-                ? "recommend-pink"
-                : "recommend-green",
-          }));
+          // Recommend courses the student has not enrolled in yet
+          const enrolledIds = new Set<string>(
+            [...(dashData?.activeEnrollments || []), ...(dashData?.completedEnrollments || [])]
+              .map((enr: any) => String(enr.course?._id || ""))
+              .filter(Boolean)
+          );
+
+          const mapped = coursesRes.data
+            .filter((c: any) => !enrolledIds.has(String(c._id)))
+            .slice(0, 3)
+            .map((c: any, idx: number) => ({
+              id: c._id || c.slug,
+              title: c.title,
+              instructor: c.mentor?.name || "Instructor",
+              rating: c.stats?.ratingCount > 0 ? c.stats.ratingAvg : null,
+              students: `${c.stats?.enrollmentCount || 0}`,
+              lessons: `${c.stats?.lessonCount || 0} lessons`,
+              duration: formatDuration(c.stats?.totalDurationMin),
+              price: PRICE_LABEL,
+              icon: idx % 3 === 0 ? "🟨" : idx % 3 === 1 ? "🎨" : "🟢",
+              colorClass:
+                idx % 3 === 0
+                  ? "recommend-yellow"
+                  : idx % 3 === 1
+                  ? "recommend-pink"
+                  : "recommend-green",
+            }));
           setRecommendedCourses(mapped);
         }
       } catch (err) {
@@ -54,29 +66,35 @@ function StudentDashboard() {
   // Map live data from database
   const dbStats = dashboardData?.stats;
   const enrolledCount = dbStats?.enrolledCount ?? 0;
+  const activeCount = dbStats?.activeCount ?? 0;
   const completedCount = dbStats?.completedCount ?? 0;
+  const streakDays = dbStats?.streakDays ?? 0;
   const hoursLearned = dbStats ? `${dbStats.hoursLearned}h` : "0h";
 
   // Dynamic enrolled courses from DB
   const rawEnrolled = dashboardData?.activeEnrollments || [];
-  const enrolledCourses = rawEnrolled.map((enr: any, idx: number) => ({
-    id: enr.course?._id || enr._id,
-    category: (enr.course?.category?.name || "Web Development").toUpperCase(),
-    title: enr.course?.title || "Course",
-    instructor: enr.course?.mentor?.name || "Lead Instructor",
-    lesson: enr.lastLesson?.title || "Next Lesson",
-    lessonNumber: enr.completedLessons?.length || 1,
-    totalLessons: enr.course?.stats?.lessonCount || 8,
-    progress: enr.progressPercent || 0,
-    icon: idx % 2 === 0 ? "💻" : "🐍",
-    duration: `${enr.course?.stats?.totalDurationMin || 45}m`,
-    colorClass:
-      idx % 3 === 0
-        ? "course-blue"
-        : idx % 3 === 1
-        ? "course-purple"
-        : "course-green",
-  }));
+  const enrolledCourses = rawEnrolled.map((enr: any, idx: number) => {
+    const totalLessons = enr.course?.stats?.lessonCount || 0;
+    const doneLessons = enr.completedLessons?.length || 0;
+    return {
+      id: enr.course?._id || enr._id,
+      category: (enr.course?.category?.name || "Uncategorised").toUpperCase(),
+      title: enr.course?.title || "Course",
+      instructor: enr.course?.mentor?.name || "Instructor",
+      lesson: enr.lastLesson?.title || (doneLessons > 0 ? "Next lesson" : "Not started yet"),
+      lessonNumber: totalLessons > 0 ? Math.min(doneLessons + 1, totalLessons) : 0,
+      totalLessons,
+      progress: enr.progressPercent || 0,
+      icon: idx % 2 === 0 ? "💻" : "🐍",
+      duration: formatDuration(enr.course?.stats?.totalDurationMin),
+      colorClass:
+        idx % 3 === 0
+          ? "course-blue"
+          : idx % 3 === 1
+          ? "course-purple"
+          : "course-green",
+    };
+  });
 
   const avgProgress =
     enrolledCourses.length > 0
@@ -186,12 +204,14 @@ function StudentDashboard() {
             <span>🔥</span>
             <div>
               <strong>
-                {enrolledCourses.length > 0 ? "Daily Streak" : "Start Today"}
+                {streakDays > 0
+                  ? `${streakDays}-day streak`
+                  : "Start a streak"}
               </strong>
               <small>
-                {enrolledCourses.length > 0
+                {streakDays > 0
                   ? "Keep it going!"
-                  : "Pick your 1st course"}
+                  : "Learn something today"}
               </small>
             </div>
           </div>
@@ -217,53 +237,37 @@ function StudentDashboard() {
         <div className="dashboard-stat-card">
           <div className="stat-card-top">
             <div className="dashboard-stat-icon blue">📚</div>
-            <span className="stat-change positive">
-              {enrolledCount > 0 ? `+${enrolledCount}` : "0"}
-            </span>
           </div>
           <span className="stat-label">Enrolled Courses</span>
           <strong className="stat-number">{enrolledCount}</strong>
-          <p>
-            <span>↑ Active</span> courses
-          </p>
+          <p>{activeCount} in progress</p>
         </div>
 
         <div className="dashboard-stat-card">
           <div className="stat-card-top">
             <div className="dashboard-stat-icon purple">📈</div>
-            <span className="stat-change positive">
-              {avgProgress > 0 ? `${avgProgress}%` : "0%"}
-            </span>
           </div>
           <span className="stat-label">Average Progress</span>
           <strong className="stat-number">{avgProgress}%</strong>
-          <p>
-            <span>↑ Across</span> all courses
-          </p>
+          <p>Across your active courses</p>
         </div>
 
         <div className="dashboard-stat-card">
           <div className="stat-card-top">
             <div className="dashboard-stat-icon green">✓</div>
-            <span className="stat-change positive">{completedCount}</span>
           </div>
           <span className="stat-label">Completed Courses</span>
           <strong className="stat-number">{completedCount}</strong>
-          <p>
-            <span>↑ Verified</span> certificates
-          </p>
+          <p>{completedCount === 1 ? "1 course finished" : `${completedCount} courses finished`}</p>
         </div>
 
         <div className="dashboard-stat-card">
           <div className="stat-card-top">
             <div className="dashboard-stat-icon orange">⏱</div>
-            <span className="stat-change positive">{hoursLearned}</span>
           </div>
           <span className="stat-label">Learning Hours</span>
           <strong className="stat-number">{hoursLearned}</strong>
-          <p>
-            <span>↑ Tracked</span> learning
-          </p>
+          <p>From completed lessons</p>
         </div>
       </section>
 
@@ -280,7 +284,7 @@ function StudentDashboard() {
               <p>Pick up where you left off and keep moving forward.</p>
             </div>
 
-            <Link to="/courses" className="view-all-link">
+            <Link to="/student/courses" className="view-all-link">
               View all ({enrolledCourses.length}) →
             </Link>
           </div>
@@ -298,8 +302,9 @@ function StudentDashboard() {
                     <span className="course-category">{course.category}</span>
                     <h3>{course.title}</h3>
                     <p>
-                      Current: <span>{course.lesson}</span> (Lesson{" "}
-                      {course.lessonNumber} of {course.totalLessons})
+                      Current: <span>{course.lesson}</span>
+                      {course.totalLessons > 0 &&
+                        ` (Lesson ${course.lessonNumber} of ${course.totalLessons})`}
                     </p>
 
                     <div className="course-progress-line">
@@ -463,8 +468,14 @@ function StudentDashboard() {
 
               <div className="recommended-course-body">
                 <div className="course-rating">
-                  <span>★</span>
-                  <strong>{course.rating}</strong>
+                  {course.rating ? (
+                    <>
+                      <span>★</span>
+                      <strong>{course.rating}</strong>
+                    </>
+                  ) : (
+                    <strong>New</strong>
+                  )}
                   <span>({course.students} students)</span>
                 </div>
 
@@ -495,7 +506,7 @@ function StudentDashboard() {
           FOOTER
       ================================= */}
       <footer className="dashboard-footer">
-        <p>© 2026 LearnHub. All rights reserved.</p>
+        <p>© 2026 Eduverse. All rights reserved.</p>
         <div className="dashboard-footer-links">
           <Link to="/courses">Courses</Link>
           <Link to="/discover">Discover</Link>

@@ -1,0 +1,222 @@
+import { useState } from "react";
+import type { ReactNode } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import "../pages/StudentDashboard.css";
+import "./InstructorLayout.css";
+
+export type InstructorNavKey =
+  | "dashboard"
+  | "courses"
+  | "create"
+  | "lessons"
+  | "students"
+  | "quizzes"
+  | "analytics"
+  | "notifications"
+  | "profile"
+  | "settings";
+
+interface InstructorLayoutProps {
+  children: ReactNode;
+  active?: InstructorNavKey;
+  /** Page title (kept for page-level semantics / document title). */
+  title?: string;
+}
+
+interface NavItem {
+  key: InstructorNavKey;
+  to: string;
+  icon: string;
+  label: string;
+}
+
+const MAIN_NAV: NavItem[] = [
+  { key: "dashboard", to: "/instructor/dashboard", icon: "▦", label: "Dashboard" },
+  { key: "courses", to: "/instructor/courses", icon: "📚", label: "My Courses" },
+  { key: "create", to: "/instructor/courses/create", icon: "➕", label: "Create Course" },
+];
+
+const MANAGE_NAV: NavItem[] = [
+  { key: "lessons", to: "/instructor/lessons", icon: "🎬", label: "Manage Lessons" },
+  { key: "students", to: "/instructor/students", icon: "👥", label: "Students" },
+  { key: "quizzes", to: "/instructor/quizzes", icon: "📝", label: "Quizzes" },
+  { key: "analytics", to: "/instructor/analytics", icon: "📊", label: "Analytics" },
+];
+
+const ACCOUNT_NAV: NavItem[] = [
+  { key: "profile", to: "/instructor/profile", icon: "👤", label: "Profile" },
+  { key: "settings", to: "/instructor/settings", icon: "⚙️", label: "Settings" },
+];
+
+export default function InstructorLayout({ children, active, title }: InstructorLayoutProps) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const name = user?.name || "Instructor";
+  const initial = name.charAt(0).toUpperCase();
+
+  const closeSidebar = () => setSidebarOpen(false);
+
+  const handleLogout = () => {
+    if (window.confirm("Are you sure you want to logout?")) {
+      logout();
+      navigate("/login");
+    }
+  };
+
+  const renderItem = (item: NavItem) => (
+    <Link
+      key={item.key}
+      to={item.to}
+      className={`dashboard-nav-item ${active === item.key ? "active" : ""}`}
+      onClick={closeSidebar}
+    >
+      <span className="nav-item-icon">{item.icon}</span>
+      <span>{item.label}</span>
+    </Link>
+  );
+
+  return (
+    <div className="student-dashboard instructor-shell" data-page={title}>
+      {sidebarOpen && (
+        <div
+          className="dashboard-overlay"
+          style={{ display: "block" }}
+          onClick={closeSidebar}
+        ></div>
+      )}
+
+      <aside className={`dashboard-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+        <div className="dashboard-brand">
+          <Link to="/instructor/dashboard" className="dashboard-logo" onClick={closeSidebar}>
+            <span className="dashboard-logo-icon">E</span>
+            <span className="dashboard-logo-text">Eduverse</span>
+          </Link>
+          <button
+            type="button"
+            className="sidebar-close"
+            onClick={closeSidebar}
+            aria-label="Close menu"
+          >
+            ×
+          </button>
+        </div>
+
+        <nav className="dashboard-navigation">
+          <div className="navigation-section">
+            <span className="navigation-title">INSTRUCTOR STUDIO</span>
+            {MAIN_NAV.map(renderItem)}
+          </div>
+
+          <div className="navigation-section">
+            <span className="navigation-title">MANAGE</span>
+            {MANAGE_NAV.map(renderItem)}
+          </div>
+
+          <div className="navigation-section">
+            <span className="navigation-title">ACCOUNT</span>
+            {ACCOUNT_NAV.map(renderItem)}
+            <Link to="/help" className="dashboard-nav-item" onClick={closeSidebar}>
+              <span className="nav-item-icon">❓</span>
+              <span>Help Center</span>
+            </Link>
+          </div>
+
+          <div className="navigation-section">
+            <span className="navigation-title">SWITCH VIEW</span>
+            <Link to="/student/dashboard" className="dashboard-nav-item" onClick={closeSidebar}>
+              <span className="nav-item-icon">🎓</span>
+              <span>Student View</span>
+            </Link>
+          </div>
+        </nav>
+
+        <div className="dashboard-sidebar-bottom">
+          <button type="button" className="dashboard-logout" onClick={handleLogout}>
+            <span>↪</span>
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      <main className="dashboard-main">
+        <header className="dashboard-topbar">
+          <button
+            type="button"
+            className="mobile-menu-button"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open menu"
+          >
+            ☰
+          </button>
+
+          <Link to="/instructor/dashboard" className="mobile-dashboard-logo">
+            <span className="dashboard-logo-icon">E</span>
+            Eduverse
+          </Link>
+
+          <div style={{ flex: 1 }}></div>
+
+          <div className="dashboard-top-actions">
+            <Link
+              to="/help"
+              className="dashboard-icon-button"
+              aria-label="Help Center"
+              title="Help Center"
+            >
+              ?
+            </Link>
+
+            <Link
+              to="/instructor/notifications"
+              className="dashboard-icon-button"
+              aria-label="Notifications"
+              title="Notifications"
+            >
+              🔔
+            </Link>
+
+            <div className="topbar-divider"></div>
+
+            <div
+              className="dashboard-user-menu il-user-menu"
+              onClick={() => setMenuOpen((open) => !open)}
+              tabIndex={0}
+              role="button"
+            >
+              <div className="dashboard-avatar">{initial}</div>
+              <div className="dashboard-user-info">
+                <strong>{name}</strong>
+                <span>Instructor</span>
+              </div>
+              <span className="user-menu-arrow">{menuOpen ? "▲" : "▼"}</span>
+
+              {menuOpen && (
+                <div className="il-dropdown" onClick={(e) => e.stopPropagation()}>
+                  <Link to="/instructor/profile" onClick={() => setMenuOpen(false)}>
+                    👤 My Profile
+                  </Link>
+                  <Link to="/instructor/settings" onClick={() => setMenuOpen(false)}>
+                    ⚙️ Settings
+                  </Link>
+                  <Link to="/student/dashboard" onClick={() => setMenuOpen(false)}>
+                    🎓 Student View
+                  </Link>
+                  <hr />
+                  <button type="button" className="il-dropdown-danger" onClick={handleLogout}>
+                    ↪ Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <div className="dashboard-content">{children}</div>
+      </main>
+    </div>
+  );
+}

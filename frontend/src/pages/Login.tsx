@@ -57,7 +57,7 @@ function Login() {
         let finalRedirect = redirectTo;
         if (redirectTo === "/student/dashboard" || !redirectTo) {
           if (response.user.roles?.includes("mentor")) {
-            finalRedirect = "/mentor/dashboard";
+            finalRedirect = "/instructor/dashboard";
           } else {
             finalRedirect = "/student/dashboard";
           }

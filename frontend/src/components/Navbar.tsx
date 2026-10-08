@@ -22,7 +22,7 @@ const Navbar: React.FC = () => {
         ================================= */}
         <Link to="/" className="landing-logo">
           <span className="landing-logo-icon">L</span>
-          <span>LearnHub</span>
+          <span>Eduverse</span>
         </Link>
 
         {/* ================================

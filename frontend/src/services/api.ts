@@ -166,6 +166,8 @@ export const api = {
       expertise?: string[];
     }) => request<any>("/auth/become-mentor", json("POST", body)),
     updateMe: (body: any) => request<any>("/auth/me", json("PATCH", body)),
+    updatePassword: (body: { currentPassword: string; newPassword: string }) =>
+      request<any>("/auth/password", json("PATCH", body)),
   },
 
   // Public categories & courses
@@ -190,6 +192,14 @@ export const api = {
   // Student & learning
   dashboard: {
     getStudentDashboard: () => request<any>("/student/dashboard"),
+    getStudentQuizzes: () => request<any>("/student/quizzes"),
+  },
+  wishlist: {
+    getAll: () => request<any>("/wishlist"),
+    add: (courseId: string) =>
+      request<any>(`/wishlist/${courseId}`, json("POST")),
+    remove: (courseId: string) =>
+      request<any>(`/wishlist/${courseId}`, json("DELETE")),
   },
   enrollments: {
     enroll: (courseId: string) =>
@@ -218,6 +228,7 @@ export const api = {
   // Mentor studio
   mentor: {
     getDashboard: () => request<any>("/mentor/dashboard"),
+    getAnalytics: () => request<any>("/mentor/analytics"),
     getMyCourses: (params?: Record<string, any>) =>
       request<any>(`/mentor/courses${toQuery(params)}`),
     getCourse: (id: string) => request<any>(`/mentor/courses/${id}`),
@@ -244,6 +255,9 @@ export const api = {
       request<any>(`/mentor/courses/${courseId}/lessons`, json("POST", body)),
     deleteLesson: (lessonId: string) =>
       request<any>(`/mentor/lessons/${lessonId}`, json("DELETE")),
+    updateLesson: (lessonId: string, body: any) =>
+      request<any>(`/mentor/lessons/${lessonId}`, json("PATCH", body)),
+    getQuiz: (quizId: string) => request<any>(`/mentor/quizzes/${quizId}`),
     createQuiz: (courseId: string, body: any) =>
       request<any>(`/mentor/courses/${courseId}/quizzes`, json("POST", body)),
     deleteQuiz: (quizId: string) =>

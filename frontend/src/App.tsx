@@ -1,5 +1,5 @@
 
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
 // Landing & Authentication
@@ -22,6 +22,7 @@ import Achievements from "./pages/Achievements";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Help from "./pages/Help";
+import Notifications from "./pages/Notifications";
 
 // Instructor Pages
 import InstructorLogin from "./pages/InstructorLogin";
@@ -35,6 +36,7 @@ import InstructorQuizzes from "./pages/InstructorQuizzes";
 import InstructorAnalytics from "./pages/InstructorAnalytics";
 import InstructorProfile from "./pages/InstructorProfile";
 import InstructorSettings from "./pages/InstructorSettings";
+import InstructorNotifications from "./pages/InstructorNotifications";
 
 import "./index.css";
 
@@ -50,10 +52,13 @@ const ProtectedRoute = ({
   requireRole?: "mentor" | "admin" | "student";
 }) => {
   const { isAuthenticated, isMentor, isAdmin } = useAuth();
+  const location = useLocation();
 
-  // User is not logged in
+  // User is not logged in: remember where they wanted to go so Login can send them back
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    const from = `${location.pathname}${location.search}`;
+    const loginPath = requireRole === "mentor" ? "/instructor/login" : "/login";
+    return <Navigate to={loginPath} replace state={{ from }} />;
   }
 
   // Mentor/instructor pages
@@ -67,6 +72,19 @@ const ProtectedRoute = ({
   }
 
   return <>{children}</>;
+};
+
+/* =========================================================
+   REDIRECT HELPERS (legacy /mentor/* URLs -> /instructor/*)
+========================================================= */
+
+const MentorCourseRedirect = ({ suffix }: { suffix: "edit" | "students" }) => {
+  const { id } = useParams();
+  const target =
+    suffix === "students"
+      ? `/instructor/students?course=${id}`
+      : `/instructor/courses/edit/${id}`;
+  return <Navigate to={target} replace />;
 };
 
 /* =========================================================
@@ -206,6 +224,15 @@ function AppRoutes() {
       />
 
       <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <Notifications />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/help"
         element={
           <ProtectedRoute>
@@ -326,45 +353,24 @@ function AppRoutes() {
         }
       />
 
+      <Route
+        path="/instructor/notifications"
+        element={
+          <ProtectedRoute requireRole="mentor">
+            <InstructorNotifications />
+          </ProtectedRoute>
+        }
+      />
+
       {/* =====================================================
-          MENTOR ALIASES
+          LEGACY /mentor/* URLS -> /instructor/*
       ===================================================== */}
 
-      <Route
-        path="/mentor/dashboard"
-        element={
-          <ProtectedRoute requireRole="mentor">
-            <InstructorDashboard />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/mentor/courses"
-        element={
-          <ProtectedRoute requireRole="mentor">
-            <InstructorCourses />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/mentor/courses/new"
-        element={
-          <ProtectedRoute requireRole="mentor">
-            <CreateCourse />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/mentor/courses/:id/edit"
-        element={
-          <ProtectedRoute requireRole="mentor">
-            <CourseEditor />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/mentor/dashboard" element={<Navigate to="/instructor/dashboard" replace />} />
+      <Route path="/mentor/courses" element={<Navigate to="/instructor/courses" replace />} />
+      <Route path="/mentor/courses/new" element={<Navigate to="/instructor/courses/create" replace />} />
+      <Route path="/mentor/courses/:id/edit" element={<MentorCourseRedirect suffix="edit" />} />
+      <Route path="/mentor/courses/:id/students" element={<MentorCourseRedirect suffix="students" />} />
 
       {/* =====================================================
           FALLBACK

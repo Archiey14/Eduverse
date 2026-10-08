@@ -1,182 +1,120 @@
-
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../services/api";
+import { api, getErrorMessage } from "../services/api";
 import StudentLayout from "../components/StudentLayout";
+import { Loading, Notice } from "../components/Notice";
 import "./Quizzes.css";
 
+type QuizStatus = "upcoming" | "failed" | "passed";
+type Tab = "all" | "upcoming" | "completed";
+
 interface Quiz {
-  id: string | number;
+  id: string;
   title: string;
   course: string;
   courseId?: string;
   courseColor: string;
   questions: number;
-  duration: string;
-  difficulty: "Easy" | "Medium" | "Hard";
-  date: string;
-  dateLabel: string;
-  status: "upcoming" | "completed";
-  score?: number;
-  icon: string;
+  passPercent: number;
+  attempts: number;
+  maxAttempts: number | null;
+  status: QuizStatus;
+  bestScore: number | null;
+  lastScore: number | null;
+  lastAttemptAt: string | null;
 }
 
+const COLORS = ["quiz-blue", "quiz-green", "quiz-purple", "quiz-teal"];
+
+const formatDate = (iso: string | null) =>
+  iso
+    ? new Date(iso).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
+
 function Quizzes() {
-  const [activeTab, setActiveTab] = useState<
-    "all" | "upcoming" | "completed"
-  >("all");
-
+  const [activeTab, setActiveTab] = useState<Tab>("all");
   const [searchQuery, setSearchQuery] = useState("");
-
-  const [quizzesList, setQuizzesList] = useState<Quiz[]>([]);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const loadQuizData = async () => {
-      try {
-        const res = await api.dashboard.getStudentDashboard();
-        const loaded: Quiz[] = [];
+    let cancelled = false;
 
-        if (
-          res.data?.recentQuizAttempts &&
-          res.data.recentQuizAttempts.length > 0
-        ) {
-          res.data.recentQuizAttempts.forEach((attempt: any, idx: number) => {
-            loaded.push({
-              id: attempt._id,
-              title: attempt.quiz?.title || "Course Assessment",
-              course: attempt.course?.title || "Complete Course",
-              courseId: attempt.course?._id,
-              courseColor: idx % 2 === 0 ? "quiz-green" : "quiz-teal",
-              questions: attempt.total || 10,
-              duration: "20 min",
-              difficulty: "Medium",
-              date: "Completed",
-              dateLabel: new Date(attempt.submittedAt).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              }),
-              status: "completed",
-              score: attempt.scorePercent || 0,
-              icon: idx % 2 === 0 ? "🐍" : "⚛️",
-            });
-          });
-        }
+    api.dashboard
+      .getStudentQuizzes()
+      .then((res) => {
+        if (cancelled) return;
+        setQuizzes(
+          (res.data || []).map((q: any, idx: number) => ({
+            id: q._id,
+            title: q.title || "Quiz",
+            course: q.course?.title || "Course",
+            courseId: q.course?._id,
+            courseColor: COLORS[idx % COLORS.length],
+            questions: q.questionCount || 0,
+            passPercent: q.passPercent || 0,
+            attempts: q.attempts || 0,
+            maxAttempts: q.maxAttempts ?? null,
+            status: q.status as QuizStatus,
+            bestScore: q.bestScore,
+            lastScore: q.lastScore,
+            lastAttemptAt: q.lastAttemptAt,
+          }))
+        );
+      })
+      .catch((err) => {
+        if (!cancelled) setError(getErrorMessage(err, "Could not load your quizzes."));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-        if (res.data?.activeEnrollments && res.data.activeEnrollments.length > 0) {
-          for (const enr of res.data.activeEnrollments.slice(0, 3)) {
-            const cId = enr.course?._id;
-            if (!cId) continue;
-            try {
-              const cView = await api.learn.getCourseView(cId);
-              if (cView.data?.quizzes && cView.data.quizzes.length > 0) {
-                cView.data.quizzes.forEach((q: any, qIdx: number) => {
-                  const alreadyExists = loaded.some(
-                    (item) => item.title === q.title && item.course === (enr.course?.title || "")
-                  );
-                  if (!alreadyExists) {
-                    loaded.push({
-                      id: q._id,
-                      title: q.title || "Knowledge Check",
-                      course: enr.course?.title || "Enrolled Course",
-                      courseId: cId,
-                      courseColor: qIdx % 2 === 0 ? "quiz-blue" : "quiz-purple",
-                      questions: q.questions?.length || 5,
-                      duration: "15 min",
-                      difficulty: "Medium",
-                      date: "Upcoming",
-                      dateLabel: q.isPassed ? "Completed" : "Available Now",
-                      status: q.isPassed ? "completed" : "upcoming",
-                      score: q.isPassed ? 100 : undefined,
-                      icon: "📝",
-                    });
-                  }
-                });
-              }
-            } catch {
-              // Ignore individual learning view fetch errors
-            }
-          }
-        }
-
-        if (loaded.length === 0) {
-          // Provide interactive default assessment cards
-          loaded.push(
-            {
-              id: "def-1",
-              title: "React & TypeScript Foundations",
-              course: "Web Development",
-              courseColor: "quiz-blue",
-              questions: 10,
-              duration: "15 min",
-              difficulty: "Medium",
-              date: "Upcoming",
-              dateLabel: "Available Now",
-              status: "upcoming",
-              icon: "⚛️",
-            },
-            {
-              id: "def-2",
-              title: "JavaScript ES6+ Knowledge Assessment",
-              course: "Programming",
-              courseColor: "quiz-teal",
-              questions: 8,
-              duration: "12 min",
-              difficulty: "Easy",
-              date: "Upcoming",
-              dateLabel: "Available Now",
-              status: "upcoming",
-              icon: "🟨",
-            }
-          );
-        }
-
-        setQuizzesList(loaded);
-      } catch (err) {
-        console.warn("Failed to load quizzes:", err);
-        setQuizzesList([]);
-      }
+    return () => {
+      cancelled = true;
     };
-
-    loadQuizData();
   }, []);
 
+  // "Upcoming" = still to do (never attempted, or attempted but not passed yet)
+  const todoQuizzes = quizzes.filter((q) => q.status !== "passed");
+  const completedQuizzes = quizzes.filter((q) => q.status === "passed");
+  const attemptedQuizzes = quizzes.filter((q) => q.bestScore !== null);
+
+  const averageScore =
+    attemptedQuizzes.length > 0
+      ? Math.round(
+          attemptedQuizzes.reduce((t, q) => t + (q.bestScore || 0), 0) /
+            attemptedQuizzes.length
+        )
+      : 0;
+
   const filteredQuizzes = useMemo(() => {
-    return quizzesList.filter((quiz) => {
+    const query = searchQuery.toLowerCase().trim();
+    return quizzes.filter((quiz) => {
       const matchesTab =
         activeTab === "all" ||
-        quiz.status === activeTab;
-
-      const query =
-        searchQuery.toLowerCase().trim();
+        (activeTab === "upcoming" && quiz.status !== "passed") ||
+        (activeTab === "completed" && quiz.status === "passed");
 
       const matchesSearch =
         !query ||
-        quiz.title
-          .toLowerCase()
-          .includes(query) ||
-        quiz.course
-          .toLowerCase()
-          .includes(query);
+        quiz.title.toLowerCase().includes(query) ||
+        quiz.course.toLowerCase().includes(query);
 
       return matchesTab && matchesSearch;
     });
-  }, [quizzesList, activeTab, searchQuery]);
+  }, [quizzes, activeTab, searchQuery]);
 
-  const completedQuizzes = quizzesList.filter(
-    (quiz) => quiz.status === "completed"
-  );
-
-  const averageScore =
-    completedQuizzes.length > 0
-      ? Math.round(
-          completedQuizzes.reduce(
-            (total, quiz) =>
-              total + (quiz.score || 0),
-            0
-          ) / completedQuizzes.length
-        )
-      : 0;
+  const heading =
+    activeTab === "all"
+      ? "All Quizzes"
+      : activeTab === "upcoming"
+      ? "Upcoming Quizzes"
+      : "Completed Quizzes";
 
   return (
     <StudentLayout
@@ -185,23 +123,12 @@ function Quizzes() {
       onSearchChange={setSearchQuery}
       searchPlaceholder="Search quizzes or courses..."
     >
-      <div
-        className="quizzes-content"
-        style={{ padding: "0" }}
-      >
-        {/* Page Header */}
+      <div className="quizzes-content" style={{ padding: "0" }}>
         <section className="quizzes-page-header">
           <div>
-            <span className="quizzes-eyebrow">
-              TEST YOUR KNOWLEDGE
-            </span>
-
+            <span className="quizzes-eyebrow">TEST YOUR KNOWLEDGE</span>
             <h1>Quizzes & Assessments</h1>
-
-            <p>
-              Test what you've learned and track
-              your knowledge progress.
-            </p>
+            <p>Test what you've learned and track your knowledge progress.</p>
           </div>
 
           <div className="quiz-header-illustration">
@@ -209,271 +136,226 @@ function Quizzes() {
           </div>
         </section>
 
-        {/* Stats */}
-        <section className="quiz-stats-grid">
-          <div className="quiz-stat-card">
-            <div className="quiz-stat-icon blue">
-              ✓
-            </div>
+        {error && <Notice message={error} />}
 
-            <div>
-              <span>Total Quizzes</span>
+        {loading ? (
+          <Loading label="Loading your quizzes..." />
+        ) : (
+          <>
+            <section className="quiz-stats-grid">
+              <div className="quiz-stat-card">
+                <div className="quiz-stat-icon blue">✓</div>
+                <div>
+                  <span>Total Quizzes</span>
+                  <strong>{quizzes.length}</strong>
+                </div>
+                <small>In your enrolled courses</small>
+              </div>
 
-              <strong>
-                {quizzesList.length}
-              </strong>
-            </div>
+              <div className="quiz-stat-card">
+                <div className="quiz-stat-icon green">★</div>
+                <div>
+                  <span>Avg. Best Score</span>
+                  <strong>{attemptedQuizzes.length > 0 ? `${averageScore}%` : "—"}</strong>
+                </div>
+                <small>
+                  {attemptedQuizzes.length > 0
+                    ? `Across ${attemptedQuizzes.length} attempted quiz${
+                        attemptedQuizzes.length === 1 ? "" : "zes"
+                      }`
+                    : "No attempts yet"}
+                </small>
+              </div>
+            </section>
 
-            <small>Available to you</small>
-          </div>
+            <section className="quiz-toolbar">
+              <div className="quiz-search">
+                <span>⌕</span>
+                <input
+                  type="text"
+                  placeholder="Search quizzes..."
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+              </div>
 
-          <div className="quiz-stat-card">
-            <div className="quiz-stat-icon green">
-              ★
-            </div>
-
-            <div>
-              <span>Avg. Score</span>
-
-              <strong>
-                {averageScore}%
-              </strong>
-            </div>
-
-            <small>Your performance</small>
-          </div>
-        </section>
-
-        {/* Search + Tabs */}
-        <section className="quiz-toolbar">
-          <div className="quiz-search">
-            <span>⌕</span>
-
-            <input
-              type="text"
-              placeholder="Search quizzes..."
-              value={searchQuery}
-              onChange={(event) =>
-                setSearchQuery(event.target.value)
-              }
-            />
-          </div>
-
-          <div className="quiz-tabs">
-            <button
-              className={
-                activeTab === "all"
-                  ? "active"
-                  : ""
-              }
-              onClick={() =>
-                setActiveTab("all")
-              }
-            >
-              All Quizzes
-
-              <span>
-                {quizzesList.length}
-              </span>
-            </button>
-
-            <button
-              className={
-                activeTab === "completed"
-                  ? "active"
-                  : ""
-              }
-              onClick={() =>
-                setActiveTab("completed")
-              }
-            >
-              Completed
-
-              <span>
-                {completedQuizzes.length}
-              </span>
-            </button>
-          </div>
-        </section>
-
-        {/* Quiz List */}
-        <section className="quiz-list-section">
-          <div className="quiz-list-header">
-            <div>
-              <h2>
-                {activeTab === "all"
-                  ? "All Quizzes"
-                  : activeTab === "upcoming"
-                  ? "Upcoming Quizzes"
-                  : "Completed Quizzes"}
-              </h2>
-
-              <p>
-                {filteredQuizzes.length} quiz
-                {filteredQuizzes.length !== 1
-                  ? "zes"
-                  : ""}{" "}
-                found
-              </p>
-            </div>
-          </div>
-
-          <div className="quiz-list">
-            {filteredQuizzes.map((quiz) => (
-              <article
-                className="quiz-card"
-                key={quiz.id}
-              >
-                <div
-                  className={`quiz-card-icon ${quiz.courseColor}`}
+              <div className="quiz-tabs">
+                <button
+                  type="button"
+                  className={activeTab === "all" ? "active" : ""}
+                  onClick={() => setActiveTab("all")}
                 >
-                  {quiz.icon}
+                  All Quizzes
+                  <span>{quizzes.length}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={activeTab === "upcoming" ? "active" : ""}
+                  onClick={() => setActiveTab("upcoming")}
+                >
+                  Upcoming
+                  <span>{todoQuizzes.length}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={activeTab === "completed" ? "active" : ""}
+                  onClick={() => setActiveTab("completed")}
+                >
+                  Completed
+                  <span>{completedQuizzes.length}</span>
+                </button>
+              </div>
+            </section>
+
+            <section className="quiz-list-section">
+              <div className="quiz-list-header">
+                <div>
+                  <h2>{heading}</h2>
+                  <p>
+                    {filteredQuizzes.length} quiz
+                    {filteredQuizzes.length !== 1 ? "zes" : ""} found
+                  </p>
                 </div>
+              </div>
 
-                <div className="quiz-card-main">
-                  <div className="quiz-card-title-row">
-                    <div>
-                      <span className="quiz-card-course">
-                        {quiz.course}
-                      </span>
+              <div className="quiz-list">
+                {filteredQuizzes.map((quiz) => {
+                  const outOfAttempts =
+                    quiz.maxAttempts !== null && quiz.attempts >= quiz.maxAttempts;
+                  const courseLink = quiz.courseId ? `/learn/${quiz.courseId}` : "/student/courses";
 
-                      <h3>{quiz.title}</h3>
-                    </div>
+                  return (
+                    <article className="quiz-card" key={quiz.id}>
+                      <div className={`quiz-card-icon ${quiz.courseColor}`}>
+                        {quiz.status === "passed" ? "✅" : quiz.status === "failed" ? "🔁" : "📝"}
+                      </div>
 
-                    {quiz.status ===
-                    "completed" ? (
-                      <span className="quiz-completed-badge">
-                        ✓ Completed
-                      </span>
-                    ) : (
-                      <span className="quiz-upcoming-badge">
-                        Upcoming
-                      </span>
-                    )}
-                  </div>
+                      <div className="quiz-card-main">
+                        <div className="quiz-card-title-row">
+                          <div>
+                            <span className="quiz-card-course">{quiz.course}</span>
+                            <h3>{quiz.title}</h3>
+                          </div>
 
-                  <div className="quiz-card-details">
-                    <span>
-                      📝 {quiz.questions} Questions
-                    </span>
-
-                    <span>
-                      ◷ {quiz.duration}
-                    </span>
-
-                    <span
-                      className={`difficulty ${quiz.difficulty.toLowerCase()}`}
-                    >
-                      ● {quiz.difficulty}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="quiz-card-date">
-                  <span>
-                    {quiz.status === "completed"
-                      ? "Completed on"
-                      : "Scheduled for"}
-                  </span>
-
-                  <strong>
-                    {quiz.dateLabel}
-                  </strong>
-                </div>
-
-                  <div className="quiz-card-action">
-                    {quiz.status === "completed" ? (
-                      <>
-                        <div className="quiz-score">
-                          <strong>{quiz.score || 0}%</strong>
-                          <span>Score</span>
+                          {quiz.status === "passed" ? (
+                            <span className="quiz-completed-badge">✓ Passed</span>
+                          ) : quiz.status === "failed" ? (
+                            <span className="quiz-upcoming-badge">Not passed yet</span>
+                          ) : (
+                            <span className="quiz-upcoming-badge">Upcoming</span>
+                          )}
                         </div>
-                        {quiz.courseId ? (
+
+                        <div className="quiz-card-details">
+                          <span>📝 {quiz.questions} Questions</span>
+                          <span>🎯 Pass mark {quiz.passPercent}%</span>
+                          <span>
+                            🔁 {quiz.attempts} attempt{quiz.attempts === 1 ? "" : "s"}
+                            {quiz.maxAttempts !== null ? ` of ${quiz.maxAttempts}` : ""}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="quiz-card-date">
+                        <span>{quiz.attempts > 0 ? "Last attempt" : "Status"}</span>
+                        <strong>
+                          {quiz.attempts > 0 ? formatDate(quiz.lastAttemptAt) : "Not attempted yet"}
+                        </strong>
+                      </div>
+
+                      <div className="quiz-card-action">
+                        {quiz.status === "passed" ? (
+                          <>
+                            <div className="quiz-score">
+                              <strong>{quiz.bestScore ?? 0}%</strong>
+                              <span>Best score</span>
+                            </div>
+                            <Link
+                              to={courseLink}
+                              className="quiz-review-button"
+                              style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}
+                            >
+                              Review
+                            </Link>
+                          </>
+                        ) : quiz.status === "failed" ? (
+                          <>
+                            <div className="quiz-score">
+                              <strong>{quiz.bestScore ?? 0}%</strong>
+                              <span>Best score</span>
+                            </div>
+                            <Link
+                              to={courseLink}
+                              className="quiz-start-button"
+                              style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}
+                            >
+                              {outOfAttempts ? "Review" : "Retry"}
+                              <span>→</span>
+                            </Link>
+                          </>
+                        ) : (
                           <Link
-                            to={`/learn/${quiz.courseId}`}
-                            className="quiz-review-button"
+                            to={courseLink}
+                            className="quiz-start-button"
                             style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}
                           >
-                            Review
+                            Start Quiz
+                            <span>→</span>
                           </Link>
-                        ) : (
-                          <button className="quiz-review-button">Review</button>
                         )}
-                      </>
-                    ) : (
-                      <Link
-                        to={quiz.courseId ? `/learn/${quiz.courseId}` : "/courses"}
-                        className="quiz-start-button"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          textDecoration: "none",
-                        }}
-                      >
-                        Start Quiz
-                        <span>→</span>
-                      </Link>
-                    )}
-                  </div>
-              </article>
-            ))}
-          </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
 
-          {filteredQuizzes.length === 0 && (
-            <div className="quiz-empty-state">
-              <span>🔎</span>
+              {filteredQuizzes.length === 0 && (
+                <div className="quiz-empty-state">
+                  <span>{quizzes.length === 0 ? "📝" : "🔎"}</span>
 
-              <h3>No quizzes found</h3>
+                  <h3>{quizzes.length === 0 ? "No quizzes yet" : "No quizzes found"}</h3>
 
-              <p>
-                Try searching with a different
-                keyword.
-              </p>
+                  <p>
+                    {quizzes.length === 0
+                      ? "Quizzes from the courses you enroll in will appear here."
+                      : "Try a different keyword or tab."}
+                  </p>
 
-              <button
-                onClick={() => {
-                  setSearchQuery("");
-                  setActiveTab("all");
-                }}
-              >
-                Show All Quizzes
-              </button>
-            </div>
-          )}
-        </section>
+                  {quizzes.length === 0 ? (
+                    <Link to="/courses" className="quiz-start-button" style={{ textDecoration: "none" }}>
+                      Browse Courses
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setActiveTab("all");
+                      }}
+                    >
+                      Show All Quizzes
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
+          </>
+        )}
 
-        {/* Footer */}
         <footer className="quizzes-footer">
           <div>
-            <strong>LearnHub</strong>
-
-            <p>
-              Learn new skills. Build your
-              future.
-            </p>
+            <strong>Eduverse</strong>
+            <p>Learn new skills. Build your future.</p>
           </div>
 
           <div className="quizzes-footer-links">
-            <Link to="/courses">
-              Help Center
-            </Link>
-
-            <Link to="/courses">
-              Privacy
-            </Link>
-
-            <Link to="/courses">
-              Terms
-            </Link>
-
-            <Link to="/courses">
-              Courses
-            </Link>
+            <Link to="/help">Help Center</Link>
+            <Link to="/courses">Courses</Link>
           </div>
 
-          <p>
-            © 2026 LearnHub. All rights reserved.
-          </p>
+          <p>© 2026 Eduverse. All rights reserved.</p>
         </footer>
       </div>
     </StudentLayout>

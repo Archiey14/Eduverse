@@ -1,570 +1,266 @@
-
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { api, getErrorMessage } from "../services/api";
 import { useAuth } from "../context/AuthContext";
-import { api } from "../services/api";
-import "./InstructorProfile.css";
+import InstructorLayout from "../components/InstructorLayout";
 
-const InstructorProfile = () => {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
+interface Summary {
+  courses: number;
+  students: number;
+  lessons: number;
+  rating: number;
+  reviews: number;
+}
 
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
+const emptySummary: Summary = { courses: 0, students: 0, lessons: 0, rating: 0, reviews: 0 };
+
+function InstructorProfile() {
+  const { user, updateUser } = useAuth();
+
   const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [name, setName] = useState(user?.name || "Instructor");
-  const [email, setEmail] = useState(user?.email || "instructor@example.com");
-  const [phone, setPhone] = useState("+91 98765 43210");
-  const [location, setLocation] = useState("Telangana, India");
-  const [bio, setBio] = useState(
-    user?.mentorProfile?.bio ||
-      "Passionate instructor focused on helping students build practical skills in modern web development."
-  );
-  const [expertise, setExpertise] = useState([
-    "React",
-    "TypeScript",
-    "JavaScript",
-    "HTML & CSS",
-    "Web Development",
-  ]);
-
+  const [name, setName] = useState(user?.name || "");
+  const [headline, setHeadline] = useState(user?.mentorProfile?.headline || "");
+  const [bio, setBio] = useState(user?.mentorProfile?.bio || "");
+  const [expertise, setExpertise] = useState<string[]>(user?.mentorProfile?.expertise || []);
   const [newExpertise, setNewExpertise] = useState("");
 
-  useEffect(() => {
-    if (user) {
-      if (user.name) setName(user.name);
-      if (user.email) setEmail(user.email);
-      if (user.mentorProfile?.bio) setBio(user.mentorProfile.bio);
-      if (user.mentorProfile?.expertise?.length) setExpertise(user.mentorProfile.expertise);
-    }
-  }, [user]);
+  const [summary, setSummary] = useState<Summary>(emptySummary);
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
+  // Keep the form in sync with the logged-in user while not editing
+  useEffect(() => {
+    if (!user || isEditing) return;
+    setName(user.name || "");
+    setHeadline(user.mentorProfile?.headline || "");
+    setBio(user.mentorProfile?.bio || "");
+    setExpertise(user.mentorProfile?.expertise || []);
+  }, [user, isEditing]);
+
+  // Real teaching stats
+  useEffect(() => {
+    let cancelled = false;
+    api.mentor
+      .getDashboard()
+      .then((res) => {
+        if (cancelled || !res.data) return;
+        const stats = res.data.stats || {};
+        const courses: any[] = res.data.courses || [];
+        setSummary({
+          courses: stats.totalCourses || 0,
+          students: stats.totalEnrollments || 0,
+          lessons: courses.reduce((sum, c) => sum + (c.stats?.lessonCount || 0), 0),
+          rating: stats.overallRating || 0,
+          reviews: stats.totalReviews || 0,
+        });
+      })
+      .catch(() => {
+        /* stats are optional on this page */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSave = async () => {
-    setIsEditing(false);
+    setError("");
+    setSuccess("");
+
+    if (!name.trim()) {
+      setError("Your name cannot be empty.");
+      return;
+    }
+
+    setSaving(true);
     try {
-      await api.auth.updateMe({
-        name,
-        mentorProfile: {
-          headline: user?.mentorProfile?.headline || "Instructor",
-          bio,
-          expertise,
-        },
+      const res = await api.auth.updateMe({
+        name: name.trim(),
+        headline: headline.trim(),
+        bio: bio.trim(),
+        expertise,
       });
-      alert("Instructor profile updated successfully!");
-    } catch {
-      alert("Profile updated locally.");
+      if (res.user) updateUser(res.user);
+      setIsEditing(false);
+      setSuccess("Profile updated successfully.");
+    } catch (err) {
+      setError(getErrorMessage(err, "Could not save your profile. Please try again."));
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleCancel = () => {
     setIsEditing(false);
+    setError("");
   };
 
   const handleAddExpertise = () => {
     const skill = newExpertise.trim();
-
-    if (!skill) {
+    if (!skill) return;
+    if (expertise.some((item) => item.toLowerCase() === skill.toLowerCase())) {
+      setError("This expertise is already added.");
       return;
     }
-
-    if (expertise.includes(skill)) {
-      alert("This expertise is already added.");
-      return;
-    }
-
+    setError("");
     setExpertise([...expertise, skill]);
     setNewExpertise("");
   };
 
-  const handleRemoveExpertise = (skill: string) => {
-    setExpertise(expertise.filter((item) => item !== skill));
-  };
-
   return (
-    <div className="instructor-profile-page">
-      {/* Sidebar */}
-      <aside className="instructor-sidebar">
-        <div className="instructor-brand">
-          <div className="instructor-brand-icon">L</div>
-
-          <div className="instructor-brand-text">
-            <h2 className="instructor-brand-title">LearnHub</h2>
-            <span className="instructor-brand-subtitle">
-              Instructor Portal
-            </span>
-          </div>
+    <InstructorLayout active="profile" title="Profile">
+      <div className="il-page-header">
+        <div>
+          <span className="il-eyebrow">INSTRUCTOR ACCOUNT</span>
+          <h1>My Profile</h1>
+          <p>Manage your instructor information and teaching expertise.</p>
         </div>
 
-        <nav className="instructor-navigation">
-          <div className="instructor-nav-section">
-            <span className="instructor-nav-label">MAIN</span>
+        {!isEditing && (
+          <button type="button" className="il-btn il-btn-outline" onClick={() => setIsEditing(true)}>
+            ✎ Edit Profile
+          </button>
+        )}
+      </div>
 
-            <Link
-              to="/instructor/dashboard"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">⌂</span>
-              <span>Dashboard</span>
-            </Link>
+      {error && <div className="il-alert il-alert-error">{error}</div>}
+      {success && <div className="il-alert il-alert-success">{success}</div>}
 
-            <Link
-              to="/instructor/courses"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">▣</span>
-              <span>My Courses</span>
-            </Link>
+      <section className="il-profile-hero">
+        <div className="il-avatar-lg">{(user?.name || "I").charAt(0).toUpperCase()}</div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <h2>{user?.name}</h2>
+          <p>{user?.mentorProfile?.headline || "Instructor"}</p>
+          <p>✉ {user?.email}</p>
+        </div>
+      </section>
 
-            <Link
-              to="/instructor/courses/create"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">＋</span>
-              <span>Create Course</span>
-            </Link>
+      <section className="il-stats">
+        <div className="il-stat">
+          <span>Total Courses</span>
+          <strong>{summary.courses}</strong>
+        </div>
+        <div className="il-stat">
+          <span>Total Students</span>
+          <strong>{summary.students}</strong>
+        </div>
+        <div className="il-stat">
+          <span>Total Lessons</span>
+          <strong>{summary.lessons}</strong>
+        </div>
+        <div className="il-stat">
+          <span>Average Rating</span>
+          <strong>{summary.reviews > 0 ? summary.rating.toFixed(1) : "—"}</strong>
+          <small>{summary.reviews > 0 ? `${summary.reviews} reviews` : "No reviews yet"}</small>
+        </div>
+      </section>
+
+      <section className="il-card">
+        <h2>Basic information</h2>
+        <p className="il-card-sub">Your email address is your login and cannot be changed here.</p>
+
+        <div className="il-form-grid">
+          <div className="il-field">
+            <label htmlFor="ip-name">Full name</label>
+            <input
+              id="ip-name"
+              className="il-input"
+              value={name}
+              disabled={!isEditing}
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
 
-          <div className="instructor-nav-section">
-            <span className="instructor-nav-label">MANAGE</span>
-
-            <Link
-              to="/instructor/lessons"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">▤</span>
-              <span>Manage Lessons</span>
-            </Link>
-
-            <Link
-              to="/instructor/students"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">♙</span>
-              <span>Students</span>
-            </Link>
-
-            <Link
-              to="/instructor/quizzes"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">?</span>
-              <span>Quizzes</span>
-            </Link>
-
-            <Link
-              to="/instructor/analytics"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">◒</span>
-              <span>Analytics</span>
-            </Link>
+          <div className="il-field">
+            <label htmlFor="ip-email">Email address</label>
+            <input id="ip-email" className="il-input" value={user?.email || ""} disabled readOnly />
           </div>
 
-          <div className="instructor-nav-section">
-            <span className="instructor-nav-label">ACCOUNT</span>
-
-            <Link
-              to="/profile"
-              className="instructor-nav-link active"
-            >
-              <span className="instructor-nav-icon">♙</span>
-              <span>Profile</span>
-            </Link>
-
-            <Link
-              to="/settings"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">⚙</span>
-              <span>Settings</span>
-            </Link>
-
-            <Link
-              to="/help"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">?</span>
-              <span>Help Center</span>
-            </Link>
-          </div>
-        </nav>
-
-        <div className="instructor-sidebar-bottom">
-          <div className="instructor-support-card">
-            <div className="instructor-support-icon">?</div>
-
-            <div>
-              <strong>Need help?</strong>
-              <p>Visit our Help Center</p>
-            </div>
+          <div className="il-field full">
+            <label htmlFor="ip-headline">Headline</label>
+            <input
+              id="ip-headline"
+              className="il-input"
+              placeholder="e.g. Senior Full Stack Developer"
+              value={headline}
+              disabled={!isEditing}
+              onChange={(e) => setHeadline(e.target.value)}
+            />
           </div>
 
-          <button
-            className="instructor-logout"
-            onClick={handleLogout}
-          >
-            <span>↪</span>
-            Logout
+          <div className="il-field full">
+            <label htmlFor="ip-bio">Instructor bio</label>
+            <textarea
+              id="ip-bio"
+              className="il-textarea"
+              rows={5}
+              placeholder="Tell students about your experience and teaching style."
+              value={bio}
+              disabled={!isEditing}
+              onChange={(e) => setBio(e.target.value)}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="il-card">
+        <h2>Skills &amp; expertise</h2>
+        <p className="il-card-sub">The topics and technologies you teach.</p>
+
+        {expertise.length === 0 ? (
+          <p className="il-card-sub">No expertise added yet.</p>
+        ) : (
+          <div className="il-tags">
+            {expertise.map((skill) => (
+              <span className="il-tag" key={skill}>
+                {skill}
+                {isEditing && (
+                  <button
+                    type="button"
+                    aria-label={`Remove ${skill}`}
+                    onClick={() => setExpertise(expertise.filter((item) => item !== skill))}
+                  >
+                    ×
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {isEditing && (
+          <div className="il-toolbar" style={{ marginBottom: 0 }}>
+            <input
+              className="il-input"
+              placeholder="Enter a skill..."
+              value={newExpertise}
+              onChange={(e) => setNewExpertise(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddExpertise();
+                }
+              }}
+            />
+            <button type="button" className="il-btn il-btn-outline" onClick={handleAddExpertise}>
+              + Add skill
+            </button>
+          </div>
+        )}
+      </section>
+
+      {isEditing && (
+        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+          <button type="button" className="il-btn il-btn-outline" onClick={handleCancel} disabled={saving}>
+            Cancel
+          </button>
+          <button type="button" className="il-btn" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : "Save changes"}
           </button>
         </div>
-      </aside>
-
-      {/* Main */}
-      <main className="instructor-main">
-        {/* Topbar */}
-        <header className="instructor-topbar">
-          <div className="instructor-breadcrumb">
-            <span>Instructor</span>
-            <span className="breadcrumb-separator">/</span>
-            <strong>Profile</strong>
-          </div>
-
-          <div className="instructor-topbar-right">
-            <button className="instructor-notification">
-              ♢
-              <span className="notification-dot"></span>
-            </button>
-
-            <div className="instructor-profile-wrapper">
-              <button
-                className="instructor-profile-button"
-                onClick={() =>
-                  setShowProfileMenu(!showProfileMenu)
-                }
-              >
-                <div className="instructor-avatar">S</div>
-
-                <div className="instructor-user-info">
-                  <strong>Supriya Enjam</strong>
-                  <span>Instructor</span>
-                </div>
-
-                <span className="profile-chevron">
-                  {showProfileMenu ? "▲" : "▼"}
-                </span>
-              </button>
-
-              {showProfileMenu && (
-                <div className="instructor-profile-menu">
-                  <Link to="/profile">My Profile</Link>
-                  <Link to="/settings">Settings</Link>
-
-                  <button onClick={handleLogout}>
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-
-        {/* Content */}
-        <div className="instructor-content">
-          <div className="profile-page-header">
-            <div>
-              <span className="welcome-label">
-                INSTRUCTOR ACCOUNT
-              </span>
-
-              <h1>My Profile</h1>
-
-              <p>
-                Manage your instructor information and teaching
-                expertise.
-              </p>
-            </div>
-
-            {!isEditing && (
-              <button
-                className="edit-profile-button"
-                onClick={() => setIsEditing(true)}
-              >
-                ✎ Edit Profile
-              </button>
-            )}
-          </div>
-
-          {/* Profile Hero */}
-          <section className="instructor-profile-hero">
-            <div className="large-profile-avatar">S</div>
-
-            <div className="profile-hero-info">
-              <h2>{name}</h2>
-
-              <span className="instructor-role-badge">
-                Instructor
-              </span>
-
-              <p>
-                <span>✉</span> {email}
-              </p>
-
-              <p>
-                <span>⌖</span> {location}
-              </p>
-            </div>
-
-            <div className="profile-hero-stats">
-              <div>
-                <strong>4</strong>
-                <span>Courses</span>
-              </div>
-
-              <div>
-                <strong>558</strong>
-                <span>Students</span>
-              </div>
-
-              <div>
-                <strong>4.8</strong>
-                <span>Rating</span>
-              </div>
-            </div>
-          </section>
-
-          {/* Personal Information */}
-          <section className="profile-section">
-            <div className="profile-section-header">
-              <div>
-                <span className="section-label">
-                  PERSONAL INFORMATION
-                </span>
-                <h2>Basic Information</h2>
-              </div>
-            </div>
-
-            <div className="profile-form-grid">
-              <div className="profile-form-group">
-                <label htmlFor="name">Full Name</label>
-
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  disabled={!isEditing}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-
-              <div className="profile-form-group">
-                <label htmlFor="email">Email Address</label>
-
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  disabled={!isEditing}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-
-              <div className="profile-form-group">
-                <label htmlFor="phone">Phone Number</label>
-
-                <input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  disabled={!isEditing}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-
-              <div className="profile-form-group">
-                <label htmlFor="location">Location</label>
-
-                <input
-                  id="location"
-                  type="text"
-                  value={location}
-                  disabled={!isEditing}
-                  onChange={(e) => setLocation(e.target.value)}
-                />
-              </div>
-
-              <div className="profile-form-group full-width">
-                <label htmlFor="bio">Instructor Bio</label>
-
-                <textarea
-                  id="bio"
-                  rows={5}
-                  value={bio}
-                  disabled={!isEditing}
-                  onChange={(e) => setBio(e.target.value)}
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Expertise */}
-          <section className="profile-section">
-            <div className="profile-section-header">
-              <div>
-                <span className="section-label">
-                  TEACHING EXPERTISE
-                </span>
-
-                <h2>Skills & Expertise</h2>
-
-                <p>
-                  Add the skills and technologies you teach.
-                </p>
-              </div>
-            </div>
-
-            <div className="expertise-list">
-              {expertise.map((skill) => (
-                <div className="expertise-tag" key={skill}>
-                  <span>{skill}</span>
-
-                  {isEditing && (
-                    <button
-                      onClick={() =>
-                        handleRemoveExpertise(skill)
-                      }
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {isEditing && (
-              <div className="add-expertise">
-                <input
-                  type="text"
-                  placeholder="Enter a skill..."
-                  value={newExpertise}
-                  onChange={(e) =>
-                    setNewExpertise(e.target.value)
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleAddExpertise();
-                    }
-                  }}
-                />
-
-                <button onClick={handleAddExpertise}>
-                  + Add Skill
-                </button>
-              </div>
-            )}
-          </section>
-
-          {/* Teaching Summary */}
-          <section className="profile-section">
-            <div className="profile-section-header">
-              <div>
-                <span className="section-label">
-                  TEACHING SUMMARY
-                </span>
-
-                <h2>Instructor Overview</h2>
-              </div>
-            </div>
-
-            <div className="teaching-summary-grid">
-              <div className="teaching-summary-card">
-                <div className="summary-icon courses">
-                  ▣
-                </div>
-
-                <div>
-                  <strong>4</strong>
-                  <span>Total Courses</span>
-                </div>
-              </div>
-
-              <div className="teaching-summary-card">
-                <div className="summary-icon students">
-                  ♙
-                </div>
-
-                <div>
-                  <strong>558</strong>
-                  <span>Total Students</span>
-                </div>
-              </div>
-
-              <div className="teaching-summary-card">
-                <div className="summary-icon lessons">
-                  ▤
-                </div>
-
-                <div>
-                  <strong>102</strong>
-                  <span>Total Lessons</span>
-                </div>
-              </div>
-
-              <div className="teaching-summary-card">
-                <div className="summary-icon rating">
-                  ★
-                </div>
-
-                <div>
-                  <strong>4.8</strong>
-                  <span>Average Rating</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Save Actions */}
-          {isEditing && (
-            <div className="profile-actions">
-              <button
-                className="cancel-profile-button"
-                onClick={handleCancel}
-              >
-                Cancel
-              </button>
-
-              <button
-                className="save-profile-button"
-                onClick={handleSave}
-              >
-                Save Changes
-              </button>
-            </div>
-          )}
-
-          {/* Info Banner */}
-          <div className="profile-info-banner">
-            <div className="profile-info-icon">i</div>
-
-            <div>
-              <strong>Keep your profile updated</strong>
-
-              <p>
-                A complete instructor profile helps students
-                understand your expertise and choose the right
-                courses.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <footer className="instructor-footer">
-          <p>© 2026 LearnHub. All rights reserved.</p>
-
-          <div className="instructor-footer-links">
-            <Link to="/help">Help Center</Link>
-            <Link to="/settings">Settings</Link>
-            <Link to="/">Visit Student Portal</Link>
-          </div>
-        </footer>
-      </main>
-    </div>
+      )}
+    </InstructorLayout>
   );
-};
+}
 
 export default InstructorProfile;

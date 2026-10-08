@@ -8,30 +8,34 @@ interface StudentSidebarProps {
   onClose: () => void;
 }
 
+/** Work out which sidebar entry is highlighted from the current URL. */
+const keyFromPath = (pathname: string): string => {
+  if (pathname === "/student/dashboard") return "dashboard";
+  if (pathname.startsWith("/student/courses") || pathname.startsWith("/learn")) return "courses";
+  if (pathname.startsWith("/courses") || pathname.startsWith("/discover")) return "catalog";
+  if (pathname.startsWith("/quizzes")) return "quizzes";
+  if (pathname.startsWith("/progress")) return "progress";
+  if (pathname.startsWith("/wishlist")) return "wishlist";
+  if (pathname.startsWith("/achievements")) return "achievements";
+  if (pathname.startsWith("/activities")) return "activities";
+  if (pathname.startsWith("/notifications")) return "notifications";
+  if (pathname.startsWith("/profile")) return "profile";
+  if (pathname.startsWith("/settings")) return "settings";
+  if (pathname.startsWith("/help")) return "help";
+  return "";
+};
+
 export const StudentSidebar: React.FC<StudentSidebarProps> = ({
   activeItem,
   isOpen,
   onClose,
 }) => {
-  const { logout } = useAuth();
+  const { logout, isMentor } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const current =
-    activeItem ||
-    (location.pathname === "/student/dashboard"
-      ? "dashboard"
-      : location.pathname.startsWith("/courses")
-      ? "courses"
-      : location.pathname.startsWith("/discover")
-      ? "discover"
-      : location.pathname.startsWith("/quizzes")
-      ? "quizzes"
-      : location.pathname.startsWith("/progress")
-      ? "progress"
-      : location.pathname.startsWith("/activities")
-      ? "activities"
-      : "");
+  // The URL is the source of truth; activeItem is only a fallback for unknown routes
+  const current = keyFromPath(location.pathname) || activeItem || "";
 
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to logout?")) {
@@ -39,6 +43,17 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
       navigate("/login");
     }
   };
+
+  const item = (key: string, to: string, icon: string, label: string) => (
+    <Link
+      to={to}
+      className={`dashboard-nav-item ${current === key ? "active" : ""}`}
+      onClick={onClose}
+    >
+      <span className="nav-item-icon">{icon}</span>
+      <span>{label}</span>
+    </Link>
+  );
 
   return (
     <aside className={`dashboard-sidebar ${isOpen ? "sidebar-open" : ""}`}>
@@ -48,8 +63,8 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           className="dashboard-logo"
           onClick={onClose}
         >
-          <span className="dashboard-logo-icon">L</span>
-          <span className="dashboard-logo-text">LearnHub</span>
+          <span className="dashboard-logo-icon">E</span>
+          <span className="dashboard-logo-text">Eduverse</span>
         </Link>
         <button
           type="button"
@@ -64,77 +79,35 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
       <nav className="dashboard-navigation">
         <div className="navigation-section">
           <span className="navigation-title">MAIN MENU</span>
-
-          <Link
-            to="/student/dashboard"
-            className={`dashboard-nav-item ${
-              current === "dashboard" ? "active" : ""
-            }`}
-            onClick={onClose}
-          >
-            <span className="nav-item-icon">▦</span>
-            <span>Dashboard</span>
-          </Link>
-
-          <Link
-            to="/student/courses"
-            className={`dashboard-nav-item ${
-              current === "courses" ? "active" : ""
-            }`}
-            onClick={onClose}
-          >
-            <span className="nav-item-icon">📚</span>
-            <span>My Courses</span>
-          </Link>
-
-          <Link
-            to="/courses"
-            className={`dashboard-nav-item ${
-              current === "catalog" ? "active" : ""
-            }`}
-            onClick={onClose}
-          >
-            <span className="nav-item-icon">🔍</span>
-            <span>Discover Courses</span>
-          </Link>
-
-          <Link
-            to="/quizzes"
-            className={`dashboard-nav-item ${
-              current === "quizzes" ? "active" : ""
-            }`}
-            onClick={onClose}
-          >
-            <span className="nav-item-icon">📝</span>
-            <span>Quizzes</span>
-          </Link>
-
-          <Link
-            to="/progress"
-            className={`dashboard-nav-item ${
-              current === "progress" ? "active" : ""
-            }`}
-            onClick={onClose}
-          >
-            <span className="nav-item-icon">📈</span>
-            <span>My Progress</span>
-          </Link>
+          {item("dashboard", "/student/dashboard", "▦", "Dashboard")}
+          {item("courses", "/student/courses", "📚", "My Courses")}
+          {item("catalog", "/courses", "🔍", "Discover Courses")}
+          {item("quizzes", "/quizzes", "📝", "Quizzes")}
+          {item("progress", "/progress", "📈", "My Progress")}
         </div>
 
         <div className="navigation-section">
           <span className="navigation-title">LEARNING</span>
+          {item("activities", "/activities", "⚡", "Learning Activity")}
+          {item("wishlist", "/wishlist", "❤️", "Wishlist")}
+          {item("achievements", "/achievements", "🏆", "Achievements")}
+        </div>
 
-          <Link
-            to="/activities"
-            className={`dashboard-nav-item ${
-              current === "activities" ? "active" : ""
-            }`}
-            onClick={onClose}
-          >
-            <span className="nav-item-icon">⚡</span>
-            <span>Learning Activity</span>
-          </Link>
-
+        <div className="navigation-section">
+          <span className="navigation-title">ACCOUNT</span>
+          {item("profile", "/profile", "👤", "Profile")}
+          {item("settings", "/settings", "⚙️", "Settings")}
+          {item("help", "/help", "❓", "Help Center")}
+          {isMentor && (
+            <Link
+              to="/instructor/dashboard"
+              className="dashboard-nav-item"
+              onClick={onClose}
+            >
+              <span className="nav-item-icon">🎓</span>
+              <span>Instructor View</span>
+            </Link>
+          )}
         </div>
       </nav>
 
@@ -144,8 +117,8 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           <div>
             <strong>Need help?</strong>
             <p>We're here to help.</p>
-            <Link to="/courses" onClick={onClose}>
-              Visit Course Center →
+            <Link to="/help" onClick={onClose}>
+              Visit Help Center →
             </Link>
           </div>
         </div>

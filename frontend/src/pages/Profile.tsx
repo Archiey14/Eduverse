@@ -1,222 +1,186 @@
-
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api, getErrorMessage } from "../services/api";
 import { StudentLayout } from "../components/StudentLayout";
+import { timeAgo } from "../utils/format";
+import {
+  buildAchievements,
+  emptyAchievementStats,
+  toAchievementStats,
+} from "../utils/achievements";
+import type { AchievementStats } from "../utils/achievements";
 import "./Profile.css";
 
-interface ProfileData {
+interface ProfileForm {
   firstName: string;
   lastName: string;
-  email: string;
-  phone: string;
-  location: string;
-  role: string;
   bio: string;
-  website: string;
   avatarUrl: string;
 }
 
-const initialProfile: ProfileData = {
-  firstName: "",
-  lastName: "",
-  email: "",
-  phone: "+91 98765 43210",
-  location: "Telangana, India",
-  role: "Student",
-  bio: "Passionate learner interested in web development, programming, and building practical projects. I enjoy learning new technologies and improving my skills.",
-  website: "https://example.com",
-  avatarUrl: "",
+const splitName = (fullName: string) => {
+  const [firstName = "", ...rest] = fullName.trim().split(/\s+/);
+  return { firstName, lastName: rest.join(" ") };
 };
 
-const initialTeachSkills = [
-  "HTML",
-  "CSS",
-  "JavaScript",
-  "React",
-  "TypeScript",
-];
+const buildForm = (user: {
+  name: string;
+  avatarUrl?: string;
+  mentorProfile?: { bio?: string };
+} | null): ProfileForm => {
+  const { firstName, lastName } = splitName(user?.name || "");
+  return {
+    firstName,
+    lastName,
+    bio: user?.mentorProfile?.bio || "",
+    avatarUrl: user?.avatarUrl || "",
+  };
+};
 
-const initialLearningSkills = [
-  "Node.js",
-  "Express.js",
-  "MongoDB",
-  "Python",
-];
-
-const initialInterests = [
-  "Web Development",
-  "Programming",
-  "UI/UX Design",
-  "Backend Development",
-  "Database",
-];
+const activityIcon = (type: string) => {
+  if (type === "quiz_passed" || type === "quiz_attempted") return "📝";
+  if (type === "lesson_completed") return "✓";
+  if (type === "enrolled") return "◫";
+  if (type === "course_completed") return "★";
+  return "▶";
+};
 
 function Profile() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, updateUser } = useAuth();
+  const { user, updateUser } = useAuth();
 
-  const [profile, setProfile] = useState<ProfileData>(initialProfile);
-  const [teachSkills, setTeachSkills] = useState(initialTeachSkills);
-  const [learningSkills, setLearningSkills] = useState(initialLearningSkills);
-  const [interests, setInterests] = useState(initialInterests);
+  const [form, setForm] = useState<ProfileForm>(() => buildForm(user));
+  const [skills, setSkills] = useState<string[]>(user?.mentorProfile?.expertise || []);
+  const [newSkill, setNewSkill] = useState("");
 
   const [isEditing, setIsEditing] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [newSkill, setNewSkill] = useState("");
-  const [newLearningSkill, setNewLearningSkill] = useState("");
-  const [newInterest, setNewInterest] = useState("");
+  const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState("");
 
+  const [stats, setStats] = useState<AchievementStats>(emptyAchievementStats);
+  const [activities, setActivities] = useState<any[]>([]);
+
+  // Settings -> "Edit Profile" opens this page already in edit mode
   useEffect(() => {
     if (new URLSearchParams(location.search).get("edit") === "true") {
       setIsEditing(true);
     }
   }, [location.search]);
 
+  // Keep the form in sync with the logged-in user while not editing
   useEffect(() => {
-    if (!user) return;
+    if (!user || isEditing) return;
+    setForm(buildForm(user));
+    setSkills(user.mentorProfile?.expertise || []);
+  }, [user, isEditing]);
 
-    const [firstName = "", ...rest] = user.name.split(" ");
-    setProfile((previous) => ({
-      ...previous,
-      firstName: firstName || user.name,
-      lastName: rest.join(" "),
-      email: user.email,
-      role: user.roles?.includes("mentor") ? "Instructor" : "Student",
-      bio: user.mentorProfile?.bio || previous.bio,
-      avatarUrl: user.avatarUrl || "",
-      website: previous.website,
-    }));
-  }, [user]);
+  // Real learning stats + recent activity
+  useEffect(() => {
+    let cancelled = false;
+    api.dashboard
+      .getStudentDashboard()
+      .then((res) => {
+        if (cancelled || !res.data) return;
+        setStats(toAchievementStats(res.data.stats));
+        setActivities((res.data.recentActivities || []).slice(0, 4));
+      })
+      .catch(() => {
+        /* stats are optional on this page */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const handleProfileChange = (
+  const earnedAchievements = useMemo(
+    () => buildAchievements(stats).filter((a) => a.earned).length,
+    [stats]
+  );
+
+  const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = event.target;
-
-    setProfile((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+    setForm((previous) => ({ ...previous, [name]: value }));
   };
 
   const handleSave = async () => {
     setSaveError("");
-    const fullName = `${profile.firstName} ${profile.lastName}`.trim();
+    setSaveSuccess("");
 
+    const fullName = `${form.firstName} ${form.lastName}`.trim();
+    if (!fullName) {
+      setSaveError("Your name cannot be empty.");
+      return;
+    }
+
+    setSaving(true);
     try {
       const res = await api.auth.updateMe({
         name: fullName,
-        avatarUrl: profile.avatarUrl,
-        bio: profile.bio,
-        expertise: teachSkills,
+        avatarUrl: form.avatarUrl.trim(),
+        bio: form.bio.trim(),
+        expertise: skills,
       });
 
-      if (res.user) {
-        updateUser(res.user);
-      }
+      if (res.user) updateUser(res.user);
 
       setIsEditing(false);
-      navigate("/student/dashboard", { replace: true });
-      alert("Profile updated successfully!");
+      setSaveSuccess("Profile updated successfully.");
+      // Drop ?edit=true so a refresh does not reopen the form
+      navigate("/profile", { replace: true });
     } catch (err) {
       setSaveError(getErrorMessage(err, "Could not update your profile."));
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleCancel = () => {
-    setProfile(initialProfile);
-    setTeachSkills(initialTeachSkills);
-    setLearningSkills(initialLearningSkills);
-    setInterests(initialInterests);
+    setForm(buildForm(user));
+    setSkills(user?.mentorProfile?.expertise || []);
+    setNewSkill("");
     setIsEditing(false);
     setSaveError("");
-    navigate("/student/dashboard", { replace: true });
+    navigate("/profile", { replace: true });
   };
 
-  const handleLogout = () => {
-    const confirmLogout = window.confirm(
-      "Are you sure you want to logout?"
-    );
-
-    if (confirmLogout) {
-      logout();
-      navigate("/login");
-    }
-  };
-
-  const addTeachSkill = () => {
+  const addSkill = () => {
     const skill = newSkill.trim();
-
-    if (!skill) {
-      return;
+    if (!skill) return;
+    if (!skills.some((s) => s.toLowerCase() === skill.toLowerCase())) {
+      setSkills((previous) => [...previous, skill]);
     }
-
-    if (!teachSkills.includes(skill)) {
-      setTeachSkills((previous) => [...previous, skill]);
-    }
-
     setNewSkill("");
   };
 
-  const addLearningSkill = () => {
-    const skill = newLearningSkill.trim();
+  const removeSkill = (skillToRemove: string) =>
+    setSkills((previous) => previous.filter((skill) => skill !== skillToRemove));
 
-    if (!skill) {
-      return;
-    }
-
-    if (!learningSkills.includes(skill)) {
-      setLearningSkills((previous) => [...previous, skill]);
-    }
-
-    setNewLearningSkill("");
-  };
-
-  const addInterest = () => {
-    const interest = newInterest.trim();
-
-    if (!interest) {
-      return;
-    }
-
-    if (!interests.includes(interest)) {
-      setInterests((previous) => [...previous, interest]);
-    }
-
-    setNewInterest("");
-  };
-
-  const removeTeachSkill = (skillToRemove: string) => {
-    setTeachSkills((previous) =>
-      previous.filter((skill) => skill !== skillToRemove)
-    );
-  };
-
-  const removeLearningSkill = (skillToRemove: string) => {
-    setLearningSkills((previous) =>
-      previous.filter((skill) => skill !== skillToRemove)
-    );
-  };
-
-  const removeInterest = (interestToRemove: string) => {
-    setInterests((previous) =>
-      previous.filter((interest) => interest !== interestToRemove)
-    );
-  };
-
-  const avatarInitials =
-    `${profile.firstName.charAt(0)}${profile.lastName.charAt(0) || ""}`.toUpperCase();
+  const fullName = `${form.firstName} ${form.lastName}`.trim() || user?.name || "";
+  const avatarInitials = (
+    `${form.firstName.charAt(0)}${form.lastName.charAt(0)}` ||
+    (user?.name || "?").charAt(0)
+  ).toUpperCase();
+  const roleLabel = user?.roles?.includes("admin")
+    ? "Admin"
+    : user?.roles?.includes("mentor")
+    ? "Instructor"
+    : "Student";
+  const memberSince = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      })
+    : "—";
 
   return (
     <StudentLayout activeItem="profile">
       <div className="profile-page" style={{ height: "auto", display: "block" }}>
-        {/* Content */}
         <div className="profile-content" style={{ padding: "0" }}>
-          {/* Page Header */}
           <div className="profile-page-header">
             <div>
               <p className="profile-breadcrumb">
@@ -225,18 +189,24 @@ function Profile() {
 
               <h1>My Profile</h1>
 
-              <p>
-                Manage your personal information, skills, and learning
-                interests.
-              </p>
+              <p>Manage your personal information and skills.</p>
             </div>
 
             <div className="profile-header-actions">
               {saveError && <span className="profile-save-error">{saveError}</span>}
+              {saveSuccess && !isEditing && (
+                <span style={{ color: "#15803d", fontWeight: 600, fontSize: 13 }}>
+                  {saveSuccess}
+                </span>
+              )}
               {!isEditing ? (
                 <button
+                  type="button"
                   className="profile-edit-button"
-                  onClick={() => setIsEditing(true)}
+                  onClick={() => {
+                    setSaveSuccess("");
+                    setIsEditing(true);
+                  }}
                 >
                   <span>✎</span>
                   Edit Profile
@@ -244,30 +214,34 @@ function Profile() {
               ) : (
                 <>
                   <button
+                    type="button"
                     className="profile-cancel-button"
                     onClick={handleCancel}
+                    disabled={saving}
                   >
                     Cancel
                   </button>
 
                   <button
+                    type="button"
                     className="profile-save-button"
                     onClick={handleSave}
+                    disabled={saving}
                   >
                     <span>✓</span>
-                    Save Changes
+                    {saving ? "Saving..." : "Save Changes"}
                   </button>
                 </>
               )}
             </div>
           </div>
 
-          {/* Profile Hero */}
+          {/* Hero */}
           <section className="profile-hero-card">
             <div className="profile-avatar-section">
               <div className="profile-large-avatar">
-                {profile.avatarUrl ? (
-                  <img src={profile.avatarUrl} alt={`${profile.firstName} ${profile.lastName}`} />
+                {form.avatarUrl ? (
+                  <img src={form.avatarUrl} alt={fullName} />
                 ) : (
                   <span>{avatarInitials}</span>
                 )}
@@ -276,76 +250,60 @@ function Profile() {
 
             <div className="profile-hero-info">
               <div className="profile-name-row">
-                <h2>
-                  {profile.firstName} {profile.lastName}
-                </h2>
-
-                <span className="profile-role-badge">
-                  {profile.role}
-                </span>
+                <h2>{fullName}</h2>
+                <span className="profile-role-badge">{roleLabel}</span>
               </div>
 
-              <p className="profile-hero-email">
-                ✉ {profile.email}
-              </p>
+              <p className="profile-hero-email">✉ {user?.email}</p>
 
-              <p className="profile-hero-location">
-                ⌖ {profile.location}
+              <p className="profile-hero-bio">
+                {user?.mentorProfile?.bio || "No bio added yet. Click Edit Profile to add one."}
               </p>
-
-              <p className="profile-hero-bio">{profile.bio}</p>
             </div>
 
             <div className="profile-member-info">
               <span>Member since</span>
-              <strong>January 2026</strong>
+              <strong>{memberSince}</strong>
             </div>
           </section>
 
           {/* Stats */}
           <section className="profile-stats-grid">
             <div className="profile-stat-card">
-              <div className="profile-stat-icon profile-stat-blue">
-                ◫
-              </div>
+              <div className="profile-stat-icon profile-stat-blue">◫</div>
               <div>
                 <span>Courses Completed</span>
-                <strong>3</strong>
+                <strong>{stats.completedCount}</strong>
               </div>
             </div>
 
             <div className="profile-stat-card">
-              <div className="profile-stat-icon profile-stat-purple">
-                ◷
-              </div>
+              <div className="profile-stat-icon profile-stat-purple">◷</div>
               <div>
                 <span>Learning Hours</span>
-                <strong>42h</strong>
+                <strong>{stats.hoursLearned}h</strong>
               </div>
             </div>
 
             <div className="profile-stat-card">
-              <div className="profile-stat-icon profile-stat-green">
-                ✓
-              </div>
+              <div className="profile-stat-icon profile-stat-green">✓</div>
               <div>
                 <span>Lessons Completed</span>
-                <strong>68</strong>
+                <strong>{stats.lessonsCompleted}</strong>
               </div>
             </div>
 
             <div className="profile-stat-card">
-              <div className="profile-stat-icon profile-stat-orange">
-                ★
-              </div>
+              <div className="profile-stat-icon profile-stat-orange">★</div>
               <div>
                 <span>Current Streak</span>
-                <strong>7 days</strong>
+                <strong>
+                  {stats.streakDays} {stats.streakDays === 1 ? "day" : "days"}
+                </strong>
               </div>
             </div>
           </section>
 
-          {/* Main Profile Grid */}
           <div className="profile-details-grid">
             {/* Personal Information */}
             <section className="profile-section-card">
@@ -361,170 +319,78 @@ function Profile() {
               <div className="profile-form-grid">
                 <div className="profile-form-group">
                   <label htmlFor="firstName">First Name</label>
-
                   {isEditing ? (
                     <input
                       id="firstName"
                       name="firstName"
                       type="text"
-                      value={profile.firstName}
-                      onChange={handleProfileChange}
+                      value={form.firstName}
+                      onChange={handleChange}
                     />
                   ) : (
-                    <div className="profile-readonly-value">
-                      {profile.firstName}
-                    </div>
+                    <div className="profile-readonly-value">{form.firstName}</div>
                   )}
                 </div>
 
                 <div className="profile-form-group">
                   <label htmlFor="lastName">Last Name</label>
-
                   {isEditing ? (
                     <input
                       id="lastName"
                       name="lastName"
                       type="text"
-                      value={profile.lastName}
-                      onChange={handleProfileChange}
+                      value={form.lastName}
+                      onChange={handleChange}
                     />
                   ) : (
-                    <div className="profile-readonly-value">
-                      {profile.lastName}
-                    </div>
+                    <div className="profile-readonly-value">{form.lastName || "—"}</div>
                   )}
                 </div>
 
-                <div className="profile-form-group">
+                <div className="profile-form-group profile-full-width">
                   <label htmlFor="email">Email Address</label>
-
-                  {isEditing ? (
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={profile.email}
-                      onChange={handleProfileChange}
-                    />
-                  ) : (
-                    <div className="profile-readonly-value">
-                      {profile.email}
-                    </div>
-                  )}
-                </div>
-
-                <div className="profile-form-group">
-                  <label htmlFor="phone">Phone Number</label>
-
-                  {isEditing ? (
-                    <input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      value={profile.phone}
-                      onChange={handleProfileChange}
-                    />
-                  ) : (
-                    <div className="profile-readonly-value">
-                      {profile.phone}
-                    </div>
-                  )}
-                </div>
-
-                <div className="profile-form-group">
-                  <label htmlFor="location">Location</label>
-
-                  {isEditing ? (
-                    <input
-                      id="location"
-                      name="location"
-                      type="text"
-                      value={profile.location}
-                      onChange={handleProfileChange}
-                    />
-                  ) : (
-                    <div className="profile-readonly-value">
-                      {profile.location}
-                    </div>
-                  )}
-                </div>
-
-                <div className="profile-form-group">
-                  <label htmlFor="role">Role</label>
-
-                  {isEditing ? (
-                    <select
-                      id="role"
-                      name="role"
-                      value={profile.role}
-                      onChange={(event) =>
-                        setProfile((previous) => ({
-                          ...previous,
-                          role: event.target.value,
-                        }))
-                      }
-                    >
-                      <option value="Student">Student</option>
-                      <option value="Instructor">Instructor</option>
-                    </select>
-                  ) : (
-                    <div className="profile-readonly-value">
-                      {profile.role}
-                    </div>
+                  <div className="profile-readonly-value" id="email">
+                    {user?.email}
+                  </div>
+                  {isEditing && (
+                    <small style={{ color: "#6b7280" }}>
+                      Your email is your login and cannot be changed here.
+                    </small>
                   )}
                 </div>
 
                 <div className="profile-form-group profile-full-width">
                   <label htmlFor="avatarUrl">Profile Photo URL</label>
-
                   {isEditing ? (
                     <input
                       id="avatarUrl"
                       name="avatarUrl"
                       type="url"
-                      value={profile.avatarUrl}
-                      onChange={handleProfileChange}
+                      value={form.avatarUrl}
+                      onChange={handleChange}
                       placeholder="https://example.com/photo.jpg"
                     />
                   ) : (
                     <div className="profile-readonly-value">
-                      {profile.avatarUrl || "No profile photo set"}
-                    </div>
-                  )}
-                </div>
-
-                <div className="profile-form-group profile-full-width">
-                  <label htmlFor="website">Website</label>
-
-                  {isEditing ? (
-                    <input
-                      id="website"
-                      name="website"
-                      type="url"
-                      value={profile.website}
-                      onChange={handleProfileChange}
-                    />
-                  ) : (
-                    <div className="profile-readonly-value">
-                      {profile.website}
+                      {form.avatarUrl || "No profile photo set"}
                     </div>
                   )}
                 </div>
 
                 <div className="profile-form-group profile-full-width">
                   <label htmlFor="bio">About Me</label>
-
                   {isEditing ? (
                     <textarea
                       id="bio"
                       name="bio"
                       rows={5}
-                      value={profile.bio}
-                      onChange={handleProfileChange}
+                      value={form.bio}
+                      onChange={handleChange}
+                      placeholder="Tell us a little about yourself."
                     />
                   ) : (
                     <div className="profile-readonly-textarea">
-                      {profile.bio}
+                      {form.bio || "No bio added yet."}
                     </div>
                   )}
                 </div>
@@ -543,246 +409,113 @@ function Profile() {
               </div>
 
               <div className="profile-learning-item">
-                <div className="profile-learning-item-icon">
-                  ◫
-                </div>
-
+                <div className="profile-learning-item-icon">◫</div>
                 <div>
                   <span>Enrolled Courses</span>
-                  <strong>6 Courses</strong>
+                  <strong>
+                    {stats.enrolledCount} {stats.enrolledCount === 1 ? "Course" : "Courses"}
+                  </strong>
                 </div>
               </div>
 
               <div className="profile-learning-item">
-                <div className="profile-learning-item-icon">
-                  ✓
-                </div>
-
+                <div className="profile-learning-item-icon">✓</div>
                 <div>
                   <span>Completed Courses</span>
-                  <strong>3 Courses</strong>
+                  <strong>
+                    {stats.completedCount} {stats.completedCount === 1 ? "Course" : "Courses"}
+                  </strong>
                 </div>
               </div>
 
               <div className="profile-learning-item">
-                <div className="profile-learning-item-icon">
-                  ◷
-                </div>
-
+                <div className="profile-learning-item-icon">◷</div>
                 <div>
                   <span>Total Learning Time</span>
-                  <strong>42 Hours</strong>
+                  <strong>{stats.hoursLearned} Hours</strong>
                 </div>
               </div>
 
               <div className="profile-learning-item">
-                <div className="profile-learning-item-icon">
-                  ★
-                </div>
-
+                <div className="profile-learning-item-icon">★</div>
                 <div>
                   <span>Achievements</span>
-                  <strong>8 Earned</strong>
+                  <strong>{earnedAchievements} Earned</strong>
                 </div>
               </div>
 
-              <Link
-                to="/progress"
-                className="profile-view-progress-link"
-              >
+              <Link to="/progress" className="profile-view-progress-link">
                 View learning progress
                 <span>→</span>
               </Link>
             </section>
           </div>
 
-          {/* Skills Section */}
+          {/* Skills */}
           <section className="profile-section-card profile-skills-section">
             <div className="profile-section-header">
               <div>
                 <h3>Skills & Expertise</h3>
-                <p>
-                  Add skills you already know or want to improve.
-                </p>
+                <p>Add the skills and topics you know.</p>
               </div>
 
               <span className="profile-section-icon">◆</span>
             </div>
 
-            <div className="profile-skills-columns">
-              {/* Skills I Know */}
-              <div className="profile-skill-column">
-                <div className="profile-skill-heading">
-                  <div>
-                    <h4>Skills I Know</h4>
-                    <p>Skills you are comfortable with.</p>
-                  </div>
-
-                  <span>{teachSkills.length}</span>
+            <div className="profile-skill-column">
+              <div className="profile-skill-heading">
+                <div>
+                  <h4>Skills I Know</h4>
+                  <p>Skills you are comfortable with.</p>
                 </div>
 
-                <div className="profile-skill-list">
-                  {teachSkills.map((skill) => (
-                    <span
-                      className="profile-skill-tag profile-skill-known"
-                      key={skill}
-                    >
-                      {skill}
-
-                      {isEditing && (
-                        <button
-                          type="button"
-                          onClick={() => removeTeachSkill(skill)}
-                          aria-label={`Remove ${skill}`}
-                        >
-                          ×
-                        </button>
-                      )}
-                    </span>
-                  ))}
-                </div>
-
-                {isEditing && (
-                  <div className="profile-add-skill">
-                    <input
-                      type="text"
-                      placeholder="Add a skill..."
-                      value={newSkill}
-                      onChange={(event) =>
-                        setNewSkill(event.target.value)
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          addTeachSkill();
-                        }
-                      }}
-                    />
-
-                    <button type="button" onClick={addTeachSkill}>
-                      Add
-                    </button>
-                  </div>
-                )}
+                <span>{skills.length}</span>
               </div>
 
-              {/* Learning Skills */}
-              <div className="profile-skill-column">
-                <div className="profile-skill-heading">
-                  <div>
-                    <h4>Skills I'm Learning</h4>
-                    <p>Skills you want to improve.</p>
-                  </div>
-
-                  <span>{learningSkills.length}</span>
-                </div>
-
-                <div className="profile-skill-list">
-                  {learningSkills.map((skill) => (
-                    <span
-                      className="profile-skill-tag profile-skill-learning"
-                      key={skill}
-                    >
-                      {skill}
-
-                      {isEditing && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            removeLearningSkill(skill)
-                          }
-                          aria-label={`Remove ${skill}`}
-                        >
-                          ×
-                        </button>
-                      )}
-                    </span>
-                  ))}
-                </div>
-
-                {isEditing && (
-                  <div className="profile-add-skill">
-                    <input
-                      type="text"
-                      placeholder="Add a skill..."
-                      value={newLearningSkill}
-                      onChange={(event) =>
-                        setNewLearningSkill(event.target.value)
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          addLearningSkill();
-                        }
-                      }}
-                    />
-
-                    <button
-                      type="button"
-                      onClick={addLearningSkill}
-                    >
-                      Add
-                    </button>
-                  </div>
+              <div className="profile-skill-list">
+                {skills.length === 0 && (
+                  <span style={{ color: "#6b7280", fontSize: 13 }}>No skills added yet.</span>
                 )}
+                {skills.map((skill) => (
+                  <span className="profile-skill-tag profile-skill-known" key={skill}>
+                    {skill}
+                    {isEditing && (
+                      <button
+                        type="button"
+                        onClick={() => removeSkill(skill)}
+                        aria-label={`Remove ${skill}`}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </span>
+                ))}
               </div>
+
+              {isEditing && (
+                <div className="profile-add-skill">
+                  <input
+                    type="text"
+                    placeholder="Add a skill..."
+                    value={newSkill}
+                    onChange={(event) => setNewSkill(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addSkill();
+                      }
+                    }}
+                  />
+
+                  <button type="button" onClick={addSkill}>
+                    Add
+                  </button>
+                </div>
+              )}
             </div>
           </section>
 
-          {/* Learning Interests */}
-          <section className="profile-section-card profile-interests-section">
-            <div className="profile-section-header">
-              <div>
-                <h3>Learning Interests</h3>
-                <p>
-                  Topics that help us personalize your learning
-                  experience.
-                </p>
-              </div>
-
-              <span className="profile-section-icon">♡</span>
-            </div>
-
-            <div className="profile-interest-list">
-              {interests.map((interest) => (
-                <span className="profile-interest-tag" key={interest}>
-                  {interest}
-
-                  {isEditing && (
-                    <button
-                      type="button"
-                      onClick={() => removeInterest(interest)}
-                      aria-label={`Remove ${interest}`}
-                    >
-                      ×
-                    </button>
-                  )}
-                </span>
-              ))}
-            </div>
-
-            {isEditing && (
-              <div className="profile-add-interest">
-                <input
-                  type="text"
-                  placeholder="Add a learning interest..."
-                  value={newInterest}
-                  onChange={(event) =>
-                    setNewInterest(event.target.value)
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      addInterest();
-                    }
-                  }}
-                />
-
-                <button type="button" onClick={addInterest}>
-                  Add Interest
-                </button>
-              </div>
-            )}
-          </section>
-
-          {/* Recent Learning */}
+          {/* Recent learning */}
           <section className="profile-section-card">
             <div className="profile-section-header">
               <div>
@@ -790,93 +523,53 @@ function Profile() {
                 <p>Your latest learning activities.</p>
               </div>
 
-              <Link
-                to="/activities"
-                className="profile-section-link"
-              >
+              <Link to="/activities" className="profile-section-link">
                 View all →
               </Link>
             </div>
 
             <div className="profile-recent-learning">
-              <div className="profile-recent-item">
-                <div className="profile-recent-icon profile-recent-blue">
-                  ✓
-                </div>
+              {activities.length === 0 ? (
+                <p style={{ color: "#6b7280", fontSize: 13, margin: 0 }}>
+                  No activity yet. Enroll in a course and complete a lesson to get started.
+                </p>
+              ) : (
+                activities.map((activity, index) => (
+                  <div className="profile-recent-item" key={activity._id || index}>
+                    <div
+                      className={`profile-recent-icon ${
+                        ["profile-recent-blue", "profile-recent-purple", "profile-recent-green", "profile-recent-orange"][
+                          index % 4
+                        ]
+                      }`}
+                    >
+                      {activityIcon(activity.type)}
+                    </div>
 
-                <div className="profile-recent-content">
-                  <strong>Completed React Components Quiz</strong>
-                  <span>React & TypeScript Development</span>
-                </div>
+                    <div className="profile-recent-content">
+                      <strong>{activity.message}</strong>
+                      <span>{activity.course?.title || "Eduverse"}</span>
+                    </div>
 
-                <div className="profile-recent-time">
-                  Today
-                </div>
-              </div>
-
-              <div className="profile-recent-item">
-                <div className="profile-recent-icon profile-recent-purple">
-                  ▶
-                </div>
-
-                <div className="profile-recent-content">
-                  <strong>
-                    Completed: TypeScript Interfaces
-                  </strong>
-                  <span>React & TypeScript Development</span>
-                </div>
-
-                <div className="profile-recent-time">
-                  Yesterday
-                </div>
-              </div>
-
-              <div className="profile-recent-item">
-                <div className="profile-recent-icon profile-recent-green">
-                  ★
-                </div>
-
-                <div className="profile-recent-content">
-                  <strong>Earned Course Starter Badge</strong>
-                  <span>Achievements</span>
-                </div>
-
-                <div className="profile-recent-time">
-                  2 days ago
-                </div>
-              </div>
-
-              <div className="profile-recent-item">
-                <div className="profile-recent-icon profile-recent-orange">
-                  ◫
-                </div>
-
-                <div className="profile-recent-content">
-                  <strong>Enrolled in Node.js & Express</strong>
-                  <span>Backend Development</span>
-                </div>
-
-                <div className="profile-recent-time">
-                  4 days ago
-                </div>
-              </div>
+                    <div className="profile-recent-time">{timeAgo(activity.createdAt)}</div>
+                  </div>
+                ))
+              )}
             </div>
           </section>
 
-          {/* Footer */}
           <footer className="profile-footer">
             <div>
-              <strong>LearnHub</strong>
+              <strong>Eduverse</strong>
               <span>Learn. Grow. Achieve.</span>
             </div>
 
             <div className="profile-footer-links">
-              <a href="#privacy">Privacy</a>
-              <a href="#terms">Terms</a>
-              <a href="#help">Help Center</a>
+              <Link to="/help">Help Center</Link>
+              <Link to="/settings">Settings</Link>
             </div>
 
-            <p>© 2026 LearnHub. All rights reserved.</p>
+            <p>© 2026 Eduverse. All rights reserved.</p>
           </footer>
         </div>
       </div>

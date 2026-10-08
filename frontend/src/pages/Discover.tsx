@@ -1,217 +1,210 @@
-
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../services/api";
+import { api, getErrorMessage } from "../services/api";
 import Navbar from "../components/Navbar";
+import { Loading, Notice } from "../components/Notice";
+import { useWishlist } from "../hooks/useWishlist";
+import { capitalize, formatDuration, PRICE_LABEL } from "../utils/format";
 import "./Discover.css";
 
 interface DiscoverCourse {
-  id: string | number;
+  id: string;
+  slug: string;
   title: string;
   instructor: string;
   category: string;
   level: string;
   duration: string;
   rating: number;
+  ratingCount: number;
   students: number;
-  price: number;
   imageClass: string;
   icon: string;
-  badge?: string;
+  createdAt: number;
 }
 
 interface Instructor {
   id: string;
   name: string;
   role: string;
-  students: string;
+  students: number;
   courses: number;
+  rating: number;
+  ratingCount: number;
   avatar: string;
   colorClass: string;
 }
 
-const defaultCourses: DiscoverCourse[] = [];
-
-const categories = [
-  {
-    name: "Web Development",
-    icon: "💻",
-    courses: "120+ Courses",
-    className: "category-web",
-  },
-  {
-    name: "Programming",
-    icon: "⌨️",
-    courses: "95+ Courses",
-    className: "category-programming",
-  },
-  {
-    name: "Design",
-    icon: "🎨",
-    courses: "70+ Courses",
-    className: "category-design",
-  },
-  {
-    name: "Data Science",
-    icon: "📊",
-    courses: "65+ Courses",
-    className: "category-data",
-  },
-  {
-    name: "Business",
-    icon: "💼",
-    courses: "55+ Courses",
-    className: "category-business",
-  },
-  {
-    name: "Marketing",
-    icon: "📣",
-    courses: "45+ Courses",
-    className: "category-marketing",
-  },
+const CATEGORY_STYLES = [
+  { icon: "💻", className: "category-web" },
+  { icon: "⌨️", className: "category-programming" },
+  { icon: "🎨", className: "category-design" },
+  { icon: "📊", className: "category-data" },
+  { icon: "💼", className: "category-business" },
+  { icon: "📣", className: "category-marketing" },
 ];
 
+const IMAGE_CLASSES = ["discover-blue", "discover-yellow", "discover-green", "discover-purple"];
+const ICONS = ["⚛️", "JS", "🐍", "🎨"];
+
+const TABS = ["Popular", "Top Rated", "New"] as const;
+type Tab = (typeof TABS)[number];
+
+const formatCount = (value: number) =>
+  value >= 1000 ? `${(value / 1000).toFixed(1)}K` : String(value);
+
 function Discover() {
+  const wishlist = useWishlist();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [activeTab, setActiveTab] = useState("Trending");
+  const [activeTab, setActiveTab] = useState<Tab>("Popular");
 
-  const [coursesList, setCoursesList] =
-    useState<DiscoverCourse[]>(defaultCourses);
-
-  const [instructorsList, setInstructorsList] = useState<Instructor[]>([]);
+  const [courses, setCourses] = useState<DiscoverCourse[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [categoryNames, setCategoryNames] = useState<string[]>([]);
+  const [totalCourses, setTotalCourses] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const fetchCourses = async () => {
+    let cancelled = false;
+
+    const load = async () => {
       try {
-        const res = await api.courses.getAll({ limit: 12 });
+        const [coursesRes, catsRes] = await Promise.all([
+          api.courses.getAll({ limit: 50 }),
+          api.categories.getAll().catch(() => ({ data: [] })),
+        ]);
+        if (cancelled) return;
 
-        if (res.data && res.data.length > 0) {
-          const uniqueMentors = new Map<string, Instructor>();
+        const raw: any[] = coursesRes.data || [];
+        setTotalCourses(coursesRes.total ?? raw.length);
+        setCategoryNames((catsRes.data || []).map((c: any) => c.name));
 
-          const mapped: DiscoverCourse[] = res.data.map(
-            (c: any, idx: number) => {
-              const mentorName = c.mentor?.name || "Instructor";
-              const mentorId = c.mentor?._id || `temp-${idx}`;
+        const mentors = new Map<string, Instructor & { ratingSum: number }>();
 
-              if (!uniqueMentors.has(mentorId)) {
-                uniqueMentors.set(mentorId, {
-                  id: mentorId,
-                  name: mentorName,
-                  role:
-                    c.mentor?.mentorProfile?.headline ||
-                    "Expert Instructor",
-                  students: `${(
-                    (c.stats?.enrollmentCount || 1200) / 1000
-                  ).toFixed(1)}K`,
-                  courses: 1,
-                  avatar: mentorName.substring(0, 2).toUpperCase(),
-                  colorClass:
-                    idx % 2 === 0
-                      ? "instructor-indigo"
-                      : "instructor-green",
-                });
-              } else {
-                const existing = uniqueMentors.get(mentorId);
+        const mapped: DiscoverCourse[] = raw.map((c: any, idx: number) => {
+          const mentorName = c.mentor?.name || "Instructor";
+          const mentorId = String(c.mentor?._id || `unknown-${idx}`);
+          const enrollments = c.stats?.enrollmentCount || 0;
+          const ratingCount = c.stats?.ratingCount || 0;
 
-                if (existing) {
-                  existing.courses += 1;
-                }
-              }
+          const existing = mentors.get(mentorId);
+          if (existing) {
+            existing.courses += 1;
+            existing.students += enrollments;
+            existing.ratingCount += ratingCount;
+            existing.ratingSum += (c.stats?.ratingAvg || 0) * ratingCount;
+          } else {
+            mentors.set(mentorId, {
+              id: mentorId,
+              name: mentorName,
+              role: c.mentor?.mentorProfile?.headline || "Instructor",
+              students: enrollments,
+              courses: 1,
+              rating: 0,
+              ratingCount,
+              ratingSum: (c.stats?.ratingAvg || 0) * ratingCount,
+              avatar: mentorName.substring(0, 2).toUpperCase(),
+              colorClass: mentors.size % 2 === 0 ? "instructor-indigo" : "instructor-green",
+            });
+          }
 
-              return {
-                id: c._id || c.slug,
-                title: c.title,
-                instructor: mentorName,
-                category: c.category?.name || "Web Development",
-                level: c.level
-                  ? c.level.charAt(0).toUpperCase() + c.level.slice(1)
-                  : "Intermediate",
-                duration: `${Math.round(
-                  (c.stats?.totalDurationMin || 120) / 60
-                )}h ${
-                  (c.stats?.totalDurationMin || 120) % 60
-                }m`,
-                rating: c.stats?.ratingAvg || 4.9,
-                students:
-                  c.stats?.enrollmentCount || 1200 + idx * 150,
-                price: 49,
-                imageClass:
-                  idx % 4 === 0
-                    ? "discover-blue"
-                    : idx % 4 === 1
-                    ? "discover-yellow"
-                    : idx % 4 === 2
-                    ? "discover-green"
-                    : "discover-purple",
-                icon:
-                  idx % 4 === 0
-                    ? "⚛️"
-                    : idx % 4 === 1
-                    ? "JS"
-                    : idx % 4 === 2
-                    ? "🐍"
-                    : "🎨",
-                badge:
-                  idx === 0
-                    ? "Bestseller"
-                    : idx === 1
-                    ? "Popular"
-                    : undefined,
-              };
-            }
-          );
+          return {
+            id: c._id,
+            slug: c.slug || c._id,
+            title: c.title,
+            instructor: mentorName,
+            category: c.category?.name || "Uncategorised",
+            level: capitalize(c.level) || "Beginner",
+            duration: formatDuration(c.stats?.totalDurationMin),
+            rating: c.stats?.ratingAvg || 0,
+            ratingCount,
+            students: enrollments,
+            imageClass: IMAGE_CLASSES[idx % IMAGE_CLASSES.length],
+            icon: ICONS[idx % ICONS.length],
+            createdAt: c.createdAt ? new Date(c.createdAt).getTime() : 0,
+          };
+        });
 
-          setCoursesList(mapped);
-          setInstructorsList(
-            Array.from(uniqueMentors.values()).slice(0, 4)
-          );
-        } else {
-          setCoursesList([]);
-          setInstructorsList([]);
-        }
-      } catch (error) {
-        console.warn("Failed to load discover courses:", error);
-        setCoursesList([]);
-        setInstructorsList([]);
+        setCourses(mapped);
+        setInstructors(
+          Array.from(mentors.values())
+            .map(({ ratingSum, ...rest }) => ({
+              ...rest,
+              rating:
+                rest.ratingCount > 0
+                  ? Math.round((ratingSum / rest.ratingCount) * 10) / 10
+                  : 0,
+            }))
+            .sort((a, b) => b.students - a.students)
+            .slice(0, 4)
+        );
+      } catch (err) {
+        if (!cancelled) setError(getErrorMessage(err, "Could not load courses."));
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     };
 
-    fetchCourses();
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const filteredCourses = useMemo(() => {
-    return coursesList.filter((course) => {
-      const query = searchQuery.toLowerCase().trim();
+  // Real number of courses per category
+  const categories = useMemo(() => {
+    const counts = new Map<string, number>();
+    courses.forEach((c) => counts.set(c.category, (counts.get(c.category) || 0) + 1));
 
+    const names = categoryNames.length > 0 ? categoryNames : Array.from(counts.keys());
+    return names.slice(0, 6).map((name, idx) => ({
+      name,
+      count: counts.get(name) || 0,
+      ...CATEGORY_STYLES[idx % CATEGORY_STYLES.length],
+    }));
+  }, [courses, categoryNames]);
+
+  const filteredCourses = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+
+    const filtered = courses.filter((course) => {
       const matchesSearch =
+        !query ||
         course.title.toLowerCase().includes(query) ||
         course.instructor.toLowerCase().includes(query) ||
         course.category.toLowerCase().includes(query);
 
-      const matchesCategory =
-        selectedCategory === "All" ||
-        course.category === selectedCategory;
+      const matchesCategory = selectedCategory === "All" || course.category === selectedCategory;
 
       return matchesSearch && matchesCategory;
     });
-  }, [coursesList, searchQuery, selectedCategory]);
+
+    return [...filtered].sort((a, b) => {
+      if (activeTab === "Top Rated") return b.rating - a.rating || b.ratingCount - a.ratingCount;
+      if (activeTab === "New") return b.createdAt - a.createdAt;
+      return b.students - a.students;
+    });
+  }, [courses, searchQuery, selectedCategory, activeTab]);
+
+  const totalLearners = courses.reduce((sum, c) => sum + c.students, 0);
+  const topCategories = categories
+    .filter((c) => c.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
 
   return (
     <div className="landing-page">
       <Navbar />
 
-      <main
-        className="landing-container"
-        style={{ padding: "40px 0" }}
-      >
+      <main className="landing-container" style={{ padding: "40px 0" }}>
         <div className="discover-content" style={{ padding: "0" }}>
           {/* Hero */}
           <section className="discover-hero">
             <div className="discover-hero-content">
-              <span className="discover-eyebrow">
-                ✦ EXPLORE & LEARN
-              </span>
+              <span className="discover-eyebrow">✦ EXPLORE & LEARN</span>
 
               <h1>
                 Discover your next
@@ -219,8 +212,8 @@ function Discover() {
               </h1>
 
               <p>
-                Explore courses, discover new skills, and find
-                instructors who can help you reach your goals.
+                Explore courses, discover new skills, and find instructors who can help you
+                reach your goals.
               </p>
 
               <div className="discover-search">
@@ -230,40 +223,18 @@ function Discover() {
                   type="text"
                   placeholder="What do you want to learn?"
                   value={searchQuery}
-                  onChange={(event) =>
-                    setSearchQuery(event.target.value)
-                  }
+                  onChange={(event) => setSearchQuery(event.target.value)}
                 />
-
-                <button>Search</button>
               </div>
 
               <div className="popular-searches">
-                <span>Popular:</span>
+                <span>Try:</span>
 
-                <button
-                  onClick={() => setSearchQuery("React")}
-                >
-                  React
-                </button>
-
-                <button
-                  onClick={() => setSearchQuery("Python")}
-                >
-                  Python
-                </button>
-
-                <button
-                  onClick={() => setSearchQuery("JavaScript")}
-                >
-                  JavaScript
-                </button>
-
-                <button
-                  onClick={() => setSearchQuery("UI/UX")}
-                >
-                  UI/UX
-                </button>
+                {["React", "Python", "JavaScript", "UI/UX"].map((term) => (
+                  <button key={term} type="button" onClick={() => setSearchQuery(term)}>
+                    {term}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -275,358 +246,258 @@ function Discover() {
                 <span>📚</span>
               </div>
 
-              <div className="floating-discover-card card-one">
-                <span>⚛️</span>
-
-                <div>
-                  <strong>React</strong>
-                  <small>Trending skill</small>
-                </div>
-              </div>
-
-              <div className="floating-discover-card card-two">
-                <span>🐍</span>
-
-                <div>
-                  <strong>Python</strong>
-                  <small>3.4K learners</small>
-                </div>
-              </div>
-
-              <div className="floating-discover-card card-three">
-                <span>🎨</span>
-
-                <div>
-                  <strong>Design</strong>
-                  <small>Popular category</small>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Categories */}
-          <section className="discover-section">
-            <div className="discover-section-header">
-              <div>
-                <span className="section-eyebrow">
-                  EXPLORE BY TOPIC
-                </span>
-
-                <h2>Browse categories</h2>
-              </div>
-
-              <Link to="/courses">View all →</Link>
-            </div>
-
-            <div className="category-grid">
-              {categories.map((category) => (
-                <button
+              {topCategories.map((category, index) => (
+                <div
                   key={category.name}
-                  className={`discover-category-card ${category.className}`}
-                  onClick={() =>
-                    setSelectedCategory(category.name)
-                  }
+                  className={`floating-discover-card ${
+                    ["card-one", "card-two", "card-three"][index]
+                  }`}
                 >
-                  <span className="category-icon">
-                    {category.icon}
-                  </span>
+                  <span>{category.icon}</span>
 
-                  <strong>{category.name}</strong>
-
-                  <span>{category.courses}</span>
-
-                  <span className="category-arrow">→</span>
-                </button>
+                  <div>
+                    <strong>{category.name}</strong>
+                    <small>
+                      {category.count} course{category.count === 1 ? "" : "s"}
+                    </small>
+                  </div>
+                </div>
               ))}
             </div>
           </section>
 
-          {/* Recommended */}
-          <section className="discover-section">
-            <div className="discover-section-header">
-              <div>
-                <span className="section-eyebrow">
-                  RECOMMENDED FOR YOU
-                </span>
+          {error && <Notice message={error} onRetry={() => window.location.reload()} />}
 
-                <h2>Courses you'll love</h2>
-              </div>
+          {loading ? (
+            <Loading label="Loading courses..." />
+          ) : (
+            <>
+              {/* Categories */}
+              {categories.length > 0 && (
+                <section className="discover-section">
+                  <div className="discover-section-header">
+                    <div>
+                      <span className="section-eyebrow">EXPLORE BY TOPIC</span>
+                      <h2>Browse categories</h2>
+                    </div>
 
-              <Link to="/courses">
-                Browse all courses →
-              </Link>
-            </div>
-
-            <div className="discover-tabs">
-              {["Trending", "Popular", "Top Rated", "New"].map(
-                (tab) => (
-                  <button
-                    key={tab}
-                    className={
-                      activeTab === tab ? "active" : ""
-                    }
-                    onClick={() => setActiveTab(tab)}
-                  >
-                    {tab}
-                  </button>
-                )
-              )}
-            </div>
-
-            <div className="discover-course-grid">
-              {filteredCourses.slice(0, 4).map((course) => (
-                <article
-                  className="discover-course-card"
-                  key={course.id}
-                >
-                  <div
-                    className={`discover-course-image ${course.imageClass}`}
-                  >
-                    <span className="discover-course-icon">
-                      {course.icon}
-                    </span>
-
-                    {course.badge && (
-                      <span className="discover-course-badge">
-                        {course.badge}
-                      </span>
-                    )}
-
-                    <button
-                      className="discover-course-wishlist"
-                      aria-label="Add to wishlist"
-                    >
-                      ♡
-                    </button>
+                    <Link to="/courses">View all →</Link>
                   </div>
 
-                  <div className="discover-course-body">
-                    <span className="discover-course-category">
-                      {course.category}
+                  <div className="category-grid">
+                    {categories.map((category) => (
+                      <button
+                        key={category.name}
+                        type="button"
+                        className={`discover-category-card ${category.className}`}
+                        onClick={() =>
+                          setSelectedCategory(
+                            selectedCategory === category.name ? "All" : category.name
+                          )
+                        }
+                        aria-pressed={selectedCategory === category.name}
+                      >
+                        <span className="category-icon">{category.icon}</span>
+                        <strong>{category.name}</strong>
+                        <span>
+                          {category.count} Course{category.count === 1 ? "" : "s"}
+                        </span>
+                        <span className="category-arrow">→</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Courses */}
+              <section className="discover-section">
+                <div className="discover-section-header">
+                  <div>
+                    <span className="section-eyebrow">
+                      {selectedCategory === "All" ? "FEATURED COURSES" : selectedCategory.toUpperCase()}
                     </span>
+                    <h2>Courses you'll love</h2>
+                  </div>
 
-                    <h3>{course.title}</h3>
+                  <Link to="/courses">Browse all courses →</Link>
+                </div>
 
-                    <p className="discover-course-instructor">
-                      {course.instructor}
+                <div className="discover-tabs">
+                  {TABS.map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      className={activeTab === tab ? "active" : ""}
+                      onClick={() => setActiveTab(tab)}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+
+                  {selectedCategory !== "All" && (
+                    <button type="button" onClick={() => setSelectedCategory("All")}>
+                      ✕ {selectedCategory}
+                    </button>
+                  )}
+                </div>
+
+                <div className="discover-course-grid">
+                  {filteredCourses.slice(0, 4).map((course) => {
+                    const saved = wishlist.has(course.id);
+                    return (
+                      <article className="discover-course-card" key={course.id}>
+                        <div className={`discover-course-image ${course.imageClass}`}>
+                          <span className="discover-course-icon">{course.icon}</span>
+
+                          <button
+                            type="button"
+                            className="discover-course-wishlist"
+                            onClick={() => wishlist.toggle(course.id)}
+                            aria-label={saved ? "Remove from wishlist" : "Add to wishlist"}
+                            aria-pressed={saved}
+                          >
+                            {saved ? "♥" : "♡"}
+                          </button>
+                        </div>
+
+                        <div className="discover-course-body">
+                          <span className="discover-course-category">{course.category}</span>
+
+                          <h3>{course.title}</h3>
+
+                          <p className="discover-course-instructor">{course.instructor}</p>
+
+                          <div className="discover-course-rating">
+                            {course.ratingCount > 0 ? (
+                              <>
+                                <strong>{course.rating}</strong>
+                                <span>★★★★★</span>
+                                <small>({course.ratingCount})</small>
+                              </>
+                            ) : (
+                              <small>
+                                {course.students.toLocaleString()} student
+                                {course.students === 1 ? "" : "s"}
+                              </small>
+                            )}
+                          </div>
+
+                          <div className="discover-course-meta">
+                            <span>◷ {course.duration}</span>
+                            <span>• {course.level}</span>
+                          </div>
+
+                          <div className="discover-course-footer">
+                            <strong>{PRICE_LABEL}</strong>
+
+                            <Link to={`/courses/${course.slug}`}>View Course →</Link>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+
+                {filteredCourses.length === 0 && (
+                  <div className="discover-no-results">
+                    <span>🔎</span>
+
+                    <h3>{courses.length === 0 ? "No courses yet" : "No courses found"}</h3>
+
+                    <p>
+                      {courses.length === 0
+                        ? "No courses have been published yet. Please check back soon."
+                        : "Try searching for another skill or category."}
                     </p>
 
-                    <div className="discover-course-rating">
-                      <strong>{course.rating}</strong>
-                      <span>★★★★★</span>
-                      <small>
-                        ({course.students.toLocaleString()})
-                      </small>
+                    {courses.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery("");
+                          setSelectedCategory("All");
+                        }}
+                      >
+                        Clear Search
+                      </button>
+                    )}
+                  </div>
+                )}
+              </section>
+
+              {/* Instructors */}
+              {instructors.length > 0 && (
+                <section className="discover-section">
+                  <div className="discover-section-header">
+                    <div>
+                      <span className="section-eyebrow">LEARN FROM THE BEST</span>
+                      <h2>Featured instructors</h2>
                     </div>
-
-                    <div className="discover-course-meta">
-                      <span>◷ {course.duration}</span>
-                      <span>• {course.level}</span>
-                    </div>
-
-                    <div className="discover-course-footer">
-                      <strong>${course.price}</strong>
-
-                      <Link to={`/courses/${course.id}`}>
-                        View Course →
-                      </Link>
-                    </div>
                   </div>
-                </article>
-              ))}
-            </div>
 
-            {filteredCourses.length === 0 && (
-              <div className="discover-no-results">
-                <span>🔎</span>
+                  <div className="instructor-grid">
+                    {instructors.map((instructor) => (
+                      <article className="featured-instructor" key={instructor.id}>
+                        <div
+                          className={`featured-instructor-avatar ${instructor.colorClass}`}
+                        >
+                          {instructor.avatar}
+                        </div>
 
-                <h3>No courses found</h3>
+                        <h3>{instructor.name}</h3>
 
-                <p>
-                  Try searching for another skill or category.
-                </p>
+                        <p>{instructor.role}</p>
 
-                <button
-                  onClick={() => {
-                    setSearchQuery("");
-                    setSelectedCategory("All");
-                  }}
-                >
-                  Clear Search
-                </button>
-              </div>
-            )}
-          </section>
+                        <div className="featured-instructor-details">
+                          <span>
+                            <strong style={{ color: "#293247" }}>
+                              {instructor.ratingCount > 0 ? `★ ${instructor.rating}` : "★ —"}
+                            </strong>{" "}
+                            Rating
+                          </span>
 
-          {/* Learning Paths */}
-          <section className="discover-section">
-            <div className="discover-section-header">
-              <div>
-                <span className="section-eyebrow">
-                  LEARN WITH PURPOSE
-                </span>
+                          <span>
+                            <strong style={{ color: "#293247" }}>
+                              👥 {formatCount(instructor.students)}
+                            </strong>{" "}
+                            Students
+                          </span>
 
-                <h2>Popular learning paths</h2>
-              </div>
-            </div>
-
-            <div className="learning-path-grid">
-              <Link
-                to="/courses"
-                className="learning-path-card path-web"
-              >
-                <div className="path-icon">💻</div>
-
-                <div className="path-content">
-                  <span>CAREER PATH</span>
-
-                  <h3>Full-Stack Developer</h3>
-
-                  <p>
-                    Master frontend, backend, databases and
-                    deployment.
-                  </p>
-
-                  <div className="path-bottom">
-                    <span>8 courses</span>
-                    <span>→</span>
+                          <span>
+                            <strong style={{ color: "#293247" }}>▣ {instructor.courses}</strong>{" "}
+                            Courses
+                          </span>
+                        </div>
+                      </article>
+                    ))}
                   </div>
+                </section>
+              )}
+
+              {/* Stats */}
+              <section className="discover-stats">
+                <div>
+                  <strong>{totalCourses}</strong>
+                  <span>Courses</span>
                 </div>
-              </Link>
 
-              <Link
-                to="/courses"
-                className="learning-path-card path-data"
-              >
-                <div className="path-icon">📊</div>
-
-                <div className="path-content">
-                  <span>CAREER PATH</span>
-
-                  <h3>Data Scientist</h3>
-
-                  <p>
-                    Learn Python, data analysis, statistics and
-                    machine learning.
-                  </p>
-
-                  <div className="path-bottom">
-                    <span>10 courses</span>
-                    <span>→</span>
-                  </div>
+                <div>
+                  <strong>{instructors.length}</strong>
+                  <span>Top Instructors</span>
                 </div>
-              </Link>
 
-              <Link
-                to="/courses"
-                className="learning-path-card path-design"
-              >
-                <div className="path-icon">🎨</div>
-
-                <div className="path-content">
-                  <span>CAREER PATH</span>
-
-                  <h3>UI/UX Designer</h3>
-
-                  <p>
-                    Build beautiful interfaces and meaningful
-                    user experiences.
-                  </p>
-
-                  <div className="path-bottom">
-                    <span>7 courses</span>
-                    <span>→</span>
-                  </div>
+                <div>
+                  <strong>{formatCount(totalLearners)}</strong>
+                  <span>Enrollments</span>
                 </div>
-              </Link>
-            </div>
-          </section>
 
-          {/* Instructors */}
-          <section className="discover-section">
-            <div className="discover-section-header">
-              <div>
-                <span className="section-eyebrow">
-                  LEARN FROM THE BEST
-                </span>
-
-                <h2>Featured instructors</h2>
-              </div>
-
-              <button className="view-instructors-button">
-                Meet all instructors →
-              </button>
-            </div>
-
-            <div className="instructor-grid">
-              {instructorsList.map((instructor) => (
-                <article
-                  className="featured-instructor"
-                  key={instructor.id}
-                >
-                  <div
-                    className={`featured-instructor-avatar ${instructor.colorClass}`}
-                  >
-                    {instructor.avatar}
-                  </div>
-
-                  <h3>{instructor.name}</h3>
-
-                  <p>{instructor.role}</p>
-
-                  <div className="featured-instructor-details">
-                    <span>
-                      <strong style={{ color: "#293247" }}>
-                        ★ 4.9
-                      </strong>{" "}
-                      Rating
-                    </span>
-
-                    <span>
-                      <strong style={{ color: "#293247" }}>
-                        👥 {instructor.students}
-                      </strong>{" "}
-                      Students
-                    </span>
-
-                    <span>
-                      <strong style={{ color: "#293247" }}>
-                        ▣ {instructor.courses}
-                      </strong>{" "}
-                      Courses
-                    </span>
-                  </div>
-
-                  <button className="view-instructor-button">
-                    View Profile
-                  </button>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          {/* Stats */}
-          <section className="discover-stats">
-            <div>
-              <strong>500+</strong>
-              <span>Courses</span>
-            </div>
-
-            <div>
-              <strong>120+</strong>
-              <span>Expert Instructors</span>
-            </div>
-
-            <div>
-              <strong>25K+</strong>
-              <span>Active Learners</span>
-            </div>
-
-            <div>
-              <strong>95%</strong>
-              <span>Student Satisfaction</span>
-            </div>
-          </section>
+                <div>
+                  <strong>{categoryNames.length || categories.length}</strong>
+                  <span>Categories</span>
+                </div>
+              </section>
+            </>
+          )}
 
           {/* CTA */}
           <section className="discover-cta">
@@ -640,14 +511,10 @@ function Discover() {
               </h2>
 
               <p>
-                Explore our complete course library and start
-                learning something new today.
+                Explore our complete course library and start learning something new today.
               </p>
 
-              <Link
-                to="/courses"
-                className="discover-cta-button"
-              >
+              <Link to="/courses" className="discover-cta-button">
                 Explore All Courses →
               </Link>
             </div>
@@ -657,21 +524,19 @@ function Discover() {
             </div>
           </section>
 
-          {/* Footer */}
           <footer className="discover-footer">
             <div>
-              <strong>LearnHub</strong>
+              <strong>Eduverse</strong>
               <p>Learn new skills. Build your future.</p>
             </div>
 
             <div className="discover-footer-links">
-              <Link to="/courses">Help Center</Link>
-              <Link to="/courses">Privacy</Link>
-              <Link to="/courses">Terms</Link>
               <Link to="/courses">Courses</Link>
+              <Link to="/login">Login</Link>
+              <Link to="/register">Register</Link>
             </div>
 
-            <p>© 2026 LearnHub. All rights reserved.</p>
+            <p>© 2026 Eduverse. All rights reserved.</p>
           </footer>
         </div>
       </main>

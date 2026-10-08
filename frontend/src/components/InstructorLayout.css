@@ -1,0 +1,570 @@
+/* =========================================================
+   INSTRUCTOR LAYOUT + SHARED INSTRUCTOR UI (il-*)
+   Builds on StudentDashboard.css (shell) so the instructor
+   and student areas share one consistent Eduverse look.
+   ========================================================= */
+
+/* ---------- topbar user dropdown ---------- */
+.il-user-menu {
+  position: relative;
+  cursor: pointer;
+}
+.il-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 1000;
+  min-width: 180px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+.il-dropdown a,
+.il-dropdown button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.il-dropdown a:hover,
+.il-dropdown button:hover {
+  background: #f5f6ff;
+  color: #4f46e5;
+}
+.il-dropdown hr {
+  margin: 6px 0;
+  border: 0;
+  border-top: 1px solid #f3f4f6;
+}
+.il-dropdown .il-dropdown-danger {
+  color: #ef4444;
+}
+.il-dropdown .il-dropdown-danger:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* ---------- page header ---------- */
+.il-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.il-page-header h1 {
+  margin: 4px 0 4px;
+  font-size: 26px;
+  color: #111827;
+}
+.il-page-header h2 {
+  margin: 0 0 2px;
+  font-size: 17px;
+  color: #111827;
+}
+.il-page-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+.il-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: #4f46e5;
+}
+
+/* ---------- buttons ---------- */
+.il-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.il-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+}
+.il-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.il-btn-outline {
+  background: #fff;
+  color: #374151;
+  border-color: #d1d5db;
+}
+.il-btn-outline:hover:not(:disabled) {
+  background: #f9fafb;
+  box-shadow: none;
+}
+.il-btn-danger {
+  background: #fff;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+.il-btn-danger:hover:not(:disabled) {
+  background: #fef2f2;
+  box-shadow: none;
+}
+.il-btn-sm {
+  padding: 6px 11px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+/* ---------- alerts / loading / empty ---------- */
+.il-alert {
+  margin-bottom: 16px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.il-alert-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+.il-alert-success {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+.il-alert-info {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+.il-loading {
+  padding: 40px 16px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+}
+.il-empty {
+  padding: 36px 16px;
+  text-align: center;
+  color: #6b7280;
+}
+.il-empty > span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 36px;
+}
+.il-empty h3 {
+  margin: 0 0 6px;
+  color: #111827;
+  font-size: 16px;
+}
+.il-empty p {
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+
+/* ---------- cards / stats / grids ---------- */
+.il-card {
+  margin-bottom: 20px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+}
+.il-card h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  color: #111827;
+}
+.il-card-sub {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #6b7280;
+}
+.il-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.il-stat {
+  padding: 18px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+}
+.il-stat span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+.il-stat strong {
+  font-size: 28px;
+  color: #111827;
+}
+.il-stat small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+.il-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.il-grid-2 > .il-card {
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .il-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- list items ---------- */
+.il-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 13px;
+}
+.il-list-item:last-child {
+  border-bottom: none;
+}
+.il-list-item strong {
+  display: block;
+  color: #111827;
+}
+.il-list-item small {
+  display: block;
+  color: #6b7280;
+}
+
+/* ---------- badges ---------- */
+.il-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #4b5563;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.il-badge-published,
+.il-badge-completed {
+  background: #dcfce7;
+  color: #15803d;
+}
+.il-badge-draft {
+  background: #fef3c7;
+  color: #b45309;
+}
+.il-badge-active {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.il-badge-archived {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+/* ---------- toolbar / form controls ---------- */
+.il-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.il-input,
+.il-select,
+.il-textarea {
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  color: #111827;
+  font-family: inherit;
+  font-size: 14px;
+}
+.il-input {
+  flex: 1;
+  min-width: 220px;
+}
+.il-input:focus,
+.il-select:focus,
+.il-textarea:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+.il-input:disabled,
+.il-textarea:disabled {
+  background: #f9fafb;
+  color: #6b7280;
+}
+.il-textarea {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+}
+.il-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media (max-width: 700px) {
+  .il-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.il-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.il-field.full {
+  grid-column: 1 / -1;
+}
+.il-field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+}
+.il-field small {
+  font-size: 11px;
+  color: #9ca3af;
+}
+.il-field .il-input,
+.il-field .il-select {
+  width: 100%;
+  min-width: 0;
+}
+
+/* ---------- course cards ---------- */
+.il-course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+.il-course-card {
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.il-course-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(16, 24, 40, 0.08);
+}
+.il-course-thumb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 140px;
+  background: linear-gradient(135deg, #eef2ff, #f5f3ff) center / cover no-repeat;
+}
+.il-course-thumb > span:first-child {
+  font-size: 44px;
+}
+.il-course-thumb .il-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+.il-course-body {
+  padding: 16px;
+}
+.il-course-cat {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4f46e5;
+}
+.il-course-body h3 {
+  margin: 6px 0 10px;
+  font-size: 15px;
+  line-height: 1.35;
+  color: #111827;
+}
+.il-course-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: #6b7280;
+}
+.il-course-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---------- table ---------- */
+.il-table-wrap {
+  overflow-x: auto;
+}
+.il-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.il-table th {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #6b7280;
+}
+.il-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+  color: #374151;
+}
+.il-table td strong {
+  color: #111827;
+}
+.il-progress {
+  flex: 1;
+  min-width: 90px;
+  height: 8px;
+  overflow: hidden;
+  background: #e5e7eb;
+  border-radius: 999px;
+}
+.il-progress > div {
+  height: 100%;
+  background: linear-gradient(90deg, #4f46e5, #7c3aed);
+  border-radius: 999px;
+}
+
+/* ---------- simple bar chart (analytics) ---------- */
+.il-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  height: 200px;
+  padding-top: 10px;
+}
+.il-bar-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.il-bar-col > strong {
+  font-size: 12px;
+  color: #374151;
+}
+.il-bar-col > span {
+  font-size: 11px;
+  color: #6b7280;
+}
+.il-bar {
+  width: min(36px, 70%);
+  min-height: 4px;
+  background: linear-gradient(180deg, #6366f1, #4f46e5);
+  border-radius: 8px 8px 3px 3px;
+}
+
+/* ---------- profile ---------- */
+.il-profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+}
+.il-avatar-lg {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  font-size: 30px;
+  font-weight: 800;
+}
+.il-profile-hero h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  color: #111827;
+}
+.il-profile-hero p {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+.il-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.il-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: #eef2ff;
+  border-radius: 999px;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 700;
+}
+.il-tag button {
+  border: 0;
+  background: none;
+  color: #4338ca;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}

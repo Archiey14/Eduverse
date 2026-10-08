@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, getErrorMessage } from "../services/api";
-import MentorLayout from "../components/MentorLayout";
-import "./Mentor.css";
+import InstructorLayout from "../components/InstructorLayout";
+import "../components/InstructorLayout.css";
 
 type Tab = "details" | "curriculum" | "quizzes";
 
@@ -54,7 +54,10 @@ export default function CourseEditor() {
   const navigate = useNavigate();
   const isNew = !id;
 
-  const [tab, setTab] = useState<Tab>("details");
+  const [tab, setTab] = useState<Tab>(() => {
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    return requested === "curriculum" || requested === "quizzes" ? requested : "details";
+  });
   const [course, setCourse] = useState<any>(null);
   const [categories, setCategories] = useState<any[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -138,7 +141,7 @@ export default function CourseEditor() {
     try {
       if (isNew) {
         const res = await api.mentor.createCourse(body);
-        navigate(`/mentor/courses/${res.data._id}/edit`, { replace: true });
+        navigate(`/instructor/courses/edit/${res.data._id}`, { replace: true });
       } else {
         await api.mentor.updateCourse(id!, body);
         await load();
@@ -325,32 +328,35 @@ export default function CourseEditor() {
 
   if (loading) {
     return (
-      <MentorLayout>
-        <p>Loading...</p>
-      </MentorLayout>
+      <InstructorLayout active="courses" title="Course Editor">
+        <p className="il-loading">Loading course...</p>
+      </InstructorLayout>
     );
   }
 
   return (
-    <MentorLayout activeItem={isNew ? "new" : "courses"}>
-      <div className="mt-page-header">
+    <InstructorLayout
+      active={isNew ? "create" : "courses"}
+      title={isNew ? "Create Course" : "Course Editor"}
+    >
+      <div className="il-page-header">
         <div>
-          <span className="mt-eyebrow">{isNew ? "NEW COURSE" : "COURSE EDITOR"}</span>
+          <span className="il-eyebrow">{isNew ? "NEW COURSE" : "COURSE EDITOR"}</span>
           <h1>{isNew ? "Create a Course" : course?.title || "Edit Course"}</h1>
           {!isNew && course && (
             <p>
-              <span className={`mt-badge mt-badge-${course.status}`}>{course.status}</span>{" "}
+              <span className={`il-badge il-badge-${course.status}`}>{course.status}</span>{" "}
               · {publishedLessons} published lessons · {quizzes.length} quizzes
             </p>
           )}
         </div>
         {!isNew && course && (
-          <div className="mt-actions">
-            <Link to={`/mentor/courses/${id}/students`} className="mt-btn mt-btn-outline">
+          <div className="il-actions">
+            <Link to={`/instructor/students?course=${id}`} className="il-btn il-btn-outline">
               👥 Students
             </Link>
             <button
-              className={`mt-btn ${course.status === "published" ? "mt-btn-outline" : "mt-btn-success"}`}
+              className={`il-btn ${course.status === "published" ? "il-btn-outline" : "il-btn-success"}`}
               onClick={togglePublish}
               disabled={busy}
             >
@@ -360,15 +366,15 @@ export default function CourseEditor() {
         )}
       </div>
 
-      {error && <div className="mt-alert mt-alert-error">{error}</div>}
-      {success && <div className="mt-alert mt-alert-success">{success}</div>}
+      {error && <div className="il-alert il-alert-error">{error}</div>}
+      {success && <div className="il-alert il-alert-success">{success}</div>}
 
       {!isNew && (
-        <div className="mt-tabs">
+        <div className="il-tabs">
           {(["details", "curriculum", "quizzes"] as Tab[]).map((t) => (
             <button
               key={t}
-              className={`mt-tab ${tab === t ? "active" : ""}`}
+              className={`il-tab ${tab === t ? "active" : ""}`}
               onClick={() => setTab(t)}
             >
               {t === "details" ? "Details" : t === "curriculum" ? "Curriculum" : "Quizzes"}
@@ -379,15 +385,15 @@ export default function CourseEditor() {
 
       {/* ===== DETAILS ===== */}
       {(isNew || tab === "details") && (
-        <form className="mt-card" onSubmit={saveDetails}>
+        <form className="il-card" onSubmit={saveDetails}>
           <h2>Course details</h2>
-          <p className="mt-card-sub">
+          <p className="il-card-sub">
             To publish you need: description of 50+ characters, a thumbnail, and at least 3
             published lessons.
           </p>
 
-          <div className="mt-form-grid">
-            <div className="mt-field full">
+          <div className="il-form-grid">
+            <div className="il-field full">
               <label>Title *</label>
               <input
                 value={form.title}
@@ -396,7 +402,7 @@ export default function CourseEditor() {
               />
             </div>
 
-            <div className="mt-field full">
+            <div className="il-field full">
               <label>Subtitle</label>
               <input
                 value={form.subtitle}
@@ -405,7 +411,7 @@ export default function CourseEditor() {
               />
             </div>
 
-            <div className="mt-field full">
+            <div className="il-field full">
               <label>Description * (min 50 characters to publish)</label>
               <textarea
                 value={form.description}
@@ -414,7 +420,7 @@ export default function CourseEditor() {
               />
             </div>
 
-            <div className="mt-field">
+            <div className="il-field">
               <label>Category *</label>
               <select value={form.category} onChange={(e) => setField("category", e.target.value)}>
                 <option value="">Select a category</option>
@@ -426,7 +432,7 @@ export default function CourseEditor() {
               </select>
             </div>
 
-            <div className="mt-field">
+            <div className="il-field">
               <label>Level</label>
               <select value={form.level} onChange={(e) => setField("level", e.target.value)}>
                 <option value="beginner">Beginner</option>
@@ -435,9 +441,9 @@ export default function CourseEditor() {
               </select>
             </div>
 
-            <div className="mt-field full">
+            <div className="il-field full">
               <label>Thumbnail image URL (required to publish)</label>
-              <div className="mt-row">
+              <div className="il-row">
                 <input
                   value={form.thumbnailUrl}
                   onChange={(e) => setField("thumbnailUrl", e.target.value)}
@@ -445,7 +451,7 @@ export default function CourseEditor() {
                 />
                 <button
                   type="button"
-                  className="mt-btn mt-btn-outline mt-btn-sm"
+                  className="il-btn il-btn-outline il-btn-sm"
                   onClick={() => setField("thumbnailUrl", SAMPLE_THUMB)}
                 >
                   Use sample image
@@ -453,28 +459,28 @@ export default function CourseEditor() {
               </div>
             </div>
 
-            <div className="mt-field">
+            <div className="il-field">
               <label>What students will learn</label>
               <textarea
                 value={form.outcomes}
                 onChange={(e) => setField("outcomes", e.target.value)}
                 placeholder="One item per line"
               />
-              <span className="mt-hint">One item per line</span>
+              <span className="il-hint">One item per line</span>
             </div>
 
-            <div className="mt-field">
+            <div className="il-field">
               <label>Requirements</label>
               <textarea
                 value={form.requirements}
                 onChange={(e) => setField("requirements", e.target.value)}
                 placeholder="One item per line"
               />
-              <span className="mt-hint">One item per line</span>
+              <span className="il-hint">One item per line</span>
             </div>
           </div>
 
-          <button type="submit" className="mt-btn mt-btn-primary" disabled={busy}>
+          <button type="submit" className="il-btn il-btn-primary" disabled={busy}>
             {busy ? "Saving..." : isNew ? "Create & continue →" : "Save changes"}
           </button>
         </form>
@@ -483,14 +489,14 @@ export default function CourseEditor() {
       {/* ===== CURRICULUM ===== */}
       {!isNew && tab === "curriculum" && (
         <>
-          <section className="mt-card">
+          <section className="il-card">
             <h2>Sections & lessons</h2>
-            <p className="mt-card-sub">
+            <p className="il-card-sub">
               Organise your course into sections and add lessons to each one.
             </p>
 
             {sections.length === 0 && (
-              <div className="mt-empty">
+              <div className="il-empty">
                 <span>🗂️</span>No sections yet.
               </div>
             )}
@@ -498,12 +504,12 @@ export default function CourseEditor() {
             {sections.map((s) => {
               const secLessons = lessons.filter((l) => String(l.sectionId) === String(s._id));
               return (
-                <div className="mt-section" key={s._id}>
-                  <div className="mt-section-head">
+                <div className="il-section" key={s._id}>
+                  <div className="il-section-head">
                     <strong>{s.title}</strong>
-                    <div className="mt-actions">
+                    <div className="il-actions">
                       <button
-                        className="mt-btn mt-btn-outline mt-btn-sm"
+                        className="il-btn il-btn-outline il-btn-sm"
                         onClick={() => {
                           setLessonSection(lessonSection === s._id ? "" : s._id);
                           setLessonForm(emptyLesson);
@@ -512,7 +518,7 @@ export default function CourseEditor() {
                         ➕ Add lesson
                       </button>
                       <button
-                        className="mt-btn mt-btn-danger mt-btn-sm"
+                        className="il-btn il-btn-danger il-btn-sm"
                         onClick={() => deleteSection(s._id)}
                       >
                         Delete
@@ -521,13 +527,13 @@ export default function CourseEditor() {
                   </div>
 
                   {secLessons.map((l) => (
-                    <div className="mt-lesson" key={l._id}>
+                    <div className="il-lesson" key={l._id}>
                       <div>
                         {l.type === "text" ? "📄" : "🎬"} <strong>{l.title}</strong>{" "}
                         <small>· {l.durationMin || 0} min</small>
                       </div>
                       <button
-                        className="mt-btn mt-btn-danger mt-btn-sm"
+                        className="il-btn il-btn-danger il-btn-sm"
                         onClick={() => deleteLesson(l._id)}
                       >
                         Remove
@@ -536,22 +542,22 @@ export default function CourseEditor() {
                   ))}
 
                   {secLessons.length === 0 && lessonSection !== s._id && (
-                    <div className="mt-lesson">
+                    <div className="il-lesson">
                       <small>No lessons in this section yet.</small>
                     </div>
                   )}
 
                   {lessonSection === s._id && (
-                    <form className="mt-inline-form" onSubmit={addLesson}>
-                      <div className="mt-form-grid">
-                        <div className="mt-field full">
+                    <form className="il-inline-form" onSubmit={addLesson}>
+                      <div className="il-form-grid">
+                        <div className="il-field full">
                           <label>Lesson title *</label>
                           <input
                             value={lessonForm.title}
                             onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
                           />
                         </div>
-                        <div className="mt-field">
+                        <div className="il-field">
                           <label>Type</label>
                           <select
                             value={lessonForm.type}
@@ -561,7 +567,7 @@ export default function CourseEditor() {
                             <option value="text">Text</option>
                           </select>
                         </div>
-                        <div className="mt-field">
+                        <div className="il-field">
                           <label>Duration (minutes)</label>
                           <input
                             type="number"
@@ -573,7 +579,7 @@ export default function CourseEditor() {
                           />
                         </div>
                         {lessonForm.type === "video" ? (
-                          <div className="mt-field full">
+                          <div className="il-field full">
                             <label>Video URL</label>
                             <input
                               value={lessonForm.videoUrl}
@@ -584,7 +590,7 @@ export default function CourseEditor() {
                             />
                           </div>
                         ) : (
-                          <div className="mt-field full">
+                          <div className="il-field full">
                             <label>Lesson content</label>
                             <textarea
                               value={lessonForm.content}
@@ -595,13 +601,13 @@ export default function CourseEditor() {
                           </div>
                         )}
                       </div>
-                      <div className="mt-actions">
-                        <button type="submit" className="mt-btn mt-btn-primary mt-btn-sm" disabled={busy}>
+                      <div className="il-actions">
+                        <button type="submit" className="il-btn il-btn-primary il-btn-sm" disabled={busy}>
                           Save lesson
                         </button>
                         <button
                           type="button"
-                          className="mt-btn mt-btn-outline mt-btn-sm"
+                          className="il-btn il-btn-outline il-btn-sm"
                           onClick={() => setLessonSection("")}
                         >
                           Cancel
@@ -613,13 +619,13 @@ export default function CourseEditor() {
               );
             })}
 
-            <form className="mt-row" onSubmit={addSection} style={{ marginTop: 16 }}>
+            <form className="il-row" onSubmit={addSection} style={{ marginTop: 16 }}>
               <input
                 value={newSection}
                 onChange={(e) => setNewSection(e.target.value)}
                 placeholder="New section title, e.g. Section 2: Core Concepts"
               />
-              <button type="submit" className="mt-btn mt-btn-primary" disabled={busy}>
+              <button type="submit" className="il-btn il-btn-primary" disabled={busy}>
                 Add section
               </button>
             </form>
@@ -630,23 +636,23 @@ export default function CourseEditor() {
       {/* ===== QUIZZES ===== */}
       {!isNew && tab === "quizzes" && (
         <>
-          <section className="mt-card">
+          <section className="il-card">
             <h2>Existing quizzes</h2>
-            <p className="mt-card-sub">Quizzes students can take inside this course.</p>
+            <p className="il-card-sub">Quizzes students can take inside this course.</p>
             {quizzes.length === 0 ? (
-              <div className="mt-empty">
+              <div className="il-empty">
                 <span>📝</span>No quizzes yet. Create one below.
               </div>
             ) : (
               quizzes.map((q) => (
-                <div className="mt-list-item" key={q._id}>
+                <div className="il-list-item" key={q._id}>
                   <div>
                     <strong>{q.title}</strong>
                     <small>
                       {q.questions?.length || 0} questions · pass at {q.passPercent}%
                     </small>
                   </div>
-                  <button className="mt-btn mt-btn-danger mt-btn-sm" onClick={() => deleteQuiz(q._id)}>
+                  <button className="il-btn il-btn-danger il-btn-sm" onClick={() => deleteQuiz(q._id)}>
                     Delete
                   </button>
                 </div>
@@ -654,16 +660,16 @@ export default function CourseEditor() {
             )}
           </section>
 
-          <form className="mt-card" onSubmit={createQuiz}>
+          <form className="il-card" onSubmit={createQuiz}>
             <h2>Create a quiz</h2>
-            <p className="mt-card-sub">Select the radio button next to the correct answer.</p>
+            <p className="il-card-sub">Select the radio button next to the correct answer.</p>
 
-            <div className="mt-form-grid">
-              <div className="mt-field">
+            <div className="il-form-grid">
+              <div className="il-field">
                 <label>Quiz title *</label>
                 <input value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} />
               </div>
-              <div className="mt-field">
+              <div className="il-field">
                 <label>Pass percentage</label>
                 <input
                   type="number"
@@ -676,8 +682,8 @@ export default function CourseEditor() {
             </div>
 
             {questions.map((q, qi) => (
-              <div className="mt-question" key={qi}>
-                <div className="mt-field">
+              <div className="il-question" key={qi}>
+                <div className="il-field">
                   <label>Question {qi + 1}</label>
                   <input
                     value={q.text}
@@ -687,7 +693,7 @@ export default function CourseEditor() {
                 </div>
 
                 {q.options.map((opt, oi) => (
-                  <div className="mt-option" key={oi}>
+                  <div className="il-option" key={oi}>
                     <input
                       type="radio"
                       name={`correct-${qi}`}
@@ -703,7 +709,7 @@ export default function CourseEditor() {
                   </div>
                 ))}
 
-                <div className="mt-field">
+                <div className="il-field">
                   <label>Explanation (optional)</label>
                   <input
                     value={q.explanation}
@@ -714,7 +720,7 @@ export default function CourseEditor() {
                 {questions.length > 1 && (
                   <button
                     type="button"
-                    className="mt-btn mt-btn-danger mt-btn-sm"
+                    className="il-btn il-btn-danger il-btn-sm"
                     onClick={() => setQuestions((qs) => qs.filter((_, i) => i !== qi))}
                   >
                     Remove question
@@ -723,21 +729,21 @@ export default function CourseEditor() {
               </div>
             ))}
 
-            <div className="mt-actions">
+            <div className="il-actions">
               <button
                 type="button"
-                className="mt-btn mt-btn-outline"
+                className="il-btn il-btn-outline"
                 onClick={() => setQuestions((qs) => [...qs, emptyQuestion()])}
               >
                 ➕ Add question
               </button>
-              <button type="submit" className="mt-btn mt-btn-primary" disabled={busy}>
+              <button type="submit" className="il-btn il-btn-primary" disabled={busy}>
                 {busy ? "Saving..." : "Save quiz"}
               </button>
             </div>
           </form>
         </>
       )}
-    </MentorLayout>
+    </InstructorLayout>
   );
 }

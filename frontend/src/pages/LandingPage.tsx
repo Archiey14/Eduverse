@@ -31,7 +31,7 @@ function LandingPage() {
               </h1>
 
               <p className="hero-description">
-                LearnHub is your complete learning platform for discovering
+                Eduverse is your complete learning platform for discovering
                 courses, learning from expert instructors, taking quizzes, and
                 tracking your progress.
               </p>
@@ -203,7 +203,7 @@ function LandingPage() {
         >
           <div className="landing-container">
             <div className="section-heading">
-              <span className="section-label">WHY LEARNHUB?</span>
+              <span className="section-label">WHY EDUVERSE?</span>
 
               <h2>
                 Everything You Need
@@ -314,7 +314,7 @@ function LandingPage() {
               </h2>
 
               <p>
-                Getting started with LearnHub is simple. Create your account
+                Getting started with Eduverse is simple. Create your account
                 and begin your learning journey today.
               </p>
             </div>
@@ -329,7 +329,7 @@ function LandingPage() {
                 <h3>Create an Account</h3>
 
                 <p>
-                  Sign up as a student or instructor and create your LearnHub
+                  Sign up as a student or instructor and create your Eduverse
                   profile.
                 </p>
               </div>
@@ -383,7 +383,7 @@ function LandingPage() {
               </h2>
 
               <p>
-                LearnHub brings students and instructors together in one
+                Eduverse brings students and instructors together in one
                 learning environment. Whether you want to gain new skills or
                 share your expertise, there is a place for you here.
               </p>
@@ -507,7 +507,7 @@ function LandingPage() {
               </h2>
 
               <p>
-                Join LearnHub today and take the next step toward building the
+                Join Eduverse today and take the next step toward building the
                 skills and knowledge you need for your future.
               </p>
 
@@ -542,7 +542,7 @@ function LandingPage() {
             <div className="footer-brand">
               <Link to="/" className="footer-logo">
                 <span className="landing-logo-icon">L</span>
-                <span>LearnHub</span>
+                <span>Eduverse</span>
               </Link>
 
               <p>
@@ -621,7 +621,7 @@ function LandingPage() {
 
           <div className="footer-bottom">
             <p>
-              © 2026 LearnHub. All rights reserved.
+              © 2026 Eduverse. All rights reserved.
             </p>
 
             <div className="footer-bottom-links">

@@ -1,454 +1,233 @@
-
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { api, getErrorMessage } from "../services/api";
+import StudentLayout from "../components/StudentLayout";
 import "./Settings.css";
 
 function Settings() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, updateUser } = useAuth();
 
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [courseReminders, setCourseReminders] = useState(true);
-  const [quizReminders, setQuizReminders] = useState(true);
-  const [profileVisibility, setProfileVisibility] = useState(true);
-  const [language, setLanguage] = useState("English");
-  const [theme, setTheme] = useState("Light");
+  const [fullName, setFullName] = useState(user?.name || "");
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [accountError, setAccountError] = useState("");
+  const [accountSuccess, setAccountSuccess] = useState("");
 
-  const handleSave = () => {
-    alert("Settings saved successfully!");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+
+  useEffect(() => {
+    if (user?.name) setFullName(user.name);
+  }, [user?.name]);
+
+  const accountType = user?.roles?.includes("admin")
+    ? "Admin"
+    : user?.roles?.includes("mentor")
+    ? "Student + Instructor"
+    : "Student";
+
+  const memberSince = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      })
+    : "—";
+
+  const handleAccountSave = async (event: FormEvent) => {
+    event.preventDefault();
+    setAccountError("");
+    setAccountSuccess("");
+
+    if (!fullName.trim()) {
+      setAccountError("Your name cannot be empty.");
+      return;
+    }
+
+    setAccountBusy(true);
+    try {
+      const res = await api.auth.updateMe({ name: fullName.trim() });
+      if (res.user) updateUser(res.user);
+      setAccountSuccess("Account information saved.");
+    } catch (err) {
+      setAccountError(getErrorMessage(err, "Could not save your account information."));
+    } finally {
+      setAccountBusy(false);
+    }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
+  const handlePasswordSave = async (event: FormEvent) => {
+    event.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (!currentPassword || !newPassword) {
+      setPasswordError("Please enter your current and new password.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordError("The new password must be at least 8 characters long.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New password and confirm password do not match.");
+      return;
+    }
+
+    setPasswordBusy(true);
+    try {
+      const res = await api.auth.updatePassword({ currentPassword, newPassword });
+      setPasswordSuccess(res?.message || "Password updated successfully.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setPasswordError(getErrorMessage(err, "Could not update your password."));
+    } finally {
+      setPasswordBusy(false);
+    }
   };
 
-  const displayName = user?.name || "Student";
-  const displayEmail = user?.email || "";
-  const initials = displayName
-    .split(" ")
-    .map((part) => part.charAt(0))
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-  const accountType = user?.roles?.includes("mentor") ? "Student + Instructor" : "Student";
+  const alertStyle = (kind: "error" | "success"): React.CSSProperties => ({
+    marginBottom: 16,
+    padding: "11px 14px",
+    borderRadius: 10,
+    fontSize: 13,
+    fontWeight: 600,
+    background: kind === "error" ? "#fef2f2" : "#f0fdf4",
+    color: kind === "error" ? "#b91c1c" : "#15803d",
+    border: `1px solid ${kind === "error" ? "#fecaca" : "#bbf7d0"}`,
+  });
 
   return (
-    <div className="settings-page">
+    <StudentLayout activeItem="settings" searchPlaceholder="Search...">
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ margin: "0 0 4px", fontSize: 26, color: "#111827" }}>Settings</h1>
+        <p style={{ margin: 0, color: "#6b7280", fontSize: 14 }}>
+          Manage your account information and password.
+        </p>
+      </div>
 
-      {/* Sidebar */}
-      <aside className="settings-sidebar">
-
-        <div className="settings-logo">
-          <div className="settings-logo-icon">L</div>
-          <span>LearnHub</span>
-        </div>
-
-        <nav className="settings-nav">
-
-          <Link to="/student/dashboard" className="settings-nav-item">
-            <span>🏠</span>
-            Dashboard
-          </Link>
-
-          <Link to="/courses" className="settings-nav-item">
-            <span>📚</span>
-            My Courses
-          </Link>
-
-          <Link to="/discover" className="settings-nav-item">
-            <span>🔍</span>
-            Discover
-          </Link>
-
-          <Link to="/quizzes" className="settings-nav-item">
-            <span>📝</span>
-            Quizzes
-          </Link>
-
-          <Link to="/progress" className="settings-nav-item">
-            <span>📊</span>
-            Progress
-          </Link>
-
-          <Link to="/activities" className="settings-nav-item">
-            <span>⚡</span>
-            Activities
-          </Link>
-
-          <Link to="/achievements" className="settings-nav-item">
-            <span>🏆</span>
-            Achievements
-          </Link>
-
-          <Link to="/wishlist" className="settings-nav-item">
-            <span>❤️</span>
-            Wishlist
-          </Link>
-
-          <Link to="/profile" className="settings-nav-item">
-            <span>👤</span>
-            Profile
-          </Link>
-
-          <Link
-            to="/settings"
-            className="settings-nav-item active"
-          >
-            <span>⚙️</span>
-            Settings
-          </Link>
-
-        </nav>
-
-        <div className="settings-sidebar-bottom">
-
-          <Link to="/help" className="settings-help-card">
-            <div className="settings-help-icon">?</div>
+      <section className="settings-content" style={{ padding: 0 }}>
+        {/* Account */}
+        <form className="settings-card" onSubmit={handleAccountSave}>
+          <div className="settings-card-header">
+            <div className="settings-section-icon">👤</div>
             <div>
-              <strong>Need Help?</strong>
-              <span>Visit our support center</span>
+              <h2>Account Settings</h2>
+              <p>Manage your account information</p>
             </div>
-          </Link>
+          </div>
 
-          <button
-            className="settings-logout"
-            onClick={handleLogout}
-          >
-            <span>🚪</span>
-            Logout
+          {accountError && <div style={alertStyle("error")}>{accountError}</div>}
+          {accountSuccess && <div style={alertStyle("success")}>{accountSuccess}</div>}
+
+          <div className="settings-form-grid">
+            <div className="settings-field">
+              <label htmlFor="st-name">Full Name</label>
+              <input
+                id="st-name"
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+              />
+            </div>
+
+            <div className="settings-field">
+              <label htmlFor="st-email">Email Address</label>
+              <input id="st-email" type="email" value={user?.email || ""} readOnly disabled />
+            </div>
+
+            <div className="settings-field">
+              <label htmlFor="st-type">Account Type</label>
+              <input id="st-type" type="text" value={accountType} readOnly disabled />
+            </div>
+
+            <div className="settings-field">
+              <label htmlFor="st-since">Member Since</label>
+              <input id="st-since" type="text" value={memberSince} readOnly disabled />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button type="submit" className="settings-save-button" disabled={accountBusy}>
+              {accountBusy ? "Saving..." : "Save Changes"}
+            </button>
+            <Link to="/profile?edit=true" className="settings-secondary-button" style={{ textDecoration: "none" }}>
+              Edit full profile
+            </Link>
+          </div>
+        </form>
+
+        {/* Password */}
+        <form className="settings-card" onSubmit={handlePasswordSave}>
+          <div className="settings-card-header">
+            <div className="settings-section-icon">🔒</div>
+            <div>
+              <h2>Password & Security</h2>
+              <p>Use at least 8 characters.</p>
+            </div>
+          </div>
+
+          {passwordError && <div style={alertStyle("error")}>{passwordError}</div>}
+          {passwordSuccess && <div style={alertStyle("success")}>{passwordSuccess}</div>}
+
+          <div className="settings-form-grid">
+            <div className="settings-field">
+              <label htmlFor="st-current">Current Password</label>
+              <input
+                id="st-current"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+            </div>
+
+            <div className="settings-field">{/* spacer keeps the grid aligned */}</div>
+
+            <div className="settings-field">
+              <label htmlFor="st-new">New Password</label>
+              <input
+                id="st-new"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+
+            <div className="settings-field">
+              <label htmlFor="st-confirm">Confirm New Password</label>
+              <input
+                id="st-confirm"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <button type="submit" className="settings-save-button" disabled={passwordBusy}>
+            {passwordBusy ? "Updating..." : "Update Password"}
           </button>
+        </form>
+      </section>
 
+      <footer className="settings-footer">
+        <p>© 2026 Eduverse. All rights reserved.</p>
+
+        <div>
+          <Link to="/help">Help Center</Link>
+          <Link to="/profile">Profile</Link>
         </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="settings-main">
-
-        {/* Topbar */}
-        <header className="settings-topbar">
-
-          <div>
-            <h1>Settings</h1>
-            <p>Manage your account and preferences</p>
-          </div>
-
-          <div className="settings-user">
-
-            <div className="settings-notification">
-              🔔
-              <span className="notification-dot"></span>
-            </div>
-
-            <div className="settings-user-avatar">
-              {initials || "S"}
-            </div>
-
-            <div className="settings-user-info">
-              <strong>{displayName}</strong>
-              <span>{accountType}</span>
-            </div>
-
-          </div>
-
-        </header>
-
-        {/* Content */}
-        <section className="settings-content">
-
-          {/* Account Settings */}
-          <div className="settings-card">
-
-            <div className="settings-card-header">
-              <div className="settings-section-icon">👤</div>
-
-              <div>
-                <h2>Account Settings</h2>
-                <p>Manage your account information</p>
-              </div>
-            </div>
-
-            <div className="settings-form-grid">
-
-              <div className="settings-field">
-                <label>Full Name</label>
-                <input
-                  type="text"
-                  value={displayName}
-                  readOnly
-                />
-              </div>
-
-              <div className="settings-field">
-                <label>Email Address</label>
-                <input
-                  type="email"
-                  value={displayEmail}
-                  readOnly
-                />
-              </div>
-
-              <div className="settings-field">
-                <label>Account Type</label>
-                <input
-                  type="text"
-                  value={accountType}
-                  readOnly
-                />
-              </div>
-
-              <div className="settings-field">
-                <label>Member Since</label>
-                <input
-                  type="text"
-                  value="October 2026"
-                  readOnly
-                />
-              </div>
-
-            </div>
-
-            <button
-              className="settings-secondary-button"
-              onClick={() => navigate("/profile?edit=true")}
-            >
-              Edit Profile
-            </button>
-
-          </div>
-
-          {/* Password */}
-          <div className="settings-card">
-
-            <div className="settings-card-header">
-              <div className="settings-section-icon">🔒</div>
-
-              <div>
-                <h2>Password & Security</h2>
-                <p>Keep your account secure</p>
-              </div>
-            </div>
-
-            <div className="security-row">
-
-              <div>
-                <strong>Password</strong>
-                <span>Last changed recently</span>
-              </div>
-
-              <button
-                className="settings-secondary-button"
-                onClick={() =>
-                  alert("Change password feature will be connected to the backend later.")
-                }
-              >
-                Change Password
-              </button>
-
-            </div>
-
-            <div className="security-row">
-
-              <div>
-                <strong>Two-Factor Authentication</strong>
-                <span>Add an extra layer of security to your account</span>
-              </div>
-
-              <button
-                className="settings-outline-button"
-                onClick={() =>
-                  alert("Two-factor authentication will be available soon.")
-                }
-              >
-                Enable
-              </button>
-
-            </div>
-
-          </div>
-
-          {/* Notifications */}
-          <div className="settings-card">
-
-            <div className="settings-card-header">
-              <div className="settings-section-icon">🔔</div>
-
-              <div>
-                <h2>Notification Preferences</h2>
-                <p>Choose what notifications you want to receive</p>
-              </div>
-            </div>
-
-            <div className="toggle-row">
-
-              <div>
-                <strong>Email Notifications</strong>
-                <span>Receive important updates through email</span>
-              </div>
-
-              <button
-                className={`toggle ${emailNotifications ? "on" : ""}`}
-                onClick={() =>
-                  setEmailNotifications(!emailNotifications)
-                }
-                aria-label="Toggle email notifications"
-              >
-                <span></span>
-              </button>
-
-            </div>
-
-            <div className="toggle-row">
-
-              <div>
-                <strong>Course Reminders</strong>
-                <span>Get reminders about your ongoing courses</span>
-              </div>
-
-              <button
-                className={`toggle ${courseReminders ? "on" : ""}`}
-                onClick={() =>
-                  setCourseReminders(!courseReminders)
-                }
-                aria-label="Toggle course reminders"
-              >
-                <span></span>
-              </button>
-
-            </div>
-
-            <div className="toggle-row">
-
-              <div>
-                <strong>Quiz Reminders</strong>
-                <span>Receive reminders about upcoming quizzes</span>
-              </div>
-
-              <button
-                className={`toggle ${quizReminders ? "on" : ""}`}
-                onClick={() =>
-                  setQuizReminders(!quizReminders)
-                }
-                aria-label="Toggle quiz reminders"
-              >
-                <span></span>
-              </button>
-
-            </div>
-
-          </div>
-
-          {/* Privacy */}
-          <div className="settings-card">
-
-            <div className="settings-card-header">
-              <div className="settings-section-icon">🛡️</div>
-
-              <div>
-                <h2>Privacy</h2>
-                <p>Control how your profile is displayed</p>
-              </div>
-            </div>
-
-            <div className="toggle-row">
-
-              <div>
-                <strong>Public Profile</strong>
-                <span>
-                  Allow other learners to view your profile
-                </span>
-              </div>
-
-              <button
-                className={`toggle ${profileVisibility ? "on" : ""}`}
-                onClick={() =>
-                  setProfileVisibility(!profileVisibility)
-                }
-                aria-label="Toggle profile visibility"
-              >
-                <span></span>
-              </button>
-
-            </div>
-
-          </div>
-
-          {/* Appearance */}
-          <div className="settings-card">
-
-            <div className="settings-card-header">
-              <div className="settings-section-icon">🎨</div>
-
-              <div>
-                <h2>Appearance & Language</h2>
-                <p>Customize your learning experience</p>
-              </div>
-            </div>
-
-            <div className="settings-form-grid">
-
-              <div className="settings-field">
-                <label>Language</label>
-
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                >
-                  <option>English</option>
-                  <option>Telugu</option>
-                  <option>Hindi</option>
-                </select>
-              </div>
-
-              <div className="settings-field">
-                <label>Theme</label>
-
-                <select
-                  value={theme}
-                  onChange={(e) => setTheme(e.target.value)}
-                >
-                  <option>Light</option>
-                  <option>Dark</option>
-                  <option>System Default</option>
-                </select>
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* Save */}
-          <div className="settings-actions">
-
-            <button
-              className="settings-save-button"
-              onClick={handleSave}
-            >
-              Save Changes
-            </button>
-
-          </div>
-
-        </section>
-
-        {/* Footer */}
-        <footer className="settings-footer">
-
-          <p>
-            © 2026 LearnHub. All rights reserved.
-          </p>
-
-          <div>
-            <Link to="/help">Help Center</Link>
-            <Link to="/profile">Profile</Link>
-          </div>
-
-        </footer>
-
-      </main>
-
-    </div>
+      </footer>
+    </StudentLayout>
   );
 }
 

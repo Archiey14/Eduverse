@@ -4,6 +4,25 @@ import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateToken } from "../utils/token.js";
 
+// One shape for every response that returns the logged-in user, so the
+// frontend never loses a field (e.g. createdAt) when it swaps the user object.
+const userPayload = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  roles: user.roles,
+  avatarUrl: user.avatarUrl,
+  mentorProfile: user.mentorProfile,
+  createdAt: user.createdAt,
+});
+
+// Older accounts may not have a mentorProfile sub-document yet.
+const ensureMentorProfile = (user) => {
+  if (!user.mentorProfile) {
+    user.mentorProfile = { headline: "", bio: "", expertise: [] };
+  }
+};
+
 export const register = asyncHandler(async (req, res, next) => {
   const { name, email, password } = req.body;
 
@@ -39,14 +58,7 @@ export const register = asyncHandler(async (req, res, next) => {
     success: true,
     message: "Registration successful",
     token,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      roles: user.roles,
-      avatarUrl: user.avatarUrl,
-      mentorProfile: user.mentorProfile,
-    },
+    user: userPayload(user),
   });
 });
 
@@ -77,29 +89,14 @@ export const login = asyncHandler(async (req, res, next) => {
     success: true,
     message: "Login successful",
     token,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      roles: user.roles,
-      avatarUrl: user.avatarUrl,
-      mentorProfile: user.mentorProfile,
-    },
+    user: userPayload(user),
   });
 });
 
 export const getMe = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
-    user: {
-      id: req.user._id,
-      name: req.user.name,
-      email: req.user.email,
-      roles: req.user.roles,
-      avatarUrl: req.user.avatarUrl,
-      mentorProfile: req.user.mentorProfile,
-      createdAt: req.user.createdAt,
-    },
+    user: userPayload(req.user),
   });
 });
 
@@ -111,9 +108,7 @@ export const becomeMentor = asyncHandler(async (req, res, next) => {
     user.roles.push("mentor");
   }
 
-  if (!user.mentorProfile) {
-    user.mentorProfile = { headline: "", bio: "", expertise: [] };
-  }
+  ensureMentorProfile(user);
 
   if (headline !== undefined) user.mentorProfile.headline = headline;
   if (bio !== undefined) user.mentorProfile.bio = bio;
@@ -124,14 +119,7 @@ export const becomeMentor = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Mentor profile activated successfully",
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      roles: user.roles,
-      avatarUrl: user.avatarUrl,
-      mentorProfile: user.mentorProfile,
-    },
+    user: userPayload(user),
   });
 });
 
@@ -139,25 +127,27 @@ export const updateMe = asyncHandler(async (req, res, next) => {
   const { name, avatarUrl, headline, bio, expertise } = req.body;
   const user = await User.findById(req.user._id);
 
-  if (name) user.name = name.trim();
+  if (name !== undefined) {
+    if (typeof name !== "string" || !name.trim()) {
+      return next(new AppError(400, "Name cannot be empty."));
+    }
+    user.name = name.trim();
+  }
   if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
-  if (headline !== undefined) user.mentorProfile.headline = headline;
-  if (bio !== undefined) user.mentorProfile.bio = bio;
-  if (Array.isArray(expertise)) user.mentorProfile.expertise = expertise;
+
+  if (headline !== undefined || bio !== undefined || expertise !== undefined) {
+    ensureMentorProfile(user);
+    if (headline !== undefined) user.mentorProfile.headline = headline;
+    if (bio !== undefined) user.mentorProfile.bio = bio;
+    if (Array.isArray(expertise)) user.mentorProfile.expertise = expertise;
+  }
 
   await user.save();
 
   res.status(200).json({
     success: true,
     message: "Profile updated successfully",
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      roles: user.roles,
-      avatarUrl: user.avatarUrl,
-      mentorProfile: user.mentorProfile,
-    },
+    user: userPayload(user),
   });
 });
 
@@ -177,6 +167,16 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
   }
 
   const user = await User.findById(req.user._id).select("+passwordHash");
+
+  // Google-only accounts have no password to change
+  if (!user.passwordHash) {
+    return next(
+      new AppError(
+        400,
+        "This account signs in with Google and has no password to change."
+      )
+    );
+  }
 
   if (!(await user.matchPassword(currentPassword))) {
     return next(new AppError(401, "Current password is incorrect."));
@@ -239,14 +239,6 @@ export const googleAuth = asyncHandler(async (req, res, next) => {
     success: true,
     message: "Google sign-in successful",
     token,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      roles: user.roles,
-      avatarUrl: user.avatarUrl,
-      mentorProfile: user.mentorProfile,
-    },
+    user: userPayload(user),
   });
 });
-

@@ -1,13 +1,18 @@
 
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api, getErrorMessage } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
 function InstructorLogin() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+
+  // Page the instructor originally wanted (set by ProtectedRoute)
+  const redirectTo =
+    (location.state as { from?: string } | null)?.from || "/instructor/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -68,7 +73,7 @@ function InstructorLogin() {
         login(response.token, response.user, rememberMe);
 
         // Send instructor to instructor dashboard
-        navigate("/instructor/dashboard", { replace: true });
+        navigate(redirectTo, { replace: true });
       } else {
         setError(response.message || "Failed to log in.");
       }

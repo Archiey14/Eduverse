@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   getMentorDashboard,
+  getMentorAnalytics,
   createDraftCourse,
   getMyCourses,
   getMyCourseById,
@@ -40,6 +41,7 @@ router.use(protect, requireRole("mentor", "admin"));
 
 // Dashboard & Course overview
 router.get("/dashboard", getMentorDashboard);
+router.get("/analytics", getMentorAnalytics);
 router.post("/courses", createDraftCourse);
 router.get("/courses", getMyCourses);
 router.get("/courses/:id", loadOwnedCourse, getMyCourseById);

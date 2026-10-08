@@ -1,465 +1,293 @@
-
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { api, getErrorMessage } from "../services/api";
+import StudentLayout from "../components/StudentLayout";
+import { Loading, Notice } from "../components/Notice";
+import { formatDuration, PRICE_LABEL } from "../utils/format";
 import "./Wishlist.css";
 
-interface WishlistCourse {
-  id: number;
-  title: string;
-  instructor: string;
-  category: string;
-  level: string;
-  duration: string;
-  lessons: number;
-  rating: number;
-  students: number;
-  price: number;
-  originalPrice: number;
-  imageClass: string;
-  icon: string;
-  description: string;
-}
-
-const wishlistCourses: WishlistCourse[] = [
-  {
-    id: 1,
-    title: "React & TypeScript Development",
-    instructor: "Alex Johnson",
-    category: "Web Development",
-    level: "Intermediate",
-    duration: "12 hours",
-    lessons: 48,
-    rating: 4.9,
-    students: 12450,
-    price: 49,
-    originalPrice: 89,
-    imageClass: "wishlist-react",
-    icon: "⚛️",
-    description:
-      "Build modern, scalable web applications using React and TypeScript.",
-  },
-  {
-    id: 3,
-    title: "Python Programming Masterclass",
-    instructor: "Sarah Williams",
-    category: "Programming",
-    level: "Beginner",
-    duration: "18 hours",
-    lessons: 72,
-    rating: 4.8,
-    students: 18920,
-    price: 59,
-    originalPrice: 99,
-    imageClass: "wishlist-python",
-    icon: "🐍",
-    description:
-      "Learn Python from the basics and build real-world applications.",
-  },
-  {
-    id: 5,
-    title: "Node.js & Express Backend Development",
-    instructor: "Michael Brown",
-    category: "Backend Development",
-    level: "Intermediate",
-    duration: "14 hours",
-    lessons: 55,
-    rating: 4.7,
-    students: 9870,
-    price: 54,
-    originalPrice: 94,
-    imageClass: "wishlist-node",
-    icon: "🟢",
-    description:
-      "Create powerful backend applications and REST APIs with Node.js.",
-  },
-  {
-    id: 7,
-    title: "Data Structures & Algorithms",
-    instructor: "David Wilson",
-    category: "Computer Science",
-    level: "Advanced",
-    duration: "20 hours",
-    lessons: 85,
-    rating: 4.9,
-    students: 7650,
-    price: 64,
-    originalPrice: 109,
-    imageClass: "wishlist-dsa",
-    icon: "🧠",
-    description:
-      "Master important data structures and algorithms for technical interviews.",
-  },
+const IMAGE_CLASSES = [
+  "wishlist-react",
+  "wishlist-python",
+  "wishlist-node",
+  "wishlist-dsa",
 ];
+const ICONS = ["⚛️", "🐍", "🟢", "🧠"];
 
 function Wishlist() {
-  const { user } = useAuth();
+  const [courses, setCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("All");
-  const [courses, setCourses] = useState(wishlistCourses);
-  const displayName = user?.name || "Student";
-  const initials = displayName
-    .split(" ")
-    .map((part) => part.charAt(0))
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
-  const categories = [
-    "All",
-    ...Array.from(new Set(wishlistCourses.map((course) => course.category))),
-  ];
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await api.wishlist.getAll();
+      setCourses(res.data || []);
+    } catch (err) {
+      setError(getErrorMessage(err, "Could not load your wishlist."));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const categories = useMemo(
+    () => [
+      "All",
+      ...Array.from(
+        new Set(courses.map((c) => c.category?.name).filter(Boolean))
+      ),
+    ],
+    [courses]
+  ) as string[];
 
   const filteredCourses = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
     return courses.filter((course) => {
       const matchesSearch =
-        course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        course.instructor.toLowerCase().includes(searchQuery.toLowerCase());
-
+        !query ||
+        (course.title || "").toLowerCase().includes(query) ||
+        (course.mentor?.name || "").toLowerCase().includes(query);
       const matchesCategory =
-        category === "All" || course.category === category;
-
+        category === "All" || course.category?.name === category;
       return matchesSearch && matchesCategory;
     });
   }, [courses, searchQuery, category]);
 
-  const removeFromWishlist = (id: number) => {
-    setCourses((currentCourses) =>
-      currentCourses.filter((course) => course.id !== id)
-    );
+  const removeFromWishlist = async (courseId: string) => {
+    setError("");
+    const previous = courses;
+    setCourses((current) => current.filter((c) => c._id !== courseId));
+    try {
+      await api.wishlist.remove(courseId);
+    } catch (err) {
+      setCourses(previous);
+      setError(getErrorMessage(err, "Could not remove this course."));
+    }
   };
 
-  
+  const rated = courses.filter((c) => (c.stats?.ratingCount || 0) > 0);
+  const averageRating =
+    rated.length > 0
+      ? (
+          rated.reduce((sum, c) => sum + (c.stats?.ratingAvg || 0), 0) /
+          rated.length
+        ).toFixed(1)
+      : "—";
+  const totalLessons = courses.reduce(
+    (sum, c) => sum + (c.stats?.lessonCount || 0),
+    0
+  );
 
   return (
-    <div className="wishlist-page">
-      {/* Sidebar */}
-      <aside className="wishlist-sidebar">
-        <div className="wishlist-brand">
-          <div className="wishlist-brand-icon">L</div>
-          <span>LearnHub</span>
-        </div>
-
-        <nav className="wishlist-navigation">
-          <p className="wishlist-nav-label">LEARNING</p>
-
-          <Link to="/student/dashboard" className="wishlist-nav-item">
-            <span>📊</span>
-            Dashboard
-          </Link>
-
-          <Link to="/courses" className="wishlist-nav-item">
-            <span>📚</span>
-            My Courses
-          </Link>
-
-          <Link to="/discover" className="wishlist-nav-item">
-            <span>🔍</span>
-            Discover
-          </Link>
-
-          <Link to="/quizzes" className="wishlist-nav-item">
-            <span>📝</span>
-            Quizzes
-          </Link>
-
-          <Link to="/progress" className="wishlist-nav-item">
-            <span>📈</span>
-            Progress
-          </Link>
-
-          <Link to="/activities" className="wishlist-nav-item">
-            <span>🕒</span>
-            Activities
-          </Link>
-
-          <Link to="/achievements" className="wishlist-nav-item">
-            <span>🏆</span>
-            Achievements
-          </Link>
-
-          <Link
-            to="/wishlist"
-            className="wishlist-nav-item wishlist-nav-active"
-          >
-            <span>❤️</span>
-            Wishlist
-          </Link>
-
-          <p className="wishlist-nav-label wishlist-account-label">
-            ACCOUNT
+    <StudentLayout
+      activeItem="wishlist"
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      searchPlaceholder="Search your wishlist..."
+    >
+      <section className="wishlist-header">
+        <div>
+          <span className="wishlist-eyebrow">YOUR COLLECTION</span>
+          <h1>My Wishlist ❤️</h1>
+          <p>
+            Keep track of courses you want to learn and come back to them
+            anytime.
           </p>
-
-          <Link to="/profile" className="wishlist-nav-item">
-            <span>👤</span>
-            Profile
-          </Link>
-
-          <Link to="/settings" className="wishlist-nav-item">
-            <span>⚙️</span>
-            Settings
-          </Link>
-        </nav>
-
-        <div className="wishlist-sidebar-bottom">
-          <div className="wishlist-help-card">
-            <div className="wishlist-help-icon">?</div>
-            <div>
-              <strong>Need help?</strong>
-              <p>We're here for you.</p>
-            </div>
-          </div>
-
-          <Link to="/login" className="wishlist-logout">
-            <span>↪</span>
-            Logout
-          </Link>
         </div>
-      </aside>
 
-      {/* Main Content */}
-      <main className="wishlist-main">
-        {/* Top Bar */}
-        <header className="wishlist-topbar">
-          <div className="wishlist-search">
-            <span>🔍</span>
-            <input
-              type="text"
-              placeholder="Search your wishlist..."
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-          </div>
+        <Link to="/courses" className="wishlist-browse-button">
+          Browse Courses
+          <span>→</span>
+        </Link>
+      </section>
 
-          <div className="wishlist-topbar-actions">
-            <button className="wishlist-icon-button" title="Help">
-              ?
-            </button>
+      {error && <Notice message={error} onRetry={load} />}
 
-            <button className="wishlist-icon-button notification-button">
-              🔔
-              <span className="notification-dot"></span>
-            </button>
-
-            <div className="wishlist-user">
-              <div className="wishlist-avatar">{initials || "S"}</div>
-              <div className="wishlist-user-info">
-                <strong>{displayName}</strong>
-                <span>Student</span>
+      {loading ? (
+        <Loading label="Loading your wishlist..." />
+      ) : (
+        <>
+          <section className="wishlist-stats">
+            <div className="wishlist-stat-card">
+              <div className="wishlist-stat-icon">❤️</div>
+              <div>
+                <span>Saved Courses</span>
+                <strong>{courses.length}</strong>
               </div>
             </div>
-          </div>
-        </header>
 
-        {/* Page Header */}
-        <section className="wishlist-header">
-          <div>
-            <span className="wishlist-eyebrow">YOUR COLLECTION</span>
-            <h1>My Wishlist ❤️</h1>
-            <p>
-              Keep track of courses you want to learn and come back to them
-              anytime.
-            </p>
-          </div>
-
-          <Link to="/courses" className="wishlist-browse-button">
-            Browse Courses
-            <span>→</span>
-          </Link>
-        </section>
-
-        {/* Stats */}
-        <section className="wishlist-stats">
-          <div className="wishlist-stat-card">
-            <div className="wishlist-stat-icon">❤️</div>
-            <div>
-              <span>Saved Courses</span>
-              <strong>{courses.length}</strong>
+            <div className="wishlist-stat-card">
+              <div className="wishlist-stat-icon">📚</div>
+              <div>
+                <span>Categories</span>
+                <strong>{categories.length - 1}</strong>
+              </div>
             </div>
-          </div>
 
-          <div className="wishlist-stat-card">
-            <div className="wishlist-stat-icon">📚</div>
-            <div>
-              <span>Categories</span>
-              <strong>{categories.length - 1}</strong>
+            <div className="wishlist-stat-card">
+              <div className="wishlist-stat-icon">⭐</div>
+              <div>
+                <span>Average Rating</span>
+                <strong>{averageRating}</strong>
+              </div>
             </div>
-          </div>
 
-          <div className="wishlist-stat-card">
-            <div className="wishlist-stat-icon">⭐</div>
-            <div>
-              <span>Average Rating</span>
-              <strong>
-                {courses.length
-                  ? (
-                      courses.reduce((sum, course) => sum + course.rating, 0) /
-                      courses.length
-                    ).toFixed(1)
-                  : "0.0"}
-              </strong>
+            <div className="wishlist-stat-card">
+              <div className="wishlist-stat-icon">📖</div>
+              <div>
+                <span>Total Lessons</span>
+                <strong>{totalLessons}</strong>
+              </div>
             </div>
-          </div>
+          </section>
 
-          <div className="wishlist-stat-card">
-            <div className="wishlist-stat-icon">💰</div>
-            <div>
-              <span>Potential Savings</span>
-              <strong>
-                $
-                {courses.reduce(
-                  (sum, course) => sum + (course.originalPrice - course.price),
-                  0
-                )}
-              </strong>
-            </div>
-          </div>
-        </section>
+          {courses.length > 0 && (
+            <section className="wishlist-toolbar">
+              <div className="wishlist-results">
+                <strong>{filteredCourses.length}</strong>{" "}
+                {filteredCourses.length === 1 ? "course" : "courses"} saved
+              </div>
 
-        {/* Filters */}
-        <section className="wishlist-toolbar">
-          <div className="wishlist-results">
-            <strong>{filteredCourses.length}</strong>{" "}
-            {filteredCourses.length === 1 ? "course" : "courses"} saved
-          </div>
-
-          <div className="wishlist-categories">
-            {categories.map((item) => (
-              <button
-                key={item}
-                className={
-                  category === item
-                    ? "wishlist-category active"
-                    : "wishlist-category"
-                }
-                onClick={() => setCategory(item)}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* Course Grid */}
-        {filteredCourses.length > 0 ? (
-          <section className="wishlist-grid">
-            {filteredCourses.map((course) => (
-              <article className="wishlist-course-card" key={course.id}>
-                <div className={`wishlist-course-image ${course.imageClass}`}>
-                  <span className="wishlist-course-icon">{course.icon}</span>
-
+              <div className="wishlist-categories">
+                {categories.map((item) => (
                   <button
-                    className="wishlist-remove-button"
-                    onClick={() => removeFromWishlist(course.id)}
-                    title="Remove from wishlist"
+                    key={item}
+                    type="button"
+                    className={
+                      category === item
+                        ? "wishlist-category active"
+                        : "wishlist-category"
+                    }
+                    onClick={() => setCategory(item)}
                   >
-                    ♥
+                    {item}
                   </button>
+                ))}
+              </div>
+            </section>
+          )}
 
-                  <span className="wishlist-saved-label">Saved</span>
-                </div>
+          {filteredCourses.length > 0 ? (
+            <section className="wishlist-grid">
+              {filteredCourses.map((course, index) => {
+                const stats = course.stats || {};
+                const hasRatings = (stats.ratingCount || 0) > 0;
 
-                <div className="wishlist-course-content">
-                  <div className="wishlist-course-meta">
-                    <span>{course.category}</span>
-                    <span>{course.level}</span>
-                  </div>
+                return (
+                  <article className="wishlist-course-card" key={course._id}>
+                    <div
+                      className={`wishlist-course-image ${
+                        IMAGE_CLASSES[index % IMAGE_CLASSES.length]
+                      }`}
+                    >
+                      <span className="wishlist-course-icon">
+                        {ICONS[index % ICONS.length]}
+                      </span>
 
-                  <Link
-                    to={`/courses/${course.id}`}
-                    className="wishlist-course-title"
-                  >
-                    {course.title}
-                  </Link>
+                      <button
+                        type="button"
+                        className="wishlist-remove-button"
+                        onClick={() => removeFromWishlist(course._id)}
+                        title="Remove from wishlist"
+                        aria-label={`Remove ${course.title} from wishlist`}
+                      >
+                        ♥
+                      </button>
 
-                  <p className="wishlist-course-description">
-                    {course.description}
-                  </p>
-
-                  <p className="wishlist-instructor">
-                    By <strong>{course.instructor}</strong>
-                  </p>
-
-                  <div className="wishlist-course-rating">
-                    <strong>{course.rating}</strong>
-                    <span className="stars">★★★★★</span>
-                    <span>({course.students.toLocaleString()})</span>
-                  </div>
-
-                  <div className="wishlist-course-details">
-                    <span>⏱ {course.duration}</span>
-                    <span>📖 {course.lessons} lessons</span>
-                  </div>
-
-                  <div className="wishlist-course-footer">
-                    <div className="wishlist-price">
-                      <strong>${course.price}</strong>
-                      <del>${course.originalPrice}</del>
+                      <span className="wishlist-saved-label">Saved</span>
                     </div>
 
-                    <Link
-                      to={`/courses/${course.id}`}
-                      className="wishlist-view-button"
-                    >
-                      View Course
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </section>
-        ) : (
-          <section className="wishlist-empty">
-            <div className="wishlist-empty-icon">💔</div>
-            <h2>Your wishlist is empty</h2>
-            <p>
-              {searchQuery
-                ? "No saved courses match your search."
-                : "Start exploring courses and save the ones you want to learn later."}
-            </p>
-            <Link to="/courses" className="wishlist-empty-button">
-              Explore Courses
-            </Link>
-          </section>
-        )}
+                    <div className="wishlist-course-content">
+                      <div className="wishlist-course-meta">
+                        <span>{course.category?.name || "Uncategorised"}</span>
+                        <span>
+                          {course.level
+                            ? course.level.charAt(0).toUpperCase() +
+                              course.level.slice(1)
+                            : "Beginner"}
+                        </span>
+                      </div>
 
-        {/* Motivation Section */}
-        <section className="wishlist-motivation">
-          <div className="wishlist-motivation-icon">🎯</div>
+                      <Link
+                        to={`/courses/${course.slug || course._id}`}
+                        className="wishlist-course-title"
+                      >
+                        {course.title}
+                      </Link>
 
-          <div className="wishlist-motivation-content">
-            <span>KEEP LEARNING</span>
-            <h2>Turn your wishlist into progress.</h2>
-            <p>
-              Pick a course from your wishlist and take the next step toward
-              your learning goals.
-            </p>
-          </div>
+                      {course.subtitle && (
+                        <p className="wishlist-course-description">
+                          {course.subtitle}
+                        </p>
+                      )}
 
-          <Link to="/courses" className="wishlist-motivation-button">
-            Find Your Next Course
-            <span>→</span>
-          </Link>
-        </section>
+                      <p className="wishlist-instructor">
+                        By <strong>{course.mentor?.name || "Instructor"}</strong>
+                      </p>
 
-        {/* Footer */}
-        <footer className="wishlist-footer">
-          <div>
-            <strong>LearnHub</strong>
-            <span>Learn. Grow. Succeed.</span>
-          </div>
+                      <div className="wishlist-course-rating">
+                        {hasRatings ? (
+                          <>
+                            <strong>{stats.ratingAvg}</strong>
+                            <span className="stars">★★★★★</span>
+                            <span>({stats.ratingCount})</span>
+                          </>
+                        ) : (
+                          <strong>New</strong>
+                        )}
+                      </div>
 
-          <div className="wishlist-footer-links">
-            <Link to="/courses">Courses</Link>
-            <Link to="/discover">Discover</Link>
-            <Link to="/progress">Progress</Link>
-            <Link to="/profile">Profile</Link>
-          </div>
+                      <div className="wishlist-course-details">
+                        <span>⏱ {formatDuration(stats.totalDurationMin)}</span>
+                        <span>📖 {stats.lessonCount || 0} lessons</span>
+                      </div>
 
-          <p>© 2026 LearnHub. All rights reserved.</p>
-        </footer>
-      </main>
-    </div>
+                      <div className="wishlist-course-footer">
+                        <div className="wishlist-price">
+                          <strong>{PRICE_LABEL}</strong>
+                        </div>
+
+                        <Link
+                          to={`/courses/${course.slug || course._id}`}
+                          className="wishlist-view-button"
+                        >
+                          View Course
+                        </Link>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </section>
+          ) : (
+            <section className="wishlist-empty">
+              <div className="wishlist-empty-icon">💔</div>
+              <h2>
+                {courses.length === 0
+                  ? "Your wishlist is empty"
+                  : "No saved courses match"}
+              </h2>
+              <p>
+                {courses.length === 0
+                  ? "Tap the heart on any course to save it here for later."
+                  : "Try a different search or category."}
+              </p>
+              <Link to="/courses" className="wishlist-empty-button">
+                Explore Courses
+              </Link>
+            </section>
+          )}
+        </>
+      )}
+    </StudentLayout>
   );
 }
 

@@ -53,6 +53,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    wishlist: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Course",
+      },
+    ],
     isActive: {
       type: Boolean,
       default: true,

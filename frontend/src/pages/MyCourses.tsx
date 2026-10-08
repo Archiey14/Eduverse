@@ -14,13 +14,17 @@ function MyCourses() {
       try {
         const dashRes = await api.dashboard.getStudentDashboard();
         if (dashRes.data) {
-          const rawEnrolled = dashRes.data.activeEnrollments || [];
+          const rawEnrolled = [
+            ...(dashRes.data.activeEnrollments || []),
+            ...(dashRes.data.completedEnrollments || []),
+          ];
           const mapped = rawEnrolled.map((enr: any, idx: number) => ({
             id: enr.course?._id || enr._id,
-            category: (enr.course?.category?.name || "Web Development").toUpperCase(),
+            category: (enr.course?.category?.name || "Uncategorised").toUpperCase(),
             title: enr.course?.title || "Course",
-            instructor: enr.course?.mentor?.name || "Lead Instructor",
+            instructor: enr.course?.mentor?.name || "Instructor",
             progress: enr.progressPercent || 0,
+            completed: enr.status === "completed",
             icon: idx % 2 === 0 ? "💻" : "🐍",
             colorClass:
               idx % 3 === 0
@@ -61,7 +65,10 @@ function MyCourses() {
                   {course.icon}
                 </div>
                 <div className="active-course-info">
-                  <span className="course-category">{course.category}</span>
+                  <span className="course-category">
+                    {course.category}
+                    {course.completed ? " · COMPLETED" : ""}
+                  </span>
                   <h4>{course.title}</h4>
                   <p>{course.instructor}</p>
 
@@ -77,7 +84,7 @@ function MyCourses() {
 
                   <div className="course-card-actions">
                     <Link to={`/learn/${course.id}`} className="continue-button">
-                      Continue Learning →
+                      {course.completed ? "Review Course →" : "Continue Learning →"}
                     </Link>
                   </div>
                 </div>

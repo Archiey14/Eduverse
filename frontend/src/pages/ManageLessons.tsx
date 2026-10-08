@@ -1,1008 +1,349 @@
+import { useCallback, useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { api, getErrorMessage } from "../services/api";
+import InstructorLayout from "../components/InstructorLayout";
 
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import "./ManageLessons.css";
-
-interface Lesson {
-  id: number;
-  title: string;
-  description: string;
-  duration: string;
-  type: "Video" | "Article" | "Quiz";
-  status: "Published" | "Draft";
-}
-
-interface Course {
-  id: number;
-  title: string;
-  category: string;
-  lessons: Lesson[];
-}
-
-const initialCourses: Course[] = [
-  {
-    id: 1,
-    title: "Complete React & TypeScript",
-    category: "Web Development",
-    lessons: [
-      {
-        id: 1,
-        title: "Introduction to React",
-        description:
-          "Learn the basics of React and understand how React applications work.",
-        duration: "18 min",
-        type: "Video",
-        status: "Published",
-      },
-      {
-        id: 2,
-        title: "Components and Props",
-        description:
-          "Understand reusable components and how to pass data using props.",
-        duration: "24 min",
-        type: "Video",
-        status: "Published",
-      },
-      {
-        id: 3,
-        title: "Working with State",
-        description:
-          "Learn how to manage component state using React hooks.",
-        duration: "30 min",
-        type: "Video",
-        status: "Published",
-      },
-      {
-        id: 4,
-        title: "TypeScript Fundamentals",
-        description:
-          "Learn TypeScript types, interfaces and how they work with React.",
-        duration: "35 min",
-        type: "Article",
-        status: "Published",
-      },
-      {
-        id: 5,
-        title: "Building Your First Project",
-        description:
-          "Build a complete React and TypeScript application.",
-        duration: "45 min",
-        type: "Video",
-        status: "Draft",
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: "JavaScript Fundamentals",
-    category: "Programming",
-    lessons: [
-      {
-        id: 1,
-        title: "JavaScript Introduction",
-        description:
-          "Introduction to JavaScript programming.",
-        duration: "20 min",
-        type: "Video",
-        status: "Published",
-      },
-      {
-        id: 2,
-        title: "Variables and Data Types",
-        description:
-          "Understand variables, strings, numbers and other data types.",
-        duration: "25 min",
-        type: "Video",
-        status: "Published",
-      },
-      {
-        id: 3,
-        title: "Functions",
-        description:
-          "Learn how to create and use JavaScript functions.",
-        duration: "28 min",
-        type: "Article",
-        status: "Draft",
-      },
-    ],
-  },
-  {
-    id: 3,
-    title: "Modern CSS Masterclass",
-    category: "Web Design",
-    lessons: [
-      {
-        id: 1,
-        title: "CSS Fundamentals",
-        description:
-          "Learn the core concepts of modern CSS.",
-        duration: "22 min",
-        type: "Video",
-        status: "Published",
-      },
-      {
-        id: 2,
-        title: "Flexbox Layout",
-        description:
-          "Build flexible layouts using CSS Flexbox.",
-        duration: "26 min",
-        type: "Video",
-        status: "Published",
-      },
-      {
-        id: 3,
-        title: "CSS Grid",
-        description:
-          "Create powerful page layouts using CSS Grid.",
-        duration: "32 min",
-        type: "Video",
-        status: "Published",
-      },
-    ],
-  },
-];
+const emptyLesson = {
+  title: "",
+  type: "video",
+  videoUrl: "",
+  content: "",
+  durationMin: "10",
+};
 
 function ManageLessons() {
-  const navigate = useNavigate();
-  const { logout } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [courses, setCourses] =
-    useState<Course[]>(initialCourses);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
 
-  const [selectedCourseId, setSelectedCourseId] =
-    useState<number>(1);
+  const [course, setCourse] = useState<any>(null);
+  const [courseLoading, setCourseLoading] = useState(false);
 
-  const [showProfileMenu, setShowProfileMenu] =
-    useState(false);
+  const [addingTo, setAddingTo] = useState("");
+  const [form, setForm] = useState(emptyLesson);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [showLessonForm, setShowLessonForm] =
-    useState(false);
+  const requested = searchParams.get("course");
+  const selectedId: string | null =
+    courses.find((c) => c._id === requested)?._id || courses[0]?._id || null;
 
-  const [editingLessonId, setEditingLessonId] =
-    useState<number | null>(null);
+  useEffect(() => {
+    api.mentor
+      .getMyCourses({ limit: 50 })
+      .then((res) => setCourses(res.data || []))
+      .catch((err) => setError(getErrorMessage(err, "Could not load your courses.")))
+      .finally(() => setCoursesLoading(false));
+  }, []);
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] =
-    useState("");
-  const [duration, setDuration] = useState("");
-  const [type, setType] =
-    useState<Lesson["type"]>("Video");
-  const [status, setStatus] =
-    useState<Lesson["status"]>("Draft");
+  const loadCourse = useCallback(async (courseId: string) => {
+    setCourseLoading(true);
+    try {
+      const res = await api.mentor.getCourse(courseId);
+      setCourse(res.data);
+    } catch (err) {
+      setError(getErrorMessage(err, "Could not load this course."));
+    } finally {
+      setCourseLoading(false);
+    }
+  }, []);
 
-  const selectedCourse = courses.find(
-    (course) => course.id === selectedCourseId
-  );
+  useEffect(() => {
+    if (selectedId) loadCourse(selectedId);
+  }, [selectedId, loadCourse]);
 
-  const lessons = selectedCourse?.lessons ?? [];
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
+  const flash = (type: "error" | "success", text: string) => {
+    setError(type === "error" ? text : "");
+    setSuccess(type === "success" ? text : "");
   };
 
-  const resetLessonForm = () => {
-    setTitle("");
-    setDescription("");
-    setDuration("");
-    setType("Video");
-    setStatus("Draft");
-    setEditingLessonId(null);
-  };
+  const sections: any[] = course?.sections || [];
+  const lessons: any[] = course?.lessons || [];
+  const publishedCount = lessons.filter((l) => l.isPublished).length;
+  const totalMinutes = lessons.reduce((sum, l) => sum + (l.durationMin || 0), 0);
 
-  const handleAddLesson = () => {
-    resetLessonForm();
-    setShowLessonForm(true);
-  };
+  const handleAdd = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!selectedId || !addingTo) return;
 
-  const handleEditLesson = (lesson: Lesson) => {
-    setTitle(lesson.title);
-    setDescription(lesson.description);
-    setDuration(lesson.duration);
-    setType(lesson.type);
-    setStatus(lesson.status);
-    setEditingLessonId(lesson.id);
-    setShowLessonForm(true);
-  };
-
-  const handleCancelForm = () => {
-    resetLessonForm();
-    setShowLessonForm(false);
-  };
-
-  const handleSaveLesson = () => {
-    if (!title.trim() || !description.trim()) {
-      alert(
-        "Please enter both the lesson title and description."
-      );
+    if (!form.title.trim()) {
+      flash("error", "Lesson title is required.");
       return;
     }
 
-    if (!selectedCourse) {
-      return;
+    setBusy(true);
+    try {
+      await api.mentor.addLesson(selectedId, {
+        sectionId: addingTo,
+        title: form.title.trim(),
+        type: form.type,
+        videoUrl: form.videoUrl.trim(),
+        content: form.content,
+        durationMin: Number(form.durationMin) || 0,
+      });
+      setForm(emptyLesson);
+      setAddingTo("");
+      await loadCourse(selectedId);
+      flash("success", "Lesson added.");
+    } catch (err) {
+      flash("error", getErrorMessage(err, "Could not add the lesson."));
+    } finally {
+      setBusy(false);
     }
-
-    if (editingLessonId !== null) {
-      setCourses((currentCourses) =>
-        currentCourses.map((course) => {
-          if (course.id !== selectedCourseId) {
-            return course;
-          }
-
-          return {
-            ...course,
-            lessons: course.lessons.map((lesson) =>
-              lesson.id === editingLessonId
-                ? {
-                    ...lesson,
-                    title,
-                    description,
-                    duration:
-                      duration || "10 min",
-                    type,
-                    status,
-                  }
-                : lesson
-            ),
-          };
-        })
-      );
-
-      alert("Lesson updated successfully.");
-    } else {
-      const newLesson: Lesson = {
-        id: Date.now(),
-        title,
-        description,
-        duration: duration || "10 min",
-        type,
-        status,
-      };
-
-      setCourses((currentCourses) =>
-        currentCourses.map((course) =>
-          course.id === selectedCourseId
-            ? {
-                ...course,
-                lessons: [
-                  ...course.lessons,
-                  newLesson,
-                ],
-              }
-            : course
-        )
-      );
-
-      alert("Lesson added successfully.");
-    }
-
-    handleCancelForm();
   };
 
-  const handleDeleteLesson = (lessonId: number) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this lesson?"
-    );
-
-    if (!confirmed) {
-      return;
+  const togglePublished = async (lesson: any) => {
+    if (!selectedId) return;
+    try {
+      await api.mentor.updateLesson(lesson._id, { isPublished: !lesson.isPublished });
+      await loadCourse(selectedId);
+      flash("success", lesson.isPublished ? "Lesson moved to draft." : "Lesson published.");
+    } catch (err) {
+      flash("error", getErrorMessage(err, "Could not update the lesson."));
     }
+  };
 
-    setCourses((currentCourses) =>
-      currentCourses.map((course) =>
-        course.id === selectedCourseId
-          ? {
-              ...course,
-              lessons: course.lessons.filter(
-                (lesson) => lesson.id !== lessonId
-              ),
-            }
-          : course
-      )
-    );
-
-    alert("Lesson deleted successfully.");
+  const handleDelete = async (lesson: any) => {
+    if (!selectedId) return;
+    if (!window.confirm(`Delete "${lesson.title}"?`)) return;
+    try {
+      await api.mentor.deleteLesson(lesson._id);
+      await loadCourse(selectedId);
+      flash("success", "Lesson deleted.");
+    } catch (err) {
+      flash("error", getErrorMessage(err, "Could not delete the lesson."));
+    }
   };
 
   return (
-    <div className="manage-lessons-page">
-      {/* Sidebar */}
-      <aside className="instructor-sidebar">
-        <div className="instructor-brand">
-          <div className="instructor-brand-icon">
-            L
-          </div>
-
-          <div className="instructor-brand-text">
-            <span className="instructor-brand-title">
-              LearnHub
-            </span>
-
-            <span className="instructor-brand-subtitle">
-              Instructor Portal
-            </span>
-          </div>
+    <InstructorLayout active="lessons" title="Manage Lessons">
+      <div className="il-page-header">
+        <div>
+          <span className="il-eyebrow">COURSE MANAGEMENT</span>
+          <h1>Manage Lessons</h1>
+          <p>Add, publish and remove the lessons inside your courses.</p>
         </div>
 
-        <nav className="instructor-navigation">
-          <div className="instructor-nav-section">
-            <span className="instructor-nav-label">
-              MAIN
-            </span>
-
-            <Link
-              to="/instructor/dashboard"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">
-                📊
-              </span>
-              <span>Dashboard</span>
-            </Link>
-
-            <Link
-              to="/instructor/courses"
-              className="instructor-nav-link active"
-            >
-              <span className="instructor-nav-icon">
-                📚
-              </span>
-              <span>My Courses</span>
-            </Link>
-
-            <Link
-              to="/instructor/courses/create"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">
-                ➕
-              </span>
-              <span>Create Course</span>
-            </Link>
-
-            <Link
-              to="/instructor/students"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">
-                👥
-              </span>
-              <span>My Students</span>
-            </Link>
-          </div>
-
-          <div className="instructor-nav-section">
-            <span className="instructor-nav-label">
-              MANAGEMENT
-            </span>
-
-            <Link
-              to="/instructor/quizzes"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">
-                📝
-              </span>
-              <span>Quizzes</span>
-            </Link>
-
-            <Link
-              to="/instructor/analytics"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">
-                📈
-              </span>
-              <span>Analytics</span>
-            </Link>
-
-            <Link
-              to="/instructor/reviews"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">
-                ⭐
-              </span>
-              <span>Reviews</span>
-            </Link>
-          </div>
-
-          <div className="instructor-nav-section">
-            <span className="instructor-nav-label">
-              ACCOUNT
-            </span>
-
-            <Link
-              to="/profile"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">
-                👤
-              </span>
-              <span>Profile</span>
-            </Link>
-
-            <Link
-              to="/settings"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">
-                ⚙️
-              </span>
-              <span>Settings</span>
-            </Link>
-
-            <Link
-              to="/help"
-              className="instructor-nav-link"
-            >
-              <span className="instructor-nav-icon">
-                ❓
-              </span>
-              <span>Help & Support</span>
-            </Link>
-          </div>
-        </nav>
-
-        <div className="instructor-sidebar-bottom">
-          <div className="instructor-support-card">
-            <div className="instructor-support-icon">
-              💬
-            </div>
-
-            <div>
-              <strong>Need Help?</strong>
-              <span>
-                Contact our support team
-              </span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="instructor-logout"
-            onClick={handleLogout}
+        {selectedId && (
+          <Link
+            to={`/instructor/courses/edit/${selectedId}`}
+            className="il-btn il-btn-outline"
           >
-            <span className="instructor-nav-icon">
-              🚪
-            </span>
+            Open full course editor →
+          </Link>
+        )}
+      </div>
 
-            <span>Logout</span>
-          </button>
+      {error && <div className="il-alert il-alert-error">{error}</div>}
+      {success && <div className="il-alert il-alert-success">{success}</div>}
+
+      {coursesLoading ? (
+        <div className="il-loading">Loading your courses...</div>
+      ) : courses.length === 0 ? (
+        <div className="il-card">
+          <div className="il-empty">
+            <span>📖</span>
+            <h3>No courses yet</h3>
+            <p>Create a course first, then add lessons to it.</p>
+            <Link to="/instructor/courses/create" className="il-btn">
+              Create a course
+            </Link>
+          </div>
         </div>
-      </aside>
-
-      {/* Main */}
-      <main className="manage-lessons-main">
-        {/* Topbar */}
-        <header className="manage-lessons-topbar">
-          <div className="manage-lessons-breadcrumb">
-            <Link to="/instructor/dashboard">
-              Instructor
-            </Link>
-
-            <span>/</span>
-
-            <Link to="/instructor/courses">
-              My Courses
-            </Link>
-
-            <span>/</span>
-
-            <strong>Manage Lessons</strong>
-          </div>
-
-          <div className="manage-lessons-topbar-right">
-            <button
-              type="button"
-              className="manage-lessons-notification"
-              onClick={() =>
-                navigate("/notifications")
-              }
-              aria-label="Notifications"
-            >
-              🔔
-              <span className="notification-dot"></span>
-            </button>
-
-            <div className="manage-lessons-profile-wrapper">
-              <button
-                type="button"
-                className="manage-lessons-profile-button"
-                onClick={() =>
-                  setShowProfileMenu(
-                    (previous) => !previous
-                  )
-                }
-              >
-                <div className="manage-lessons-avatar">
-                  AY
-                </div>
-
-                <div className="manage-lessons-user-info">
-                  <strong>Archie Yadav</strong>
-                  <span>Instructor</span>
-                </div>
-
-                <span>
-                  {showProfileMenu ? "▲" : "▼"}
-                </span>
-              </button>
-
-              {showProfileMenu && (
-                <div className="manage-lessons-profile-menu">
-                  <Link to="/profile">
-                    View Profile
-                  </Link>
-
-                  <Link to="/settings">
-                    Settings
-                  </Link>
-
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                  >
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-
-        {/* Content */}
-        <section className="manage-lessons-content">
-          <div className="manage-lessons-header">
-            <div>
-              <span className="manage-lessons-eyebrow">
-                COURSE MANAGEMENT
-              </span>
-
-              <h1>Manage Lessons</h1>
-
-              <p>
-                Organize and manage the lessons inside
-                your courses.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              className="add-lesson-button"
-              onClick={handleAddLesson}
-            >
-              + Add Lesson
-            </button>
-          </div>
-
-          {/* Course Selector */}
-          <section className="lesson-course-selector">
-            <div className="course-selector-left">
-              <div className="course-selector-icon">
-                📚
-              </div>
-
-              <div>
-                <span>Select Course</span>
-
-                <h2>
-                  {selectedCourse?.title}
-                </h2>
-
-                <p>
-                  {selectedCourse?.category}
-                </p>
-              </div>
-            </div>
-
+      ) : (
+        <>
+          <div className="il-toolbar">
             <select
-              value={selectedCourseId}
-              onChange={(event) => {
-                setSelectedCourseId(
-                  Number(event.target.value)
-                );
-                handleCancelForm();
+              className="il-select"
+              value={selectedId || ""}
+              onChange={(e) => {
+                setAddingTo("");
+                setSearchParams({ course: e.target.value });
               }}
-              className="course-selector-select"
+              aria-label="Select course"
             >
-              {courses.map((course) => (
-                <option
-                  key={course.id}
-                  value={course.id}
-                >
-                  {course.title}
+              {courses.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.title}
                 </option>
               ))}
             </select>
-          </section>
-
-          {/* Course Stats */}
-          <div className="lesson-stats">
-            <div className="lesson-stat-card">
-              <div className="lesson-stat-icon">
-                📚
-              </div>
-
-              <div>
-                <span>Total Lessons</span>
-                <strong>{lessons.length}</strong>
-              </div>
-            </div>
-
-            <div className="lesson-stat-card">
-              <div className="lesson-stat-icon">
-                ✅
-              </div>
-
-              <div>
-                <span>Published</span>
-
-                <strong>
-                  {
-                    lessons.filter(
-                      (lesson) =>
-                        lesson.status ===
-                        "Published"
-                    ).length
-                  }
-                </strong>
-              </div>
-            </div>
-
-            <div className="lesson-stat-card">
-              <div className="lesson-stat-icon">
-                📝
-              </div>
-
-              <div>
-                <span>Drafts</span>
-
-                <strong>
-                  {
-                    lessons.filter(
-                      (lesson) =>
-                        lesson.status === "Draft"
-                    ).length
-                  }
-                </strong>
-              </div>
-            </div>
-
-            <div className="lesson-stat-card">
-              <div className="lesson-stat-icon">
-                ⏱️
-              </div>
-
-              <div>
-                <span>Course Lessons</span>
-                <strong>{lessons.length}</strong>
-              </div>
-            </div>
           </div>
 
-          {/* Add/Edit Lesson Form */}
-          {showLessonForm && (
-            <section className="lesson-form-card">
-              <div className="lesson-form-header">
-                <div>
-                  <span className="lesson-form-eyebrow">
-                    {editingLessonId !== null
-                      ? "EDIT LESSON"
-                      : "NEW LESSON"}
-                  </span>
-
-                  <h2>
-                    {editingLessonId !== null
-                      ? "Edit Lesson"
-                      : "Add New Lesson"}
-                  </h2>
-                </div>
-
-                <button
-                  type="button"
-                  className="close-form-button"
-                  onClick={handleCancelForm}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="lesson-form-grid">
-                <div className="lesson-form-group full-width">
-                  <label htmlFor="lesson-title">
-                    Lesson Title *
-                  </label>
-
-                  <input
-                    id="lesson-title"
-                    type="text"
-                    placeholder="e.g. Introduction to React Hooks"
-                    value={title}
-                    onChange={(event) =>
-                      setTitle(event.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="lesson-form-group">
-                  <label htmlFor="lesson-type">
-                    Lesson Type
-                  </label>
-
-                  <select
-                    id="lesson-type"
-                    value={type}
-                    onChange={(event) =>
-                      setType(
-                        event.target
-                          .value as Lesson["type"]
-                      )
-                    }
-                  >
-                    <option value="Video">
-                      Video
-                    </option>
-
-                    <option value="Article">
-                      Article
-                    </option>
-
-                    <option value="Quiz">
-                      Quiz
-                    </option>
-                  </select>
-                </div>
-
-                <div className="lesson-form-group">
-                  <label htmlFor="lesson-duration">
-                    Duration
-                  </label>
-
-                  <input
-                    id="lesson-duration"
-                    type="text"
-                    placeholder="e.g. 25 min"
-                    value={duration}
-                    onChange={(event) =>
-                      setDuration(event.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="lesson-form-group full-width">
-                  <label htmlFor="lesson-description">
-                    Description *
-                  </label>
-
-                  <textarea
-                    id="lesson-description"
-                    rows={5}
-                    placeholder="Describe what students will learn in this lesson..."
-                    value={description}
-                    onChange={(event) =>
-                      setDescription(
-                        event.target.value
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="lesson-form-group">
-                  <label htmlFor="lesson-status">
-                    Status
-                  </label>
-
-                  <select
-                    id="lesson-status"
-                    value={status}
-                    onChange={(event) =>
-                      setStatus(
-                        event.target
-                          .value as Lesson["status"]
-                      )
-                    }
-                  >
-                    <option value="Draft">
-                      Draft
-                    </option>
-
-                    <option value="Published">
-                      Published
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="lesson-form-actions">
-                <button
-                  type="button"
-                  className="cancel-lesson-button"
-                  onClick={handleCancelForm}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  className="save-lesson-button"
-                  onClick={handleSaveLesson}
-                >
-                  {editingLessonId !== null
-                    ? "Save Changes"
-                    : "Add Lesson"}
-                </button>
-              </div>
-            </section>
-          )}
-
-          {/* Lessons */}
-          <section className="lessons-section">
-            <div className="lessons-section-header">
-              <div>
-                <h2>Course Lessons</h2>
-
-                <p>
-                  Manage the lessons for{" "}
-                  <strong>
-                    {selectedCourse?.title}
-                  </strong>
-                </p>
-              </div>
-
-              <span className="lesson-count">
-                {lessons.length}{" "}
-                {lessons.length === 1
-                  ? "Lesson"
-                  : "Lessons"}
-              </span>
+          <section className="il-stats">
+            <div className="il-stat">
+              <span>Total Lessons</span>
+              <strong>{lessons.length}</strong>
+              <small>In this course</small>
             </div>
+            <div className="il-stat">
+              <span>Published</span>
+              <strong>{publishedCount}</strong>
+              <small>Visible to students</small>
+            </div>
+            <div className="il-stat">
+              <span>Drafts</span>
+              <strong>{lessons.length - publishedCount}</strong>
+              <small>Hidden from students</small>
+            </div>
+            <div className="il-stat">
+              <span>Total Duration</span>
+              <strong>{totalMinutes}m</strong>
+              <small>Across all lessons</small>
+            </div>
+          </section>
 
-            {lessons.length > 0 ? (
-              <div className="lessons-list">
-                {lessons.map((lesson, index) => (
-                  <div
-                    className="lesson-item"
-                    key={lesson.id}
-                  >
-                    <div className="lesson-number">
-                      {index + 1}
-                    </div>
+          {courseLoading ? (
+            <div className="il-loading">Loading lessons...</div>
+          ) : sections.length === 0 ? (
+            <div className="il-card">
+              <div className="il-empty">
+                <span>🗂️</span>
+                <h3>No sections yet</h3>
+                <p>Add a section in the course editor, then come back to add lessons.</p>
+                <Link to={`/instructor/courses/edit/${selectedId}`} className="il-btn">
+                  Open course editor
+                </Link>
+              </div>
+            </div>
+          ) : (
+            sections.map((section) => {
+              const sectionLessons = lessons.filter(
+                (l) => String(l.sectionId) === String(section._id)
+              );
 
-                    <div className="lesson-type-icon">
-                      {lesson.type === "Video"
-                        ? "▶️"
-                        : lesson.type ===
-                          "Article"
-                        ? "📄"
-                        : "📝"}
-                    </div>
-
-                    <div className="lesson-details">
-                      <div className="lesson-title-row">
-                        <h3>{lesson.title}</h3>
-
-                        <span
-                          className={`lesson-status ${
-                            lesson.status ===
-                            "Published"
-                              ? "published"
-                              : "draft"
-                          }`}
-                        >
-                          {lesson.status}
-                        </span>
-                      </div>
-
-                      <p>
-                        {lesson.description}
+              return (
+                <section className="il-card" key={section._id}>
+                  <div className="il-page-header" style={{ marginBottom: 8 }}>
+                    <div>
+                      <h2>{section.title}</h2>
+                      <p className="il-card-sub" style={{ margin: 0 }}>
+                        {sectionLessons.length} lesson{sectionLessons.length === 1 ? "" : "s"}
                       </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="il-btn il-btn-outline il-btn-sm"
+                      onClick={() => {
+                        setAddingTo(addingTo === section._id ? "" : section._id);
+                        setForm(emptyLesson);
+                      }}
+                    >
+                      {addingTo === section._id ? "Cancel" : "＋ Add lesson"}
+                    </button>
+                  </div>
 
-                      <div className="lesson-meta">
-                        <span>
-                          {lesson.type}
+                  {sectionLessons.length === 0 && addingTo !== section._id && (
+                    <p className="il-card-sub">No lessons in this section yet.</p>
+                  )}
+
+                  {sectionLessons.map((lesson, index) => (
+                    <div className="il-list-item" key={lesson._id}>
+                      <div>
+                        <strong>
+                          {index + 1}. {lesson.type === "text" ? "📄" : "🎬"} {lesson.title}
+                        </strong>
+                        <small>
+                          {lesson.type} · {lesson.durationMin || 0} min
+                        </small>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <span
+                          className={`il-badge il-badge-${lesson.isPublished ? "published" : "draft"}`}
+                        >
+                          {lesson.isPublished ? "published" : "draft"}
                         </span>
-
-                        <span>•</span>
-
-                        <span>
-                          {lesson.duration}
-                        </span>
+                        <button
+                          type="button"
+                          className="il-btn il-btn-outline il-btn-sm"
+                          onClick={() => togglePublished(lesson)}
+                        >
+                          {lesson.isPublished ? "Unpublish" : "Publish"}
+                        </button>
+                        <button
+                          type="button"
+                          className="il-btn il-btn-danger il-btn-sm"
+                          onClick={() => handleDelete(lesson)}
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
+                  ))}
 
-                    <div className="lesson-actions">
-                      <button
-                        type="button"
-                        className="lesson-action-button edit"
-                        onClick={() =>
-                          handleEditLesson(
-                            lesson
-                          )
-                        }
-                        title="Edit lesson"
-                      >
-                        ✏️
+                  {addingTo === section._id && (
+                    <form onSubmit={handleAdd} style={{ marginTop: 18 }}>
+                      <div className="il-form-grid">
+                        <div className="il-field full">
+                          <label>Lesson title *</label>
+                          <input
+                            className="il-input"
+                            value={form.title}
+                            onChange={(e) => setForm({ ...form, title: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="il-field">
+                          <label>Type</label>
+                          <select
+                            className="il-select"
+                            value={form.type}
+                            onChange={(e) => setForm({ ...form, type: e.target.value })}
+                          >
+                            <option value="video">Video</option>
+                            <option value="text">Text</option>
+                          </select>
+                        </div>
+
+                        <div className="il-field">
+                          <label>Duration (minutes)</label>
+                          <input
+                            className="il-input"
+                            type="number"
+                            min="0"
+                            value={form.durationMin}
+                            onChange={(e) => setForm({ ...form, durationMin: e.target.value })}
+                          />
+                        </div>
+
+                        {form.type === "video" ? (
+                          <div className="il-field full">
+                            <label>Video URL</label>
+                            <input
+                              className="il-input"
+                              placeholder="https://www.youtube.com/embed/..."
+                              value={form.videoUrl}
+                              onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
+                            />
+                          </div>
+                        ) : (
+                          <div className="il-field full">
+                            <label>Lesson content</label>
+                            <textarea
+                              className="il-textarea"
+                              value={form.content}
+                              onChange={(e) => setForm({ ...form, content: e.target.value })}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <button type="submit" className="il-btn" disabled={busy}>
+                        {busy ? "Saving..." : "Save lesson"}
                       </button>
-
-                      <button
-                        type="button"
-                        className="lesson-action-button delete"
-                        onClick={() =>
-                          handleDeleteLesson(
-                            lesson.id
-                          )
-                        }
-                        title="Delete lesson"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-lessons">
-                <div className="empty-lessons-icon">
-                  📚
-                </div>
-
-                <h3>No lessons yet</h3>
-
-                <p>
-                  Start building your course by adding
-                  your first lesson.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={handleAddLesson}
-                >
-                  + Add First Lesson
-                </button>
-              </div>
-            )}
-          </section>
-
-          {/* Bottom CTA */}
-          <section className="lessons-info-banner">
-            <div className="lessons-info-icon">
-              💡
-            </div>
-
-            <div>
-              <h3>
-                Keep your lessons organized
-              </h3>
-
-              <p>
-                Create clear lesson titles and
-                descriptions to help students understand
-                what they will learn.
-              </p>
-            </div>
-          </section>
-        </section>
-
-        {/* Footer */}
-        <footer className="manage-lessons-footer">
-          <div>
-            <strong>LearnHub</strong>
-
-            <span>
-              © 2026 LearnHub. All rights reserved.
-            </span>
-          </div>
-
-          <div className="manage-lessons-footer-links">
-            <Link to="/help">Help Center</Link>
-            <Link to="/settings">Settings</Link>
-            <Link to="/profile">Profile</Link>
-          </div>
-        </footer>
-      </main>
-    </div>
+                    </form>
+                  )}
+                </section>
+              );
+            })
+          )}
+        </>
+      )}
+    </InstructorLayout>
   );
 }
 

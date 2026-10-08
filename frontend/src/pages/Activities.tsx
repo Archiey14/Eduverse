@@ -248,7 +248,7 @@ const Activities = () => {
         {/* Footer */}
         <footer className="activities-footer">
           <div>
-            <strong>LearnHub</strong>
+            <strong>Eduverse</strong>
             <span>Learn. Grow. Succeed.</span>
           </div>
 
@@ -258,7 +258,7 @@ const Activities = () => {
             <Link to="/courses">Terms</Link>
           </div>
 
-          <span>© 2026 LearnHub. All rights reserved.</span>
+          <span>© 2026 Eduverse. All rights reserved.</span>
         </footer>
     </StudentLayout>
   );

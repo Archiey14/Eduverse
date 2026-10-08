@@ -21,6 +21,7 @@ export interface User {
   email: string;
   roles: string[];
   avatarUrl?: string;
+  createdAt?: string;
   mentorProfile?: {
     headline?: string;
     bio?: string;

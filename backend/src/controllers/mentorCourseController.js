@@ -9,6 +9,7 @@ import { QuizAttempt } from "../models/QuizAttempt.js";
 import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { slugify } from "../utils/slugify.js";
+import { escapeRegex } from "../utils/sanitize.js";
 import { courseService } from "../services/courseService.js";
 import { activityService } from "../services/activityService.js";
 import {
@@ -16,10 +17,34 @@ import {
   formatPaginatedResponse,
 } from "../utils/pagination.js";
 
+// Accepts a category ObjectId, name or slug. Returns null when nothing matches
+// (the old code silently fell back to an arbitrary category).
+const resolveCategoryId = async (value) => {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  if (!text || text === "[object Object]") return null;
+
+  if (/^[a-f\d]{24}$/i.test(text)) {
+    const byId = await Category.findById(text);
+    if (byId) return byId._id;
+  }
+
+  const byNameOrSlug = await Category.findOne({
+    $or: [
+      { name: new RegExp(`^${escapeRegex(text)}$`, "i") },
+      { slug: slugify(text) },
+    ],
+  });
+  return byNameOrSlug ? byNameOrSlug._id : null;
+};
+
 export const getMentorDashboard = asyncHandler(async (req, res, next) => {
   const mentorId = req.user._id;
 
-  const courses = await Course.find({ mentor: mentorId }).lean();
+  const courses = await Course.find({ mentor: mentorId })
+    .populate("category", "name slug")
+    .sort({ updatedAt: -1 })
+    .lean();
   const courseIds = courses.map((c) => c._id);
 
   let totalEnrollments = 0;
@@ -73,6 +98,136 @@ export const getMentorDashboard = asyncHandler(async (req, res, next) => {
   });
 });
 
+export const getMentorAnalytics = asyncHandler(async (req, res, next) => {
+  const mentorId = req.user._id;
+
+  const courses = await Course.find({ mentor: mentorId })
+    .select("title status stats")
+    .lean();
+  const courseIds = courses.map((c) => c._id);
+
+  // First day of the month, 5 months ago (so we cover the last 6 calendar months)
+  const now = new Date();
+  const windowStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+  const [enrollmentAgg, quizAgg, monthlyAgg, quizzes] = await Promise.all([
+    Enrollment.aggregate([
+      { $match: { course: { $in: courseIds } } },
+      {
+        $group: {
+          _id: "$course",
+          total: { $sum: 1 },
+          completed: {
+            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+          },
+          avgProgress: { $avg: "$progressPercent" },
+        },
+      },
+    ]),
+    QuizAttempt.aggregate([
+      { $match: { course: { $in: courseIds } } },
+      {
+        $group: {
+          _id: "$quiz",
+          attempts: { $sum: 1 },
+          avgScore: { $avg: "$scorePercent" },
+          passed: { $sum: { $cond: ["$passed", 1, 0] } },
+        },
+      },
+    ]),
+    Enrollment.aggregate([
+      {
+        $match: {
+          course: { $in: courseIds },
+          enrolledAt: { $gte: windowStart },
+        },
+      },
+      {
+        $group: {
+          _id: { y: { $year: "$enrolledAt" }, m: { $month: "$enrolledAt" } },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+    Quiz.find({ course: { $in: courseIds } })
+      .select("title course")
+      .populate("course", "title")
+      .lean(),
+  ]);
+
+  const enrollmentByCourse = new Map(
+    enrollmentAgg.map((row) => [String(row._id), row])
+  );
+  const attemptsByQuiz = new Map(quizAgg.map((row) => [String(row._id), row]));
+
+  const courseRows = courses.map((c) => {
+    const row = enrollmentByCourse.get(String(c._id));
+    const students = row?.total || 0;
+    const completed = row?.completed || 0;
+    return {
+      _id: c._id,
+      title: c.title,
+      status: c.status,
+      students,
+      completed,
+      completionRate: students > 0 ? Math.round((completed / students) * 100) : 0,
+      avgProgress: Math.round(row?.avgProgress || 0),
+      rating: c.stats?.ratingAvg || 0,
+      ratingCount: c.stats?.ratingCount || 0,
+    };
+  });
+
+  const quizRows = quizzes.map((q) => {
+    const row = attemptsByQuiz.get(String(q._id));
+    const attempts = row?.attempts || 0;
+    return {
+      _id: q._id,
+      title: q.title,
+      course: q.course?.title || "",
+      attempts,
+      avgScore: Math.round(row?.avgScore || 0),
+      passRate: attempts > 0 ? Math.round(((row?.passed || 0) / attempts) * 100) : 0,
+    };
+  });
+
+  const monthCounts = new Map(
+    monthlyAgg.map((row) => [`${row._id.y}-${row._id.m}`, row.count])
+  );
+  const monthly = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    monthly.push({
+      label: d.toLocaleString("en-US", { month: "short" }),
+      count: monthCounts.get(`${d.getFullYear()}-${d.getMonth() + 1}`) || 0,
+    });
+  }
+
+  const totalStudents = courseRows.reduce((sum, c) => sum + c.students, 0);
+  const totalCompleted = courseRows.reduce((sum, c) => sum + c.completed, 0);
+  const ratingCount = courseRows.reduce((sum, c) => sum + c.ratingCount, 0);
+  const ratingSum = courseRows.reduce(
+    (sum, c) => sum + c.rating * c.ratingCount,
+    0
+  );
+
+  res.status(200).json({
+    success: true,
+    data: {
+      totals: {
+        students: totalStudents,
+        completions: totalCompleted,
+        completionRate:
+          totalStudents > 0 ? Math.round((totalCompleted / totalStudents) * 100) : 0,
+        avgRating: ratingCount > 0 ? Math.round((ratingSum / ratingCount) * 10) / 10 : 0,
+        ratingCount,
+      },
+      courses: courseRows,
+      quizzes: quizRows,
+      monthly,
+    },
+  });
+});
+
 export const createDraftCourse = asyncHandler(async (req, res, next) => {
   const {
     title,
@@ -93,26 +248,17 @@ export const createDraftCourse = asyncHandler(async (req, res, next) => {
     );
   }
 
-  let categoryId = null;
-  if (/^[a-f\d]{24}$/i.test(category)) {
-    const catDoc = await Category.findById(category);
-    if (catDoc) categoryId = catDoc._id;
-  }
-  if (!categoryId) {
-    let catDoc = await Category.findOne({
-      $or: [
-        { name: new RegExp(`^${category}$`, "i") },
-        { slug: slugify(category) },
-      ],
-    });
-    if (!catDoc) {
-      catDoc = await Category.findOne();
-    }
-    if (catDoc) categoryId = catDoc._id;
-  }
-
+  const categoryId = await resolveCategoryId(category);
   if (!categoryId) {
     return next(new AppError(400, "Invalid category specified."));
+  }
+
+  const allowedLevels = ["beginner", "intermediate", "advanced"];
+  const normalizedLevel = level ? String(level).trim().toLowerCase() : "beginner";
+  if (!allowedLevels.includes(normalizedLevel)) {
+    return next(
+      new AppError(400, "Level must be beginner, intermediate or advanced.")
+    );
   }
 
   let slug = slugify(title);
@@ -128,7 +274,7 @@ export const createDraftCourse = asyncHandler(async (req, res, next) => {
     subtitle: subtitle || "",
     description: description.trim(),
     category: categoryId,
-    level: level ? level.toLowerCase() : "beginner",
+    level: normalizedLevel,
     language: language || "English",
     thumbnailUrl: thumbnailUrl || "",
     previewVideoUrl: previewVideoUrl || "",
@@ -214,23 +360,11 @@ export const updateCourse = asyncHandler(async (req, res, next) => {
   if (req.body.category !== undefined) {
     let catVal = req.body.category;
     if (typeof catVal === "object" && catVal?._id) catVal = catVal._id;
-    let catId = null;
-    if (/^[a-f\d]{24}$/i.test(catVal)) {
-      const catDoc = await Category.findById(catVal);
-      if (catDoc) catId = catDoc._id;
-    }
+    const catId = await resolveCategoryId(catVal);
     if (!catId) {
-      const catDoc = await Category.findOne({
-        $or: [
-          { name: new RegExp(`^${catVal}$`, "i") },
-          { slug: slugify(String(catVal)) },
-        ],
-      });
-      if (catDoc) catId = catDoc._id;
+      return next(new AppError(400, "Invalid category specified."));
     }
-    if (catId) {
-      course.category = catId;
-    }
+    course.category = catId;
   }
 
   if (req.body.title && req.body.title !== course.title) {
