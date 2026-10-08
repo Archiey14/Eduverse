@@ -17,20 +17,15 @@ import Activities from "./pages/Activities";
 import Learn from "./pages/Learn";
 import MyCourses from "./pages/MyCourses";
 import Wishlist from "./pages/Wishlist";
+import Achievements from "./pages/Achievements";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Help from "./pages/Help";
 
 // Instructor Pages
-import InstructorDashboard from "./pages/InstructorDashboard";
-import InstructorCourses from "./pages/InstructorCourses";
-import CreateCourse from "./pages/CreateCourse";
-import ManageLessons from "./pages/ManageLessons";
-import InstructorStudents from "./pages/InstructorStudents";
-import InstructorQuizzes from "./pages/InstructorQuizzes";
-import InstructorAnalytics from "./pages/InstructorAnalytics";
-import InstructorProfile from "./pages/InstructorProfile";
-import InstructorSettings from "./pages/InstructorSettings";
+import MentorDashboard from "./pages/MentorDashboard";
+import MentorCourses from "./pages/MentorCourses";
+import CourseEditor from "./pages/CourseEditor";
 
 import "./index.css";
 
@@ -78,20 +73,24 @@ function AppRoutes() {
       <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
       <Route path="/student/courses" element={<ProtectedRoute><MyCourses /></ProtectedRoute>} />
       <Route path="/wishlist" element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />
+      <Route path="/achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
 
-      {/* Protected Instructor Routes */}
-      <Route path="/instructor/dashboard" element={<ProtectedRoute requireRole="mentor"><InstructorDashboard /></ProtectedRoute>} />
-      <Route path="/instructor/courses" element={<ProtectedRoute requireRole="mentor"><InstructorCourses /></ProtectedRoute>} />
-      <Route path="/instructor/courses/create" element={<ProtectedRoute requireRole="mentor"><CreateCourse /></ProtectedRoute>} />
-      <Route path="/instructor/lessons" element={<ProtectedRoute requireRole="mentor"><ManageLessons /></ProtectedRoute>} />
-      <Route path="/instructor/students" element={<ProtectedRoute requireRole="mentor"><InstructorStudents /></ProtectedRoute>} />
-      <Route path="/instructor/quizzes" element={<ProtectedRoute requireRole="mentor"><InstructorQuizzes /></ProtectedRoute>} />
-      <Route path="/instructor/analytics" element={<ProtectedRoute requireRole="mentor"><InstructorAnalytics /></ProtectedRoute>} />
-      <Route path="/instructor/profile" element={<ProtectedRoute requireRole="mentor"><InstructorProfile /></ProtectedRoute>} />
-      <Route path="/instructor/settings" element={<ProtectedRoute requireRole="mentor"><InstructorSettings /></ProtectedRoute>} />
+      {/* Protected Mentor Studio Routes */}
+      <Route path="/mentor" element={<Navigate to="/mentor/dashboard" replace />} />
+      <Route path="/mentor/dashboard" element={<ProtectedRoute requireRole="mentor"><MentorDashboard /></ProtectedRoute>} />
+      <Route path="/mentor/courses" element={<ProtectedRoute requireRole="mentor"><MentorCourses /></ProtectedRoute>} />
+      <Route path="/mentor/courses/new" element={<ProtectedRoute requireRole="mentor"><CourseEditor /></ProtectedRoute>} />
+      <Route path="/mentor/courses/:id/edit" element={<ProtectedRoute requireRole="mentor"><CourseEditor /></ProtectedRoute>} />
+      <Route path="/mentor/courses/:id/students" element={<ProtectedRoute requireRole="mentor"><MentorCourses /></ProtectedRoute>} />
+
+      {/* Legacy Instructor URLs */}
+      <Route path="/instructor/dashboard" element={<Navigate to="/mentor/dashboard" replace />} />
+      <Route path="/instructor/courses" element={<Navigate to="/mentor/courses" replace />} />
+      <Route path="/instructor/courses/create" element={<Navigate to="/mentor/courses/new" replace />} />
+      <Route path="/instructor/*" element={<Navigate to="/mentor/dashboard" replace />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,10 +1,12 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./Settings.css";
 
 function Settings() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [courseReminders, setCourseReminders] = useState(true);
@@ -18,8 +20,19 @@ function Settings() {
   };
 
   const handleLogout = () => {
+    logout();
     navigate("/login");
   };
+
+  const displayName = user?.name || "Student";
+  const displayEmail = user?.email || "";
+  const initials = displayName
+    .split(" ")
+    .map((part) => part.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const accountType = user?.roles?.includes("mentor") ? "Student + Instructor" : "Student";
 
   return (
     <div className="settings-page">
@@ -129,12 +142,12 @@ function Settings() {
             </div>
 
             <div className="settings-user-avatar">
-              SE
+              {initials || "S"}
             </div>
 
             <div className="settings-user-info">
-              <strong>Supriya Enjam</strong>
-              <span>Student</span>
+              <strong>{displayName}</strong>
+              <span>{accountType}</span>
             </div>
 
           </div>
@@ -162,7 +175,7 @@ function Settings() {
                 <label>Full Name</label>
                 <input
                   type="text"
-                  value="Supriya Enjam"
+                  value={displayName}
                   readOnly
                 />
               </div>
@@ -171,7 +184,7 @@ function Settings() {
                 <label>Email Address</label>
                 <input
                   type="email"
-                  value="supriya@example.com"
+                  value={displayEmail}
                   readOnly
                 />
               </div>
@@ -180,7 +193,7 @@ function Settings() {
                 <label>Account Type</label>
                 <input
                   type="text"
-                  value="Student"
+                  value={accountType}
                   readOnly
                 />
               </div>
@@ -198,7 +211,7 @@ function Settings() {
 
             <button
               className="settings-secondary-button"
-              onClick={() => navigate("/profile")}
+              onClick={() => navigate("/profile?edit=true")}
             >
               Edit Profile
             </button>

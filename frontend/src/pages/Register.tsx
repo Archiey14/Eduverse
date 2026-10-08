@@ -81,7 +81,7 @@ function Register() {
           });
           if (mentorRes.user) {
             updateUser(mentorRes.user);
-            destination = "/mentor";
+            destination = "/mentor/dashboard";
           }
         } catch {
           // The account exists; mentor activation can be retried from the dashboard.

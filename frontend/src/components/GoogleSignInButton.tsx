@@ -60,7 +60,7 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
           });
           if (mentorRes.user) {
             updateUser(mentorRes.user);
-            targetDestination = "/mentor";
+            targetDestination = "/mentor/dashboard";
           }
         } catch {
           // Fallback to default

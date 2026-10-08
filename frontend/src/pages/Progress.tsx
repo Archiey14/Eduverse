@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import StudentLayout from "../components/StudentLayout";
@@ -19,17 +19,13 @@ interface CourseProgress {
   color: string;
 }
 
-interface ActivityDay {
-  day: string;
-  hours: number;
-}
-
 const Progress = () => {
   const [courseList, setCourseList] = useState<CourseProgress[]>([]);
   const [stats, setStats] = useState({
     enrolledCount: 0,
     completedCount: 0,
     hoursLearned: 0,
+    streak: 0,
   });
 
   useEffect(() => {
@@ -42,6 +38,7 @@ const Progress = () => {
               enrolledCount: res.data.stats.enrolledCount || 0,
               completedCount: res.data.stats.completedCount || 0,
               hoursLearned: res.data.stats.hoursLearned || 0,
+              streak: res.data.stats.streak || 0,
             });
           }
           if (res.data.activeEnrollments && res.data.activeEnrollments.length > 0) {

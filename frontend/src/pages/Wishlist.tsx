@@ -1,6 +1,7 @@
 
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./Wishlist.css";
 
 interface WishlistCourse {
@@ -92,9 +93,17 @@ const wishlistCourses: WishlistCourse[] = [
 ];
 
 function Wishlist() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [courses, setCourses] = useState(wishlistCourses);
+  const displayName = user?.name || "Student";
+  const initials = displayName
+    .split(" ")
+    .map((part) => part.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const categories = [
     "All",
@@ -233,9 +242,9 @@ function Wishlist() {
             </button>
 
             <div className="wishlist-user">
-              <div className="wishlist-avatar">S</div>
+              <div className="wishlist-avatar">{initials || "S"}</div>
               <div className="wishlist-user-info">
-                <strong>Supriya Enjam</strong>
+                <strong>{displayName}</strong>
                 <span>Student</span>
               </div>
             </div>

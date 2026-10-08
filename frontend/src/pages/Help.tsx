@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./Help.css";
 
 interface FAQ {
@@ -102,9 +103,17 @@ const quickHelpItems = [
 
 function Help() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
+  const displayName = user?.name || "Student";
+  const initials = displayName
+    .split(" ")
+    .map((part) => part.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const filteredFAQs = faqs.filter((faq) => {
     const query = searchQuery.trim().toLowerCase();
@@ -125,6 +134,7 @@ function Help() {
   };
 
   const handleLogout = () => {
+    logout();
     navigate("/login");
   };
 
@@ -418,12 +428,12 @@ function Help() {
               className="help-user-profile"
             >
               <div className="help-user-avatar">
-                SE
+                {initials || "S"}
               </div>
 
               <div className="help-user-info">
                 <strong>
-                  Supriya Enjam
+                  {displayName}
                 </strong>
 
                 <span>

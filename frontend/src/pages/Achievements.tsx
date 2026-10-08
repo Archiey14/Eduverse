@@ -1,6 +1,7 @@
 
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./Achievements.css";
 
 interface Achievement {
@@ -134,8 +135,17 @@ const categories = [
 ];
 
 function Achievements() {
+  const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState("All");
   const [showEarnedOnly, setShowEarnedOnly] = useState(false);
+  const displayName = user?.name || "Student";
+  const firstName = displayName.split(" ")[0] || "Student";
+  const initials = displayName
+    .split(" ")
+    .map((part) => part.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const earnedCount = achievements.filter(
     (achievement) => achievement.earned
@@ -264,9 +274,9 @@ function Achievements() {
             </button>
 
             <div className="topbar-user">
-              <div className="topbar-avatar">S</div>
+              <div className="topbar-avatar">{initials || "S"}</div>
               <div>
-                <strong>Supriya</strong>
+                <strong>{firstName}</strong>
                 <span>Student</span>
               </div>
             </div>
@@ -483,7 +493,7 @@ function Achievements() {
             <div className="motivation-icon">🚀</div>
             <div className="motivation-content">
               <span>KEEP GOING!</span>
-              <h2>You're doing great, Supriya!</h2>
+              <h2>You're doing great, {firstName}!</h2>
               <p>
                 You're only 2 courses away from unlocking your
                 Course Collector achievement.

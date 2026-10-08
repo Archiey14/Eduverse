@@ -73,7 +73,6 @@ function Quizzes() {
     });
   }, [quizzesList, activeTab, searchQuery]);
 
-  const upcomingQuizzes = quizzesList.filter((quiz) => quiz.status === "upcoming");
   const completedQuizzes = quizzesList.filter((quiz) => quiz.status === "completed");
 
   const averageScore =

@@ -1,6 +1,9 @@
 
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { api, getErrorMessage } from "../services/api";
+import { StudentLayout } from "../components/StudentLayout";
 import "./Profile.css";
 
 interface ProfileData {
@@ -12,17 +15,19 @@ interface ProfileData {
   role: string;
   bio: string;
   website: string;
+  avatarUrl: string;
 }
 
 const initialProfile: ProfileData = {
-  firstName: "Supriya",
-  lastName: "Enjam",
-  email: "supriya@example.com",
+  firstName: "",
+  lastName: "",
+  email: "",
   phone: "+91 98765 43210",
   location: "Telangana, India",
   role: "Student",
   bio: "Passionate learner interested in web development, programming, and building practical projects. I enjoy learning new technologies and improving my skills.",
   website: "https://example.com",
+  avatarUrl: "",
 };
 
 const initialTeachSkills = [
@@ -50,6 +55,8 @@ const initialInterests = [
 
 function Profile() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, logout, updateUser } = useAuth();
 
   const [profile, setProfile] = useState<ProfileData>(initialProfile);
   const [teachSkills, setTeachSkills] = useState(initialTeachSkills);
@@ -61,6 +68,29 @@ function Profile() {
   const [newSkill, setNewSkill] = useState("");
   const [newLearningSkill, setNewLearningSkill] = useState("");
   const [newInterest, setNewInterest] = useState("");
+  const [saveError, setSaveError] = useState("");
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("edit") === "true") {
+      setIsEditing(true);
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const [firstName = "", ...rest] = user.name.split(" ");
+    setProfile((previous) => ({
+      ...previous,
+      firstName: firstName || user.name,
+      lastName: rest.join(" "),
+      email: user.email,
+      role: user.roles?.includes("mentor") ? "Instructor" : "Student",
+      bio: user.mentorProfile?.bio || previous.bio,
+      avatarUrl: user.avatarUrl || "",
+      website: previous.website,
+    }));
+  }, [user]);
 
   const handleProfileChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -73,9 +103,28 @@ function Profile() {
     }));
   };
 
-  const handleSave = () => {
-    setIsEditing(false);
-    alert("Profile updated successfully!");
+  const handleSave = async () => {
+    setSaveError("");
+    const fullName = `${profile.firstName} ${profile.lastName}`.trim();
+
+    try {
+      const res = await api.auth.updateMe({
+        name: fullName,
+        avatarUrl: profile.avatarUrl,
+        bio: profile.bio,
+        expertise: teachSkills,
+      });
+
+      if (res.user) {
+        updateUser(res.user);
+      }
+
+      setIsEditing(false);
+      navigate("/student/dashboard", { replace: true });
+      alert("Profile updated successfully!");
+    } catch (err) {
+      setSaveError(getErrorMessage(err, "Could not update your profile."));
+    }
   };
 
   const handleCancel = () => {
@@ -84,6 +133,8 @@ function Profile() {
     setLearningSkills(initialLearningSkills);
     setInterests(initialInterests);
     setIsEditing(false);
+    setSaveError("");
+    navigate("/student/dashboard", { replace: true });
   };
 
   const handleLogout = () => {
@@ -92,6 +143,7 @@ function Profile() {
     );
 
     if (confirmLogout) {
+      logout();
       navigate("/login");
     }
   };
@@ -156,204 +208,14 @@ function Profile() {
     );
   };
 
-  const handleAvatarChange = () => {
-    alert(
-      "Profile photo upload will be connected when backend storage is integrated."
-    );
-  };
+  const avatarInitials =
+    `${profile.firstName.charAt(0)}${profile.lastName.charAt(0) || ""}`.toUpperCase();
 
   return (
-    <div className="profile-page">
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <div
-          className="profile-sidebar-overlay"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`profile-sidebar ${
-          sidebarOpen ? "profile-sidebar-open" : ""
-        }`}
-      >
-        <div className="profile-sidebar-brand">
-          <Link to="/student/dashboard" className="profile-brand-link">
-            <div className="profile-brand-icon">L</div>
-            <span>LearnHub</span>
-          </Link>
-
-          <button
-            className="profile-mobile-close"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close menu"
-          >
-            ×
-          </button>
-        </div>
-
-        <nav className="profile-sidebar-nav">
-          <p className="profile-nav-label">LEARNING</p>
-
-          <Link
-            to="/student/dashboard"
-            className="profile-nav-item"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <span className="profile-nav-icon">▦</span>
-            <span>Dashboard</span>
-          </Link>
-
-          <Link
-            to="/courses"
-            className="profile-nav-item"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <span className="profile-nav-icon">▤</span>
-            <span>My Courses</span>
-          </Link>
-
-          <Link
-            to="/discover"
-            className="profile-nav-item"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <span className="profile-nav-icon">⌕</span>
-            <span>Discover</span>
-          </Link>
-
-          <Link
-            to="/quizzes"
-            className="profile-nav-item"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <span className="profile-nav-icon">✓</span>
-            <span>Quizzes</span>
-          </Link>
-
-          <Link
-            to="/progress"
-            className="profile-nav-item"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <span className="profile-nav-icon">↗</span>
-            <span>Progress</span>
-          </Link>
-
-          <Link
-            to="/activities"
-            className="profile-nav-item"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <span className="profile-nav-icon">◷</span>
-            <span>Activities</span>
-          </Link>
-
-          <Link
-            to="/achievements"
-            className="profile-nav-item"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <span className="profile-nav-icon">★</span>
-            <span>Achievements</span>
-          </Link>
-
-          <Link
-            to="/wishlist"
-            className="profile-nav-item"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <span className="profile-nav-icon">♡</span>
-            <span>Wishlist</span>
-          </Link>
-
-          <p className="profile-nav-label profile-nav-label-spaced">
-            ACCOUNT
-          </p>
-
-          <Link
-            to="/profile"
-            className="profile-nav-item profile-nav-item-active"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <span className="profile-nav-icon">♙</span>
-            <span>Profile</span>
-          </Link>
-
-          <Link
-            to="/settings"
-            className="profile-nav-item"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <span className="profile-nav-icon">⚙</span>
-            <span>Settings</span>
-          </Link>
-        </nav>
-
-        <div className="profile-sidebar-bottom">
-          <div className="profile-help-card">
-            <div className="profile-help-icon">?</div>
-            <div>
-              <strong>Need help?</strong>
-              <p>Visit our help center</p>
-            </div>
-          </div>
-
-          <button className="profile-logout-button" onClick={handleLogout}>
-            <span>↪</span>
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="profile-main">
-        {/* Topbar */}
-        <header className="profile-topbar">
-          <div className="profile-topbar-left">
-            <button
-              className="profile-menu-button"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open menu"
-            >
-              ☰
-            </button>
-
-            <div className="profile-search-box">
-              <span className="profile-search-icon">⌕</span>
-              <input
-                type="text"
-                placeholder="Search courses, lessons..."
-              />
-            </div>
-          </div>
-
-          <div className="profile-topbar-right">
-            <button className="profile-topbar-icon" title="Help">
-              ?
-            </button>
-
-            <button className="profile-topbar-icon notification-icon" title="Notifications">
-              ♢
-              <span className="notification-dot" />
-            </button>
-
-            <div className="profile-user-menu">
-              <div className="profile-small-avatar">SE</div>
-              <div className="profile-user-info">
-                <strong>
-                  {profile.firstName} {profile.lastName}
-                </strong>
-                <span>Student</span>
-              </div>
-              <span className="profile-user-arrow">⌄</span>
-            </div>
-          </div>
-        </header>
-
+    <StudentLayout activeItem="profile">
+      <div className="profile-page" style={{ height: "auto", display: "block" }}>
         {/* Content */}
-        <div className="profile-content">
+        <div className="profile-content" style={{ padding: "0" }}>
           {/* Page Header */}
           <div className="profile-page-header">
             <div>
@@ -370,6 +232,7 @@ function Profile() {
             </div>
 
             <div className="profile-header-actions">
+              {saveError && <span className="profile-save-error">{saveError}</span>}
               {!isEditing ? (
                 <button
                   className="profile-edit-button"
@@ -403,21 +266,12 @@ function Profile() {
           <section className="profile-hero-card">
             <div className="profile-avatar-section">
               <div className="profile-large-avatar">
-                <span>
-                  {profile.firstName.charAt(0)}
-                  {profile.lastName.charAt(0)}
-                </span>
+                {profile.avatarUrl ? (
+                  <img src={profile.avatarUrl} alt={`${profile.firstName} ${profile.lastName}`} />
+                ) : (
+                  <span>{avatarInitials}</span>
+                )}
               </div>
-
-              {isEditing && (
-                <button
-                  className="profile-camera-button"
-                  onClick={handleAvatarChange}
-                  title="Change profile photo"
-                >
-                  📷
-                </button>
-              )}
             </div>
 
             <div className="profile-hero-info">
@@ -616,6 +470,25 @@ function Profile() {
                   ) : (
                     <div className="profile-readonly-value">
                       {profile.role}
+                    </div>
+                  )}
+                </div>
+
+                <div className="profile-form-group profile-full-width">
+                  <label htmlFor="avatarUrl">Profile Photo URL</label>
+
+                  {isEditing ? (
+                    <input
+                      id="avatarUrl"
+                      name="avatarUrl"
+                      type="url"
+                      value={profile.avatarUrl}
+                      onChange={handleProfileChange}
+                      placeholder="https://example.com/photo.jpg"
+                    />
+                  ) : (
+                    <div className="profile-readonly-value">
+                      {profile.avatarUrl || "No profile photo set"}
                     </div>
                   )}
                 </div>
@@ -1006,8 +879,8 @@ function Profile() {
             <p>© 2026 LearnHub. All rights reserved.</p>
           </footer>
         </div>
-      </main>
-    </div>
+      </div>
+    </StudentLayout>
   );
 }
 

@@ -276,7 +276,7 @@ function LandingPage() {
                   you toward achieving your learning goals.
                 </p>
 
-                <Link to="/instructor/dashboard">
+                <Link to="/mentor/dashboard">
                   Instructor Portal →
                 </Link>
               </div>
@@ -402,7 +402,7 @@ function LandingPage() {
                 </Link>
 
                 <Link
-                  to="/instructor/dashboard"
+                  to="/mentor/dashboard"
                   className="community-instructor-btn"
                 >
                   Instructor Portal →
@@ -528,7 +528,7 @@ function LandingPage() {
               <Link to="/login">Login</Link>
               <Link to="/register">Register</Link>
 
-              <Link to="/instructor/dashboard">
+              <Link to="/mentor/dashboard">
                 Instructor Portal
               </Link>
             </div>

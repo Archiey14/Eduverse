@@ -31,8 +31,6 @@ interface Instructor {
 
 const defaultCourses: DiscoverCourse[] = [];
 
-const defaultInstructors: Instructor[] = [];
-
 const categories = [
   {
     name: "Web Development",
