@@ -1,4 +1,5 @@
 import { Router } from "express";
+
 import {
   register,
   login,
@@ -8,20 +9,79 @@ import {
   updateMe,
   updatePassword,
   verifyOTP,
+  uploadAvatar,
 } from "../controllers/authController.js";
+
 import { protect } from "../middleware/auth.js";
+
 import { authLimiter } from "../middleware/rateLimit.js";
+
+import { uploadProfilePicture } from "../middleware/upload.js";
 
 const router = Router();
 
-router.post("/register", authLimiter, register);
-router.post("/login", authLimiter, login);
-router.post("/verify-otp", authLimiter, verifyOTP);
-router.post("/google", authLimiter, googleAuth);
+// Register
+router.post(
+  "/register",
+  authLimiter,
+  register
+);
 
-router.get("/me", protect, getMe);
-router.patch("/me", protect, updateMe);
-router.post("/become-mentor", protect, becomeMentor);
-router.patch("/password", protect, updatePassword);
+// Login
+router.post(
+  "/login",
+  authLimiter,
+  login
+);
+
+// Verify OTP
+router.post(
+  "/verify-otp",
+  authLimiter,
+  verifyOTP
+);
+
+// Google authentication
+router.post(
+  "/google",
+  authLimiter,
+  googleAuth
+);
+
+// Get logged-in user
+router.get(
+  "/me",
+  protect,
+  getMe
+);
+
+// Update profile
+router.patch(
+  "/me",
+  protect,
+  updateMe
+);
+
+// Upload profile picture
+router.post(
+  "/avatar",
+  protect,
+  uploadProfilePicture.single("avatar"),
+  uploadAvatar
+);
+
+// Become a mentor
+router.post(
+  "/become-mentor",
+  protect,
+  becomeMentor
+);
+
+// Change password
+router.patch(
+  "/password",
+  protect,
+  updatePassword
+);
 
 export default router;

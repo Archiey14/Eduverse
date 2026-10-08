@@ -46,7 +46,15 @@ import InstructorSettings from "./pages/InstructorSettings";
 import InstructorNotifications from "./pages/InstructorNotifications";
 
 // Admin Pages
+import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminCourses from "./pages/admin/AdminCourses";
+import AdminEnrollments from "./pages/admin/AdminEnrollments";
+import AdminMentors from "./pages/admin/AdminMentors";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminProfile from "./pages/admin/AdminProfile";
+import AdminSettings from "./pages/admin/AdminSettings";
 
 import "./index.css";
 
@@ -61,37 +69,61 @@ const ProtectedRoute = ({
   children: React.ReactNode;
   requireRole?: "mentor" | "admin" | "student";
 }) => {
-  const { isAuthenticated, isMentor, isAdmin } = useAuth();
+  const {
+    isAuthenticated,
+    isMentor,
+    isAdmin,
+  } = useAuth();
+
   const location = useLocation();
 
+  // -------------------------------------------------------
   // User is not logged in
-  // Remember where they wanted to go
+  // -------------------------------------------------------
   if (!isAuthenticated) {
     const from = `${location.pathname}${location.search}`;
 
-    const loginPath =
-      requireRole === "mentor" || requireRole === "admin"
-        ? "/login"
-        : "/login";
-
     return (
       <Navigate
-        to={loginPath}
+        to="/login"
         replace
         state={{ from }}
       />
     );
   }
 
+  // -------------------------------------------------------
   // Mentor / Instructor pages
-  // Admin users are also allowed to access mentor pages
-  if (requireRole === "mentor" && !isMentor && !isAdmin) {
-    return <Navigate to="/student/dashboard" replace />;
+  //
+  // Admin users are also allowed to access
+  // mentor/instructor pages.
+  // -------------------------------------------------------
+  if (
+    requireRole === "mentor" &&
+    !isMentor &&
+    !isAdmin
+  ) {
+    return (
+      <Navigate
+        to="/student/dashboard"
+        replace
+      />
+    );
   }
 
+  // -------------------------------------------------------
   // Admin pages
-  if (requireRole === "admin" && !isAdmin) {
-    return <Navigate to="/student/dashboard" replace />;
+  // -------------------------------------------------------
+  if (
+    requireRole === "admin" &&
+    !isAdmin
+  ) {
+    return (
+      <Navigate
+        to="/student/dashboard"
+        replace
+      />
+    );
   }
 
   return <>{children}</>;
@@ -114,7 +146,12 @@ const MentorCourseRedirect = ({
       ? `/instructor/students?course=${id}`
       : `/instructor/courses/edit/${id}`;
 
-  return <Navigate to={target} replace />;
+  return (
+    <Navigate
+      to={target}
+      replace
+    />
+  );
 };
 
 /* =========================================================
@@ -124,25 +161,44 @@ const MentorCourseRedirect = ({
 function AppRoutes() {
   return (
     <Routes>
+
       {/* =====================================================
           PUBLIC PAGES
       ===================================================== */}
 
-      <Route path="/" element={<LandingPage />} />
+      <Route
+        path="/"
+        element={<LandingPage />}
+      />
 
-      <Route path="/login" element={<Login />} />
+      <Route
+        path="/login"
+        element={<Login />}
+      />
 
-      <Route path="/register" element={<Register />} />
+      <Route
+        path="/register"
+        element={<Register />}
+      />
 
-      <Route path="/courses" element={<Courses />} />
+      <Route
+        path="/courses"
+        element={<Courses />}
+      />
 
-      <Route path="/courses/:id" element={<CourseDetails />} />
+      <Route
+        path="/courses/:id"
+        element={<CourseDetails />}
+      />
 
-      <Route path="/discover" element={<Discover />} />
+      <Route
+        path="/discover"
+        element={<Discover />}
+      />
 
       {/* =====================================================
           INSTRUCTOR LOGIN
-          This page remains PUBLIC
+          PUBLIC
       ===================================================== */}
 
       <Route
@@ -394,16 +450,68 @@ function AppRoutes() {
 
       {/* =====================================================
           ADMIN ROUTES
+
+          AdminLayout stays mounted while the child page
+          changes inside <Outlet />.
       ===================================================== */}
 
       <Route
-        path="/admin/dashboard"
         element={
           <ProtectedRoute requireRole="admin">
-            <AdminDashboard />
+            <AdminLayout />
           </ProtectedRoute>
         }
-      />
+      >
+
+        {/* Admin Dashboard */}
+        <Route
+          path="/admin/dashboard"
+          element={<AdminDashboard />}
+        />
+
+        {/* Admin Users */}
+        <Route
+          path="/admin/users"
+          element={<AdminUsers />}
+        />
+
+        {/* Admin Courses */}
+        <Route
+          path="/admin/courses"
+          element={<AdminCourses />}
+        />
+
+        {/* Admin Mentors */}
+        <Route
+          path="/admin/mentors"
+          element={<AdminMentors />}
+        />
+
+        {/* Admin Enrollments */}
+        <Route
+          path="/admin/enrollments"
+          element={<AdminEnrollments />}
+        />
+
+        {/* Admin Analytics */}
+        <Route
+          path="/admin/analytics"
+          element={<AdminAnalytics />}
+        />
+
+        {/* Admin Profile */}
+        <Route
+          path="/admin/profile"
+          element={<AdminProfile />}
+        />
+
+        {/* Admin Settings */}
+        <Route
+          path="/admin/settings"
+          element={<AdminSettings />}
+        />
+
+      </Route>
 
       {/* =====================================================
           LEGACY /mentor/* URLS
@@ -443,14 +551,18 @@ function AppRoutes() {
       <Route
         path="/mentor/courses/:id/edit"
         element={
-          <MentorCourseRedirect suffix="edit" />
+          <MentorCourseRedirect
+            suffix="edit"
+          />
         }
       />
 
       <Route
         path="/mentor/courses/:id/students"
         element={
-          <MentorCourseRedirect suffix="students" />
+          <MentorCourseRedirect
+            suffix="students"
+          />
         }
       />
 
@@ -460,8 +572,14 @@ function AppRoutes() {
 
       <Route
         path="*"
-        element={<Navigate to="/" replace />}
+        element={
+          <Navigate
+            to="/"
+            replace
+          />
+        }
       />
+
     </Routes>
   );
 }

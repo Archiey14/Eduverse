@@ -1,0 +1,454 @@
+/* =========================================
+   PAGE
+========================================= */
+
+.admin-profile-page {
+  width: 100%;
+  max-width: 1150px;
+  margin: 0 auto;
+  padding: 5px 0 40px;
+}
+
+.admin-profile-page-header {
+  margin-bottom: 28px;
+}
+
+.admin-profile-eyebrow {
+  margin: 0 0 7px;
+  color: #6366f1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+}
+
+.admin-profile-page-header h1 {
+  margin: 0;
+  color: #172033;
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.admin-profile-subtitle {
+  margin: 8px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* =========================================
+   GRID
+========================================= */
+
+.admin-profile-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+/* =========================================
+   CARDS
+========================================= */
+
+.admin-profile-card {
+  background: #ffffff;
+  border: 1px solid #e8ebf0;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.admin-profile-card-header {
+  padding: 23px 26px;
+  border-bottom: 1px solid #eef0f4;
+}
+
+.admin-profile-card-header h2 {
+  margin: 0 0 6px;
+  color: #172033;
+  font-size: 17px;
+}
+
+.admin-profile-card-header p {
+  margin: 0;
+  color: #8a93a3;
+  font-size: 12px;
+}
+
+/* =========================================
+   FORM
+========================================= */
+
+.admin-profile-form {
+  padding: 26px;
+}
+
+.admin-profile-picture-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding-bottom: 25px;
+  margin-bottom: 25px;
+  border-bottom: 1px solid #eef0f4;
+}
+
+.admin-profile-picture {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #6366f1;
+  color: white;
+  font-size: 25px;
+  font-weight: 700;
+}
+
+.admin-profile-picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-profile-picture-section h3 {
+  margin: 0;
+  color: #172033;
+  font-size: 17px;
+}
+
+.admin-profile-picture-section p {
+  margin: 5px 0 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* =========================================
+   FORM GROUPS
+========================================= */
+
+.admin-profile-form-group {
+  margin-bottom: 21px;
+}
+
+.admin-profile-form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #172033;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-profile-form-group input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #d9dee7;
+  border-radius: 9px;
+  outline: none;
+  background: white;
+  color: #172033;
+  font-family: inherit;
+  font-size: 14px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.admin-profile-form-group input:focus {
+  border-color: #6366f1;
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.admin-profile-form-group input:disabled {
+  background: #f7f8fa;
+  color: #7b8494;
+  cursor: not-allowed;
+}
+
+.admin-profile-form-group small {
+  display: block;
+  margin-top: 6px;
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+/* =========================================
+   FORM BUTTON
+========================================= */
+
+.admin-profile-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid #eef0f4;
+}
+
+.admin-profile-save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 130px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 9px;
+  background: #6366f1;
+  color: white;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.admin-profile-save-button:hover {
+  background: #4f46e5;
+  transform: translateY(-1px);
+}
+
+.admin-profile-save-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* =========================================
+   SIDE CARDS
+========================================= */
+
+.admin-profile-side {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.account-details {
+  padding: 8px 22px 18px;
+}
+
+.account-detail {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 3px;
+  border-bottom: 1px solid #f0f1f4;
+}
+
+.account-detail:last-child {
+  border-bottom: none;
+}
+
+.account-detail-icon {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #eef0ff;
+  font-size: 16px;
+}
+
+.account-detail span {
+  display: block;
+  margin-bottom: 4px;
+  color: #929aa8;
+  font-size: 11px;
+}
+
+.account-detail strong {
+  display: block;
+  max-width: 210px;
+  overflow: hidden;
+  color: #172033;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-detail .active-status {
+  color: #059669;
+}
+
+/* =========================================
+   SECURITY
+========================================= */
+
+.security-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 22px;
+}
+
+.security-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #ecfdf5;
+  font-size: 17px;
+}
+
+.security-content strong {
+  display: block;
+  color: #172033;
+  font-size: 13px;
+}
+
+.security-content p {
+  margin: 5px 0 0;
+  color: #8a93a3;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* =========================================
+   MESSAGES
+========================================= */
+
+.admin-profile-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 13px 16px;
+  border-radius: 9px;
+  font-size: 13px;
+}
+
+.admin-profile-message.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.admin-profile-message.success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.message-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.admin-profile-message.error .message-icon {
+  background: #fecaca;
+}
+
+.admin-profile-message.success .message-icon {
+  background: #d1fae5;
+}
+
+.message-close {
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* =========================================
+   LOADING
+========================================= */
+
+.admin-profile-loading {
+  display: flex;
+  min-height: 300px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  color: #6b7280;
+}
+
+.admin-profile-loading p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.admin-profile-spinner,
+.button-spinner {
+  border: 2px solid #e5e7eb;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: adminProfileSpin 0.7s linear infinite;
+}
+
+.admin-profile-spinner {
+  width: 28px;
+  height: 28px;
+}
+
+.button-spinner {
+  width: 14px;
+  height: 14px;
+  border-color: rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+}
+
+@keyframes adminProfileSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 900px) {
+  .admin-profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-profile-side {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .admin-profile-page {
+    padding: 0 5px 30px;
+  }
+
+  .admin-profile-page-header h1 {
+    font-size: 26px;
+  }
+
+  .admin-profile-form,
+  .admin-profile-card-header {
+    padding: 20px;
+  }
+
+  .admin-profile-side {
+    display: flex;
+  }
+
+  .admin-profile-form-actions {
+    justify-content: stretch;
+  }
+
+  .admin-profile-save-button {
+    width: 100%;
+  }
+}
