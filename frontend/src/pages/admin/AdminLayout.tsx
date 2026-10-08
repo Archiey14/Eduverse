@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { LayoutDashboard, Users, BookOpen, GraduationCap, BarChart, User, Settings, ArrowLeft } from "lucide-react";
 import "./AdminDashboard.css";
 
 const AdminLayout = () => {
@@ -44,7 +45,7 @@ const AdminLayout = () => {
               isActive("/admin/dashboard") ? "active" : ""
             }`}
           >
-            <span>📊</span>
+            <LayoutDashboard size={20} />
             Dashboard
           </Link>
 
@@ -55,7 +56,7 @@ const AdminLayout = () => {
               isActive("/admin/users") ? "active" : ""
             }`}
           >
-            <span>👥</span>
+            <Users size={20} />
             Users
           </Link>
 
@@ -66,7 +67,7 @@ const AdminLayout = () => {
               isActive("/admin/courses") ? "active" : ""
             }`}
           >
-            <span>📚</span>
+            <BookOpen size={20} />
             Courses
           </Link>
 
@@ -77,7 +78,7 @@ const AdminLayout = () => {
               isActive("/admin/mentors") ? "active" : ""
             }`}
           >
-            <span>👨‍🏫</span>
+            <GraduationCap size={20} />
             Mentors
           </Link>
 
@@ -88,7 +89,7 @@ const AdminLayout = () => {
               isActive("/admin/enrollments") ? "active" : ""
             }`}
           >
-            <span>🎓</span>
+            <Users size={20} />
             Enrollments
           </Link>
 
@@ -99,7 +100,7 @@ const AdminLayout = () => {
               isActive("/admin/analytics") ? "active" : ""
             }`}
           >
-            <span>📈</span>
+            <BarChart size={20} />
             Analytics
           </Link>
 
@@ -110,7 +111,7 @@ const AdminLayout = () => {
               isActive("/admin/profile") ? "active" : ""
             }`}
           >
-            <span>👤</span>
+            <User size={20} />
             Profile
           </Link>
 
@@ -121,7 +122,7 @@ const AdminLayout = () => {
               isActive("/admin/settings") ? "active" : ""
             }`}
           >
-            <span>⚙️</span>
+            <Settings size={20} />
             Settings
           </Link>
 
@@ -135,8 +136,9 @@ const AdminLayout = () => {
           <Link
             to="/student/dashboard"
             className="back-to-app"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >
-            <span>←</span>
+            <ArrowLeft size={16} />
             Back to App
           </Link>
 

@@ -46,7 +46,7 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
   onSearchChange,
   searchPlaceholder = "Search courses, lessons...",
 }) => {
-  const { user, logout, roleLabel, isMentor, updateUser } = useAuth();
+  const { user, logout, roleLabel, isMentor, isAdmin, updateUser } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [unread, setUnread] = useState(0);

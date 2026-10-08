@@ -65,10 +65,11 @@ function Login() {
         // "Remember me" unchecked -> session only (cleared when the tab closes)
         login(response.token, response.user, rememberMe);
         
-        // Role-based redirect
         let finalRedirect = redirectTo;
         if (redirectTo === "/student/dashboard" || !redirectTo) {
-          if (response.user.roles?.includes("mentor")) {
+          if (response.user.roles?.includes("admin")) {
+            finalRedirect = "/admin/dashboard";
+          } else if (response.user.roles?.includes("mentor")) {
             finalRedirect = "/instructor/dashboard";
           } else {
             finalRedirect = "/student/dashboard";
@@ -107,7 +108,9 @@ function Login() {
         
         let finalRedirect = redirectTo;
         if (redirectTo === "/student/dashboard" || !redirectTo) {
-          if (response.user.roles?.includes("mentor")) {
+          if (response.user.roles?.includes("admin")) {
+            finalRedirect = "/admin/dashboard";
+          } else if (response.user.roles?.includes("mentor")) {
             finalRedirect = "/instructor/dashboard";
           } else {
             finalRedirect = "/student/dashboard";
