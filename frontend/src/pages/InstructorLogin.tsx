@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api, getErrorMessage } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { OTPInput } from "../components/OTPInput";
 
 function InstructorLogin() {
   const navigate = useNavigate();
@@ -18,6 +19,10 @@ function InstructorLogin() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+
+  const [step, setStep] = useState<"login" | "otp">("login");
+  const [otpCode, setOtpCode] = useState("");
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -52,6 +57,13 @@ function InstructorLogin() {
         password,
       });
 
+      if (response.success && response.requires2FA) {
+        setPendingUserId(response.userId);
+        setStep("otp");
+        setError("");
+        return;
+      }
+
       if (response.success && response.token) {
         // Get the roles assigned to the logged-in user
         const roles = response.user.roles || [];
@@ -84,6 +96,43 @@ function InstructorLogin() {
           "Invalid email or password. Please try again."
         )
       );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+
+    if (!otpCode.trim() || !pendingUserId) {
+      setError("Please enter the 6-digit code.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await api.auth.verifyOTP({
+        userId: pendingUserId,
+        code: otpCode.trim(),
+      });
+
+      if (response.success && response.token) {
+        const roles = response.user.roles || [];
+        const isInstructor = roles.some((role: string) => role.toLowerCase() === "mentor");
+
+        if (!isInstructor) {
+          setError("This account does not have instructor access. Please use an instructor account.");
+          return;
+        }
+
+        login(response.token, response.user, rememberMe);
+        navigate(redirectTo, { replace: true });
+      } else {
+        setError(response.message || "Failed to verify OTP.");
+      }
+    } catch (err) {
+      setError(getErrorMessage(err, "Invalid OTP code. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -183,7 +232,7 @@ function InstructorLogin() {
                 Sign in to manage your courses and students
               </p>
             </div>
-
+            
             {/* Error Message */}
             {error && (
               <div className="professional-error" role="alert">
@@ -197,133 +246,170 @@ function InstructorLogin() {
               <span>INSTRUCTOR ACCESS</span>
             </div>
 
-            {/* Login Form */}
-            <form
-              onSubmit={handleSubmit}
-              className="professional-login-form"
-              noValidate
-            >
-              {/* EMAIL */}
-              <div className="professional-form-group">
-                <label htmlFor="instructor-email">
-                  Email address
-                </label>
-
-                <div className="input-wrapper">
-                  <span className="input-icon">✉</span>
-
-                  <input
-                    id="instructor-email"
-                    type="email"
-                    placeholder="instructor@example.com"
-                    value={email}
-                    onChange={(event) => {
-                      setEmail(event.target.value);
-
-                      if (error) {
-                        setError("");
-                      }
-                    }}
-                    autoComplete="email"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              {/* PASSWORD */}
-              <div className="professional-form-group">
-                <div className="password-heading">
-                  <label htmlFor="instructor-password">
-                    Password
-                  </label>
+            {step === "otp" ? (
+              <form onSubmit={handleOtpSubmit} className="professional-login-form" noValidate>
+                <div className="professional-form-group">
+                  <label>One-Time Password</label>
+                  <OTPInput value={otpCode} onChange={setOtpCode} />
+                  <small style={{ display: "block", marginTop: "8px", color: "#6b7280", textAlign: "center" }}>
+                    We've sent a code to your email. (Check server logs for testing).
+                  </small>
                 </div>
 
-                <div className="input-wrapper">
-                  <span className="input-icon">🔒</span>
+                <button type="submit" className="professional-login-button" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <span className="login-spinner"></span>
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      Verify Code
+                      <span className="button-arrow">→</span>
+                    </>
+                  )}
+                </button>
 
-                  <input
-                    id="instructor-password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(event) => {
-                      setPassword(event.target.value);
-
-                      if (error) {
-                        setError("");
-                      }
-                    }}
-                    autoComplete="current-password"
-                    disabled={loading}
-                  />
-
-                  <button
-                    type="button"
-                    className="professional-password-toggle"
-                    onClick={() =>
-                      setShowPassword(!showPassword)
-                    }
-                    aria-label={
-                      showPassword
-                        ? "Hide password"
-                        : "Show password"
-                    }
+                <div style={{ textAlign: "center", marginTop: "20px" }}>
+                  <button 
+                    type="button" 
+                    onClick={() => { setStep("login"); setError(""); }}
+                    style={{ background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontWeight: 600 }}
                   >
-                    {showPassword ? "🙈" : "👁"}
+                    ← Back to Login
                   </button>
                 </div>
-              </div>
+              </form>
+            ) : (
+              <>
+                {/* Login Form */}
+                <form
+                  onSubmit={handleSubmit}
+                  className="professional-login-form"
+                  noValidate
+                >
+                  {/* EMAIL */}
+                  <div className="professional-form-group">
+                    <label htmlFor="instructor-email">
+                      Email address
+                    </label>
 
-              {/* REMEMBER ME */}
-              <div className="professional-login-options">
-                <label className="professional-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(event) =>
-                      setRememberMe(event.target.checked)
-                    }
-                  />
+                    <div className="input-wrapper">
+                      <span className="input-icon">✉</span>
 
-                  <span className="custom-checkbox"></span>
+                      <input
+                        id="instructor-email"
+                        type="email"
+                        placeholder="instructor@example.com"
+                        value={email}
+                        onChange={(event) => {
+                          setEmail(event.target.value);
 
-                  <span>Remember me on this device</span>
-                </label>
-              </div>
+                          if (error) {
+                            setError("");
+                          }
+                        }}
+                        autoComplete="email"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
 
-              {/* LOGIN BUTTON */}
-              <button
-                type="submit"
-                className="professional-login-button"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span className="login-spinner"></span>
-                    Signing in...
-                  </>
-                ) : (
-                  <>
-                    Sign in as Instructor
-                    <span className="button-arrow">→</span>
-                  </>
-                )}
-              </button>
-            </form>
+                  {/* PASSWORD */}
+                  <div className="professional-form-group">
+                    <div className="password-heading">
+                      <label htmlFor="instructor-password">
+                        Password
+                      </label>
+                    </div>
 
-            {/* DIVIDER */}
-            <div className="professional-divider">
-              <span>OR</span>
-            </div>
+                    <div className="input-wrapper">
+                      <span className="input-icon">🔒</span>
 
-            {/* STUDENT LOGIN */}
-            <div className="create-account">
-              <span>Want to learn instead?</span>
+                      <input
+                        id="instructor-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(event) => {
+                          setPassword(event.target.value);
 
-              <Link to="/login">
-                Student Login
-              </Link>
-            </div>
+                          if (error) {
+                            setError("");
+                          }
+                        }}
+                        autoComplete="current-password"
+                        disabled={loading}
+                      />
+
+                      <button
+                        type="button"
+                        className="professional-password-toggle"
+                        onClick={() =>
+                          setShowPassword(!showPassword)
+                        }
+                        aria-label={
+                          showPassword
+                            ? "Hide password"
+                            : "Show password"
+                        }
+                      >
+                        {showPassword ? "🙈" : "👁"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* REMEMBER ME */}
+                  <div className="professional-login-options">
+                    <label className="professional-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(event) =>
+                          setRememberMe(event.target.checked)
+                        }
+                      />
+
+                      <span className="custom-checkbox"></span>
+
+                      <span>Remember me on this device</span>
+                    </label>
+                  </div>
+
+                  {/* LOGIN BUTTON */}
+                  <button
+                    type="submit"
+                    className="professional-login-button"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <span className="login-spinner"></span>
+                        Signing in...
+                      </>
+                    ) : (
+                      <>
+                        Sign in as Instructor
+                        <span className="button-arrow">→</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {/* DIVIDER */}
+                <div className="professional-divider">
+                  <span>OR</span>
+                </div>
+                {/* STUDENT LOGIN */}
+                <div className="create-account">
+                  <span>Want to learn instead?</span>
+
+                  <Link to="/login">
+                    Student Login
+                  </Link>
+                </div>
+              </>
+            )}
 
             {/* REGISTER */}
             <div className="create-account">

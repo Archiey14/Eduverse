@@ -300,7 +300,6 @@
   background: #e0e7ff;
   color: #4f46e5;
 }
-}
 
 /* ---------- badges ---------- */
 .il-badge {
@@ -341,7 +340,10 @@
 }
 .il-input,
 .il-select,
-.il-textarea {
+.il-textarea,
+.il-field input:not([type="checkbox"]):not([type="radio"]),
+.il-field select,
+.il-field textarea {
   padding: 10px 12px;
   background: #fff;
   border: 1px solid #d1d5db;
@@ -350,23 +352,30 @@
   font-family: inherit;
   font-size: 14px;
 }
-.il-input {
+.il-input,
+.il-field input:not([type="checkbox"]):not([type="radio"]) {
   flex: 1;
   min-width: 220px;
 }
 .il-input:focus,
 .il-select:focus,
-.il-textarea:focus {
+.il-textarea:focus,
+.il-field input:not([type="checkbox"]):not([type="radio"]):focus,
+.il-field select:focus,
+.il-field textarea:focus {
   outline: none;
   border-color: #4f46e5;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
 }
 .il-input:disabled,
-.il-textarea:disabled {
+.il-textarea:disabled,
+.il-field input:not([type="checkbox"]):not([type="radio"]):disabled,
+.il-field textarea:disabled {
   background: #f9fafb;
   color: #6b7280;
 }
-.il-textarea {
+.il-textarea,
+.il-field textarea {
   width: 100%;
   min-height: 90px;
   resize: vertical;
@@ -401,7 +410,9 @@
   color: #9ca3af;
 }
 .il-field .il-input,
-.il-field .il-select {
+.il-field .il-select,
+.il-field input:not([type="checkbox"]):not([type="radio"]),
+.il-field select {
   width: 100%;
   min-width: 0;
 }

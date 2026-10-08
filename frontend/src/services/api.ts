@@ -367,6 +367,15 @@ export const api = {
       request<any>(
         `/learn/quizzes/${quizId}/attempts`
       ),
+
+    getDiscussions: (courseId: string, lessonId?: string) =>
+      request<any>(`/learn/courses/${courseId}/discussions${lessonId ? `?lessonId=${lessonId}` : ""}`),
+    
+    createDiscussion: (courseId: string, content: string, lessonId?: string) =>
+      request<any>(`/learn/courses/${courseId}/discussions`, json("POST", { content, lessonId })),
+    
+    createReply: (discussionId: string, content: string) =>
+      request<any>(`/learn/discussions/${discussionId}/replies`, json("POST", { content })),
   },
 
   /* ---------------------------------------------------------------- */

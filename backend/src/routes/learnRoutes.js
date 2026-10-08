@@ -8,6 +8,11 @@ import {
   submitQuizAttempt,
   getMyQuizAttempts,
 } from "../controllers/learnController.js";
+import {
+  getDiscussions,
+  createDiscussion,
+  createReply,
+} from "../controllers/discussionController.js";
 import { protect, optionalAuth } from "../middleware/auth.js";
 
 const router = Router();
@@ -25,5 +30,9 @@ router.delete("/lessons/:lessonId/complete", unmarkLessonComplete);
 router.get("/quizzes/:quizId", getLearnerQuiz);
 router.post("/quizzes/:quizId/attempts", submitQuizAttempt);
 router.get("/quizzes/:quizId/attempts", getMyQuizAttempts);
+
+router.get("/courses/:courseId/discussions", getDiscussions);
+router.post("/courses/:courseId/discussions", createDiscussion);
+router.post("/discussions/:discussionId/replies", createReply);
 
 export default router;

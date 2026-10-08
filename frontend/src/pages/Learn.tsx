@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, getErrorMessage } from "../services/api";
 import { EmptyState, Loading, Notice } from "../components/Notice";
+import CourseDiscussions from "../components/CourseDiscussions";
 import { getYouTubeEmbedUrl } from "../utils/format";
 import "./Learn.css";
 
@@ -479,6 +480,9 @@ function Learn() {
               <Link to={`/courses/${data.course._id}#reviews`}>Leave a review</Link>
             </p>
           )}
+
+          {/* Q&A Section */}
+          <CourseDiscussions courseId={data.course._id} />
         </main>
       </div>
     </div>
