@@ -4,6 +4,7 @@ import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import StudentLayout from "../components/StudentLayout";
 import { formatDuration, PRICE_LABEL } from "../utils/format";
+import { GraduationCap, Flame, BookOpen, TrendingUp, CheckCircle, Clock, Play, FileQuestion, Zap, Check, Star, Code, Terminal } from "lucide-react";
 import "./StudentDashboard.css";
 
 function StudentDashboard() {
@@ -39,13 +40,14 @@ function StudentDashboard() {
             .map((c: any, idx: number) => ({
               id: c._id || c.slug,
               title: c.title,
+              thumbnailUrl: c.thumbnailUrl,
               instructor: c.mentor?.name || "Instructor",
               rating: c.stats?.ratingCount > 0 ? c.stats.ratingAvg : null,
               students: `${c.stats?.enrollmentCount || 0}`,
               lessons: `${c.stats?.lessonCount || 0} lessons`,
               duration: formatDuration(c.stats?.totalDurationMin),
               price: PRICE_LABEL,
-              icon: idx % 3 === 0 ? "🟨" : idx % 3 === 1 ? "🎨" : "🟢",
+              icon: idx % 3 === 0 ? <Star size={32} color="white" /> : idx % 3 === 1 ? <Code size={32} color="white" /> : <Terminal size={32} color="white" />,
               colorClass:
                 idx % 3 === 0
                   ? "recommend-yellow"
@@ -79,13 +81,14 @@ function StudentDashboard() {
     return {
       id: enr.course?._id || enr._id,
       category: (enr.course?.category?.name || "Uncategorised").toUpperCase(),
+      thumbnailUrl: enr.course?.thumbnailUrl,
       title: enr.course?.title || "Course",
       instructor: enr.course?.mentor?.name || "Instructor",
       lesson: enr.lastLesson?.title || (doneLessons > 0 ? "Next lesson" : "Not started yet"),
       lessonNumber: totalLessons > 0 ? Math.min(doneLessons + 1, totalLessons) : 0,
       totalLessons,
       progress: enr.progressPercent || 0,
-      icon: idx % 2 === 0 ? "💻" : "🐍",
+      icon: idx % 2 === 0 ? <Code size={24} /> : <Terminal size={24} />,
       duration: formatDuration(enr.course?.stats?.totalDurationMin),
       colorClass:
         idx % 3 === 0
@@ -115,7 +118,7 @@ function StudentDashboard() {
     score: `${attempt.scorePercent}%`,
     passed: attempt.passed,
     date: new Date(attempt.submittedAt).toLocaleDateString(),
-    icon: attempt.passed ? "✅" : "📝",
+    icon: attempt.passed ? <CheckCircle size={20} color="#10b981" /> : <FileQuestion size={20} color="#6366f1" />,
     type: attempt.passed ? "today" : "upcoming",
   }));
 
@@ -125,10 +128,10 @@ function StudentDashboard() {
     id: act._id,
     icon:
       act.type === "quiz_passed"
-        ? "📝"
+        ? <FileQuestion size={18} />
         : act.type === "enrolled"
-        ? "📚"
-        : "✓",
+        ? <BookOpen size={18} />
+        : <Check size={18} />,
     title: act.message,
     description: act.course?.title || "Course Progress",
     time: new Date(act.createdAt).toLocaleDateString(),
@@ -164,7 +167,7 @@ function StudentDashboard() {
         <div className="welcome-content">
           <span className="welcome-eyebrow">STUDENT DASHBOARD</span>
 
-          <h1>Welcome back, {displayName}! 👋</h1>
+          <h1>Welcome back, {displayName}!</h1>
 
           <p>
             {enrolledCourses.length > 0
@@ -198,10 +201,10 @@ function StudentDashboard() {
           <div className="welcome-circle circle-one"></div>
           <div className="welcome-circle circle-two"></div>
 
-          <div className="welcome-student">🎓</div>
+          <div className="welcome-student"><GraduationCap size={48} color="white" /></div>
 
           <div className="floating-learning-card">
-            <span>🔥</span>
+            <span style={{ display: "flex", alignItems: "center" }}><Flame size={20} color="#f59e0b" fill="#f59e0b" /></span>
             <div>
               <strong>
                 {streakDays > 0
@@ -236,7 +239,7 @@ function StudentDashboard() {
       <section className="dashboard-stat-grid">
         <div className="dashboard-stat-card">
           <div className="stat-card-top">
-            <div className="dashboard-stat-icon blue">📚</div>
+            <div className="dashboard-stat-icon blue"><BookOpen size={24} /></div>
           </div>
           <span className="stat-label">Enrolled Courses</span>
           <strong className="stat-number">{enrolledCount}</strong>
@@ -245,7 +248,7 @@ function StudentDashboard() {
 
         <div className="dashboard-stat-card">
           <div className="stat-card-top">
-            <div className="dashboard-stat-icon purple">📈</div>
+            <div className="dashboard-stat-icon purple"><TrendingUp size={24} /></div>
           </div>
           <span className="stat-label">Average Progress</span>
           <strong className="stat-number">{avgProgress}%</strong>
@@ -254,7 +257,7 @@ function StudentDashboard() {
 
         <div className="dashboard-stat-card">
           <div className="stat-card-top">
-            <div className="dashboard-stat-icon green">✓</div>
+            <div className="dashboard-stat-icon green"><CheckCircle size={24} /></div>
           </div>
           <span className="stat-label">Completed Courses</span>
           <strong className="stat-number">{completedCount}</strong>
@@ -263,7 +266,7 @@ function StudentDashboard() {
 
         <div className="dashboard-stat-card">
           <div className="stat-card-top">
-            <div className="dashboard-stat-icon orange">⏱</div>
+            <div className="dashboard-stat-icon orange"><Clock size={24} /></div>
           </div>
           <span className="stat-label">Learning Hours</span>
           <strong className="stat-number">{hoursLearned}</strong>
@@ -293,9 +296,13 @@ function StudentDashboard() {
             <div className="course-list">
               {filteredCourses.map((course: any) => (
                 <article className="dashboard-course-item" key={course.id}>
-                  <div className={`course-visual ${course.colorClass}`}>
-                    <span>{course.icon}</span>
-                    <small>{course.duration}</small>
+                  <div className={`course-visual ${course.thumbnailUrl ? '' : course.colorClass}`} style={course.thumbnailUrl ? { padding: 0 } : {}}>
+                    {course.thumbnailUrl ? (
+                      <img src={course.thumbnailUrl} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span>{course.icon}</span>
+                    )}
+                    <small style={course.thumbnailUrl ? { position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.7)', color: 'white', padding: '2px 6px', borderRadius: 4 } : {}}>{course.duration}</small>
                   </div>
 
                   <div className="dashboard-course-info">
@@ -323,14 +330,14 @@ function StudentDashboard() {
                     className="course-play-button"
                     aria-label={`Continue ${course.title}`}
                   >
-                    ▶
+                    <Play size={16} fill="currentColor" />
                   </Link>
                 </article>
               ))}
             </div>
           ) : (
             <div className="dashboard-empty-state" style={{ padding: "40px 20px" }}>
-              <span style={{ fontSize: "36px", marginBottom: "10px" }}>📚</span>
+              <BookOpen size={36} color="#9ca3af" style={{ margin: "0 auto 10px" }} />
               <strong style={{ fontSize: "16px", color: "#1f2937" }}>
                 No courses in progress
               </strong>
@@ -379,7 +386,7 @@ function StudentDashboard() {
             </div>
           ) : (
             <div className="dashboard-empty-state" style={{ padding: "30px 15px" }}>
-              <span style={{ fontSize: "32px", marginBottom: "8px" }}>📝</span>
+              <FileQuestion size={32} color="#9ca3af" style={{ margin: "0 auto 8px" }} />
               <strong style={{ fontSize: "15px", color: "#1f2937" }}>
                 No quiz attempts yet
               </strong>
@@ -431,7 +438,7 @@ function StudentDashboard() {
             </div>
           ) : (
             <div className="dashboard-empty-state" style={{ padding: "26px 15px" }}>
-              <span style={{ fontSize: "28px", marginBottom: "6px" }}>⚡</span>
+              <Zap size={28} color="#9ca3af" style={{ margin: "0 auto 6px" }} />
               <strong style={{ fontSize: "14px", color: "#1f2937" }}>
                 No recent activity
               </strong>
@@ -462,8 +469,12 @@ function StudentDashboard() {
         <div className="recommended-grid">
           {recommendedCourses.map((course) => (
             <article className="recommended-course" key={course.id}>
-              <div className={`recommended-course-image ${course.colorClass}`}>
-                <span>{course.icon}</span>
+              <div className={`recommended-course-image ${course.thumbnailUrl ? '' : course.colorClass}`} style={course.thumbnailUrl ? { padding: 0 } : {}}>
+                {course.thumbnailUrl ? (
+                  <img src={course.thumbnailUrl} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span>{course.icon}</span>
+                )}
               </div>
 
               <div className="recommended-course-body">
@@ -482,9 +493,9 @@ function StudentDashboard() {
                 <h3>{course.title}</h3>
                 <p className="recommended-instructor">By {course.instructor}</p>
 
-                <div className="recommended-meta">
-                  <span>📚 {course.lessons}</span>
-                  <span>⏱ {course.duration}</span>
+                <div className="recommended-meta" style={{ display: "flex", gap: "10px" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}><BookOpen size={14} /> {course.lessons}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={14} /> {course.duration}</span>
                 </div>
 
                 <div className="recommended-footer">

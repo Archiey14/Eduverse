@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { Plus, BookOpen, Search, Users, Star, Edit2, Trash2 } from "lucide-react";
 import { api, getErrorMessage } from "../services/api";
 import InstructorLayout from "../components/InstructorLayout";
 
@@ -92,7 +93,7 @@ function InstructorCourses() {
         </div>
 
         <Link to="/instructor/courses/create" className="il-btn">
-          ＋ Create New Course
+          <Plus size={16} /> Create New Course
         </Link>
       </div>
 
@@ -163,7 +164,7 @@ function InstructorCourses() {
       ) : filtered.length === 0 ? (
         <div className="il-card">
           <div className="il-empty">
-            <span>{courses.length === 0 ? "📚" : "🔍"}</span>
+            {courses.length === 0 ? <BookOpen size={48} color="#9ca3af" style={{ margin: "0 auto 12px" }} /> : <Search size={48} color="#9ca3af" style={{ margin: "0 auto 12px" }} />}
             <h3>{courses.length === 0 ? "No courses yet" : "No courses found"}</h3>
             <p>
               {courses.length === 0
@@ -201,7 +202,7 @@ function InstructorCourses() {
                     : undefined
                 }
               >
-                {!course.thumbnailUrl && <span>📚</span>}
+                {!course.thumbnailUrl && <BookOpen size={36} color="#9ca3af" />}
                 <span className={`il-badge il-badge-${course.status}`}>{course.status}</span>
               </div>
 
@@ -209,12 +210,12 @@ function InstructorCourses() {
                 <span className="il-course-cat">{course.category?.name || "Uncategorised"}</span>
                 <h3>{course.title}</h3>
 
-                <div className="il-course-meta">
-                  <span>👥 {course.stats?.enrollmentCount || 0} students</span>
-                  <span>📖 {course.stats?.lessonCount || 0} lessons</span>
-                  <span>
+                <div className="il-course-meta" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Users size={14} color="#6b7280" /> {course.stats?.enrollmentCount || 0} students</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}><BookOpen size={14} color="#6b7280" /> {course.stats?.lessonCount || 0} lessons</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     {course.stats?.ratingCount > 0
-                      ? `⭐ ${course.stats.ratingAvg}`
+                      ? <><Star size={14} color="#f59e0b" fill="#f59e0b" /> {course.stats.ratingAvg}</>
                       : "Not rated"}
                   </span>
                 </div>
@@ -233,7 +234,7 @@ function InstructorCourses() {
                     to={`/instructor/courses/edit/${course._id}`}
                     className="il-btn il-btn-outline il-btn-sm"
                   >
-                    ✏️ Edit
+                    <Edit2 size={14} /> Edit
                   </Link>
 
                   {course.status !== "archived" && (
@@ -242,7 +243,7 @@ function InstructorCourses() {
                       className="il-btn il-btn-danger il-btn-sm"
                       onClick={() => handleDelete(course)}
                     >
-                      🗑️ Delete
+                      <Trash2 size={14} /> Delete
                     </button>
                   )}
                 </div>

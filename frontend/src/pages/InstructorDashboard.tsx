@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { BookOpen, Star, Users, Plus } from "lucide-react";
 import { api, getErrorMessage } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import InstructorLayout from "../components/InstructorLayout";
@@ -70,7 +71,7 @@ function InstructorDashboard() {
       <div className="il-page-header">
         <div>
           <span className="il-eyebrow">INSTRUCTOR DASHBOARD</span>
-          <h1>Welcome back, {firstName}! 👋</h1>
+          <h1>Welcome back, {firstName}!</h1>
           <p>
             Manage your courses, track your students, and keep creating great
             learning experiences.
@@ -78,7 +79,7 @@ function InstructorDashboard() {
         </div>
 
         <Link to="/instructor/courses/create" className="il-btn">
-          ＋ Create New Course
+          <Plus size={16} /> Create New Course
         </Link>
       </div>
 
@@ -138,7 +139,7 @@ function InstructorDashboard() {
 
               {courses.length === 0 ? (
                 <div className="il-empty">
-                  <span>📚</span>
+                  <BookOpen size={48} color="#9ca3af" style={{ margin: "0 auto 12px" }} />
                   <h3>No courses yet</h3>
                   <p>Create your first course to start teaching.</p>
                   <Link to="/instructor/courses/create" className="il-btn">
@@ -155,7 +156,7 @@ function InstructorDashboard() {
                         {course.stats?.enrollmentCount || 0} students ·{" "}
                         {course.stats?.lessonCount || 0} lessons
                         {course.stats?.ratingCount > 0
-                          ? ` · ⭐ ${course.stats.ratingAvg}`
+                          ? <span style={{display: 'inline-flex', alignItems: 'center', gap: 4}}> · <Star size={12} color="#f59e0b" fill="#f59e0b" /> {course.stats.ratingAvg}</span>
                           : ""}
                       </small>
                     </div>
@@ -182,7 +183,7 @@ function InstructorDashboard() {
 
               {enrollments.length === 0 ? (
                 <div className="il-empty" style={{ padding: "24px 10px" }}>
-                  <span>👥</span>
+                  <Users size={48} color="#9ca3af" style={{ margin: "0 auto 12px" }} />
                   <p>No enrollments yet.</p>
                 </div>
               ) : (
@@ -210,7 +211,7 @@ function InstructorDashboard() {
 
               {reviews.length === 0 ? (
                 <div className="il-empty" style={{ padding: "24px 10px" }}>
-                  <span>⭐</span>
+                  <Star size={48} color="#9ca3af" style={{ margin: "0 auto 12px" }} />
                   <p>No reviews yet.</p>
                 </div>
               ) : (

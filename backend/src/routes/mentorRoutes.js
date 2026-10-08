@@ -11,6 +11,7 @@ import {
   unpublishCourse,
   getCourseStudents,
   getCourseStudentDetail,
+  broadcastAnnouncement,
 } from "../controllers/mentorCourseController.js";
 import {
   addSection,
@@ -75,6 +76,7 @@ router.get(
   loadOwnedCourse,
   getCourseStudentDetail
 );
+router.post("/courses/:id/announcement", loadOwnedCourse, broadcastAnnouncement);
 
 // Review replies
 router.post("/reviews/:reviewId/reply", replyToReview);

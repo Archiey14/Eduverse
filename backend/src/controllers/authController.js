@@ -3,6 +3,7 @@ import { User } from "../models/User.js";
 import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateToken } from "../utils/token.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
 // One shape for every response that returns the logged-in user, so the
 // frontend never loses a field (e.g. createdAt) when it swaps the user object.
@@ -60,6 +61,17 @@ export const register = asyncHandler(async (req, res, next) => {
 
     console.log(`\n=========================================\n[OTP GENERATED for ${user.email}]: ${otp}\n=========================================\n`);
 
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: "Your Eduverse Verification Code",
+        message: `Your One-Time Password is: ${otp}. It expires in 5 minutes.`,
+        html: `<h2>Welcome to Eduverse!</h2><p>Your One-Time Password is: <strong>${otp}</strong></p><p>It expires in 5 minutes.</p>`,
+      });
+    } catch (err) {
+      console.error("Email sending failed (Check SMTP settings):", err.message);
+    }
+
     return res.status(201).json({
       success: true,
       requires2FA: true,
@@ -108,6 +120,17 @@ export const login = asyncHandler(async (req, res, next) => {
 
     // In a real app, send this via email using nodemailer. For now, we log it.
     console.log(`\n=========================================\n[OTP GENERATED for ${user.email}]: ${otp}\n=========================================\n`);
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: "Your Eduverse Login Code",
+        message: `Your One-Time Password is: ${otp}. It expires in 5 minutes.`,
+        html: `<h2>Login Attempt</h2><p>Your One-Time Password is: <strong>${otp}</strong></p><p>It expires in 5 minutes. If this wasn't you, please change your password.</p>`,
+      });
+    } catch (err) {
+      console.error("Email sending failed (Check SMTP settings):", err.message);
+    }
 
     return res.status(200).json({
       success: true,

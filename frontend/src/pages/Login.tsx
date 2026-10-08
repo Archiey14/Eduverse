@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api, getErrorMessage } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
+import { OTPInput } from "../components/OTPInput";
 
 function Login() {
   const navigate = useNavigate();
@@ -206,23 +207,9 @@ function Login() {
             {step === "otp" ? (
               <form onSubmit={handleOtpSubmit} className="professional-login-form" noValidate>
                 <div className="professional-form-group">
-                  <label htmlFor="otpCode">One-Time Password</label>
-                  <div className="input-wrapper">
-                    <span className="input-icon">🔐</span>
-                    <input
-                      id="otpCode"
-                      type="text"
-                      placeholder="Enter 6-digit code"
-                      value={otpCode}
-                      onChange={(event) => {
-                        setOtpCode(event.target.value);
-                        if (error) setError("");
-                      }}
-                      maxLength={6}
-                      autoComplete="one-time-code"
-                    />
-                  </div>
-                  <small style={{ display: "block", marginTop: "8px", color: "#6b7280" }}>
+                  <label>One-Time Password</label>
+                  <OTPInput value={otpCode} onChange={setOtpCode} />
+                  <small style={{ display: "block", marginTop: "8px", color: "#6b7280", textAlign: "center" }}>
                     We've sent a code to your email. (Check server logs for testing).
                   </small>
                 </div>

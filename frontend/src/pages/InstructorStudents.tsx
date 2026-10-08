@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Megaphone, Users } from "lucide-react";
 import { api, getErrorMessage } from "../services/api";
 import InstructorLayout from "../components/InstructorLayout";
 
@@ -17,6 +18,10 @@ function InstructorStudents() {
 
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+
+  const [announcementMessage, setAnnouncementMessage] = useState("");
+  const [announcementSending, setAnnouncementSending] = useState(false);
+  const [announcementSuccess, setAnnouncementSuccess] = useState("");
 
   // Course selected via ?course=<id>; falls back to the first course
   const requestedCourse = searchParams.get("course");
@@ -63,7 +68,28 @@ function InstructorStudents() {
   const handleCourseChange = (courseId: string) => {
     setPage(1);
     setSearch("");
+    setAnnouncementSuccess("");
+    setAnnouncementMessage("");
     setSearchParams({ course: courseId });
+  };
+
+  const handleSendAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCourseId || !announcementMessage.trim()) return;
+    setAnnouncementSending(true);
+    setAnnouncementSuccess("");
+    setError("");
+    
+    try {
+      const res = await api.mentor.sendAnnouncement(selectedCourseId, announcementMessage);
+      setAnnouncementSuccess(res.message || "Announcement sent successfully!");
+      setAnnouncementMessage("");
+      setTimeout(() => setAnnouncementSuccess(""), 5000);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to send announcement."));
+    } finally {
+      setAnnouncementSending(false);
+    }
   };
 
   const visible = useMemo(() => {
@@ -141,12 +167,46 @@ function InstructorStudents() {
             />
           </div>
 
+          <section className="il-card" style={{ marginBottom: 24, padding: "20px" }}>
+            <h3 style={{ marginTop: 0, color: "#111827", fontSize: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <Megaphone size={18} /> Broadcast Announcement
+            </h3>
+            <p style={{ color: "#6b7280", fontSize: "13px", marginBottom: "16px" }}>
+              Send a notification to all {total} students enrolled in {selectedCourse?.title}.
+            </p>
+            {announcementSuccess && (
+              <div className="il-alert il-alert-success" style={{ marginBottom: "16px", padding: "10px", fontSize: "13px" }}>
+                {announcementSuccess}
+              </div>
+            )}
+            <form onSubmit={handleSendAnnouncement} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <textarea
+                className="il-input"
+                rows={3}
+                placeholder="Write your announcement here..."
+                value={announcementMessage}
+                onChange={(e) => setAnnouncementMessage(e.target.value)}
+                required
+                style={{ resize: "vertical" }}
+              />
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="submit"
+                  className="il-btn"
+                  disabled={announcementSending || !announcementMessage.trim() || total === 0}
+                >
+                  {announcementSending ? "Sending..." : "Send Announcement"}
+                </button>
+              </div>
+            </form>
+          </section>
+
           <section className="il-card">
             {studentsLoading ? (
               <div className="il-loading">Loading students...</div>
             ) : visible.length === 0 ? (
               <div className="il-empty">
-                <span>👥</span>
+                <Users size={48} color="#9ca3af" style={{ margin: "0 auto 12px" }} />
                 <h3>{students.length === 0 ? "No students yet" : "No matches"}</h3>
                 <p>
                   {students.length === 0

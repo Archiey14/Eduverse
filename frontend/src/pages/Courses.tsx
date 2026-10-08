@@ -25,6 +25,7 @@ interface Course {
   icon: string;
   description: string;
   createdAt: number;
+  thumbnailUrl?: string;
 }
 
 interface EnrolledCourse {
@@ -100,6 +101,7 @@ function Courses() {
             icon: ICONS[idx % ICONS.length],
             description: c.subtitle || c.description || "",
             createdAt: c.createdAt ? new Date(c.createdAt).getTime() : 0,
+            thumbnailUrl: c.thumbnailUrl,
           }))
         );
 
@@ -469,9 +471,16 @@ function Courses() {
                             const saved = wishlist.has(course.id);
                             return (
                               <article className="course-card" key={course.id}>
-                                <div className={`course-card-image ${course.imageClass}`}>
-                                  <div className="course-image-pattern"></div>
-                                  <span className="course-main-icon">{course.icon}</span>
+                                <div
+                                  className={`course-card-image ${course.imageClass}`}
+                                  style={course.thumbnailUrl ? { backgroundImage: `url(${course.thumbnailUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+                                >
+                                  {!course.thumbnailUrl && (
+                                    <>
+                                      <div className="course-image-pattern"></div>
+                                      <span className="course-main-icon">{course.icon}</span>
+                                    </>
+                                  )}
 
                                   <button
                                     type="button"

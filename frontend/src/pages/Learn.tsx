@@ -377,15 +377,28 @@ function Learn() {
 
         <main className="learn-content">
           {enrollment.status === "completed" && (
-            <Notice
-              kind="success"
-              title="🎉 Course completed!"
-              message={
-                enrollment.certificateCode
-                  ? `Certificate code: ${enrollment.certificateCode}`
-                  : "Congratulations on finishing this course."
-              }
-            />
+            <div style={{ marginBottom: "2rem" }}>
+              <Notice
+                kind="success"
+                title="🎉 Course completed!"
+                message={
+                  enrollment.certificateCode
+                    ? `Certificate code: ${enrollment.certificateCode}`
+                    : "Congratulations on finishing this course."
+                }
+              />
+              {enrollment.certificateCode && (
+                <a
+                  href={`${import.meta.env.VITE_API_URL || "http://localhost:5001/api"}/certificates/${enrollment.certificateCode}/download`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="il-btn"
+                  style={{ marginTop: "12px", display: "inline-flex", alignItems: "center", gap: "8px" }}
+                >
+                  <span style={{ fontSize: "1.2rem" }}>⬇️</span> Download Certificate PDF
+                </a>
+              )}
+            </div>
           )}
 
           {actionError && <Notice message={actionError} />}

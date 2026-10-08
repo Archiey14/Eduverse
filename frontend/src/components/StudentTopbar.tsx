@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Menu, Search, HelpCircle, Bell, User, BookOpen, Settings, GraduationCap, LogOut, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { api, getErrorMessage } from "../services/api";
 
@@ -57,7 +58,7 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
   useEffect(() => {
     let cancelled = false;
     api.notifications
-      .getAll(1)
+      .getAll(1, "student")
       .then((res) => {
         if (!cancelled) setUnread(res.unreadCount || 0);
       })
@@ -96,7 +97,7 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
         onClick={onOpenSidebar}
         aria-label="Open menu"
       >
-        ☰
+        <Menu size={20} />
       </button>
 
       <Link to="/student/dashboard" className="mobile-dashboard-logo">
@@ -105,7 +106,7 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
       </Link>
 
       <div className="dashboard-search">
-        <span className="dashboard-search-icon">🔍</span>
+        <span className="dashboard-search-icon"><Search size={16} color="#9ca3af" /></span>
         <input
           type="search"
           placeholder={searchPlaceholder}
@@ -121,7 +122,7 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
           aria-label="Help Center"
           title="Help Center"
         >
-          ?
+          <HelpCircle size={20} />
         </Link>
 
         <Link
@@ -130,7 +131,7 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
           aria-label="Notifications"
           title="Notifications"
         >
-          🔔
+          <Bell size={20} />
           {unread > 0 && <span className="notification-indicator"></span>}
         </Link>
 
@@ -150,7 +151,7 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
             <span>Student</span>
           </div>
 
-          <span className="user-menu-arrow">{menuOpen ? "▲" : "▼"}</span>
+          <span className="user-menu-arrow">{menuOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
 
           {menuOpen && (
             <div
@@ -170,13 +171,13 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
               onClick={(e) => e.stopPropagation()}
             >
               <Link to="/profile" style={menuLinkStyle} onClick={() => setMenuOpen(false)}>
-                👤 My Profile
+                <span style={{display: 'flex', gap: '8px', alignItems: 'center'}}><User size={16} /> My Profile</span>
               </Link>
               <Link to="/student/courses" style={menuLinkStyle} onClick={() => setMenuOpen(false)}>
-                📚 My Courses
+                <span style={{display: 'flex', gap: '8px', alignItems: 'center'}}><BookOpen size={16} /> My Courses</span>
               </Link>
               <Link to="/settings" style={menuLinkStyle} onClick={() => setMenuOpen(false)}>
-                ⚙️ Settings
+                <span style={{display: 'flex', gap: '8px', alignItems: 'center'}}><Settings size={16} /> Settings</span>
               </Link>
 
               <hr style={dividerStyle} />
@@ -187,7 +188,7 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
                   style={{ ...menuButtonStyle, color: "#4f46e5" }}
                   onClick={handleBecomeInstructor}
                 >
-                  🎓 Become Instructor
+                  <span style={{display: 'flex', gap: '8px', alignItems: 'center'}}><GraduationCap size={16} /> Become Instructor</span>
                 </button>
               )}
               {isMentor && (
@@ -196,7 +197,7 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
                   style={{ ...menuLinkStyle, color: "#4f46e5" }}
                   onClick={() => setMenuOpen(false)}
                 >
-                  🎓 Instructor Dashboard
+                  <span style={{display: 'flex', gap: '8px', alignItems: 'center'}}><GraduationCap size={16} /> Instructor Dashboard</span>
                 </Link>
               )}
 
@@ -207,7 +208,7 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
                 style={{ ...menuButtonStyle, color: "#ef4444" }}
                 onClick={handleLogout}
               >
-                ↪ Logout
+                <span style={{display: 'flex', gap: '8px', alignItems: 'center'}}><LogOut size={16} /> Logout</span>
               </button>
             </div>
           )}

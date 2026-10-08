@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { LayoutDashboard, BookOpen, Search, FileQuestion, TrendingUp, Zap, Heart, Trophy, User, Settings, HelpCircle, GraduationCap, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 interface StudentSidebarProps {
@@ -44,7 +45,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
     }
   };
 
-  const item = (key: string, to: string, icon: string, label: string) => (
+  const item = (key: string, to: string, icon: React.ReactNode, label: string) => (
     <Link
       to={to}
       className={`dashboard-nav-item ${current === key ? "active" : ""}`}
@@ -79,32 +80,32 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
       <nav className="dashboard-navigation">
         <div className="navigation-section">
           <span className="navigation-title">MAIN MENU</span>
-          {item("dashboard", "/student/dashboard", "▦", "Dashboard")}
-          {item("courses", "/student/courses", "📚", "My Courses")}
-          {item("catalog", "/courses", "🔍", "Discover Courses")}
-          {item("quizzes", "/quizzes", "📝", "Quizzes")}
-          {item("progress", "/progress", "📈", "My Progress")}
+          {item("dashboard", "/student/dashboard", <LayoutDashboard size={20} />, "Dashboard")}
+          {item("courses", "/student/courses", <BookOpen size={20} />, "My Courses")}
+          {item("catalog", "/courses", <Search size={20} />, "Discover Courses")}
+          {item("quizzes", "/quizzes", <FileQuestion size={20} />, "Quizzes")}
+          {item("progress", "/progress", <TrendingUp size={20} />, "My Progress")}
         </div>
 
         <div className="navigation-section">
           <span className="navigation-title">LEARNING</span>
-          {item("activities", "/activities", "⚡", "Learning Activity")}
-          {item("wishlist", "/wishlist", "❤️", "Wishlist")}
-          {item("achievements", "/achievements", "🏆", "Achievements")}
+          {item("activities", "/activities", <Zap size={20} />, "Learning Activity")}
+          {item("wishlist", "/wishlist", <Heart size={20} />, "Wishlist")}
+          {item("achievements", "/achievements", <Trophy size={20} />, "Achievements")}
         </div>
 
         <div className="navigation-section">
           <span className="navigation-title">ACCOUNT</span>
-          {item("profile", "/profile", "👤", "Profile")}
-          {item("settings", "/settings", "⚙️", "Settings")}
-          {item("help", "/help", "❓", "Help Center")}
+          {item("profile", "/profile", <User size={20} />, "Profile")}
+          {item("settings", "/settings", <Settings size={20} />, "Settings")}
+          {item("help", "/help", <HelpCircle size={20} />, "Help Center")}
           {isMentor && (
             <Link
               to="/instructor/dashboard"
               className="dashboard-nav-item"
               onClick={onClose}
             >
-              <span className="nav-item-icon">🎓</span>
+              <span className="nav-item-icon"><GraduationCap size={20} /></span>
               <span>Instructor View</span>
             </Link>
           )}
@@ -128,7 +129,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           className="dashboard-logout"
           onClick={handleLogout}
         >
-          <span>↪</span>
+          <span><LogOut size={20} /></span>
           Logout
         </button>
       </div>

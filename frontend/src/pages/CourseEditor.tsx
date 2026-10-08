@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { FolderOpen, FileText, Video, FileQuestion, Plus, Rocket, Trash2, Edit2 } from "lucide-react";
 import { api, getErrorMessage } from "../services/api";
 import InstructorLayout from "../components/InstructorLayout";
 import "../components/InstructorLayout.css";
@@ -75,6 +76,7 @@ export default function CourseEditor() {
   const [quizTitle, setQuizTitle] = useState("");
   const [passPercent, setPassPercent] = useState("70");
   const [questions, setQuestions] = useState<QuestionDraft[]>([emptyQuestion()]);
+  const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
 
   const flash = (type: "error" | "success", text: string) => {
     setError(type === "error" ? text : "");
@@ -292,21 +294,50 @@ export default function CourseEditor() {
 
     setBusy(true);
     try {
-      await api.mentor.createQuiz(id, {
+      const payloadData = {
         title: quizTitle.trim(),
         passPercent: Number(passPercent) || 70,
         questions: payload,
-      });
+      };
+      
+      if (editingQuizId) {
+        await api.mentor.updateQuiz(editingQuizId, payloadData);
+      } else {
+        await api.mentor.createQuiz(id, payloadData);
+      }
+      
       setQuizTitle("");
       setPassPercent("70");
       setQuestions([emptyQuestion()]);
+      setEditingQuizId(null);
       await load();
-      flash("success", "Quiz created.");
+      flash("success", editingQuizId ? "Quiz updated." : "Quiz created.");
     } catch (err) {
       flash("error", getErrorMessage(err, "Could not create the quiz."));
     } finally {
       setBusy(false);
     }
+  };
+
+  const editQuiz = (q: any) => {
+    setEditingQuizId(q._id);
+    setQuizTitle(q.title || "");
+    setPassPercent(String(q.passPercent || 70));
+    setQuestions(
+      q.questions?.length
+        ? q.questions.map((ques: any) => {
+            const options = [...(ques.options || [])];
+            while (options.length < 4) options.push("");
+            return {
+              text: ques.text || "",
+              options: options.slice(0, 4),
+              correctIndex: ques.correctIndex || 0,
+              explanation: ques.explanation || "",
+            };
+          })
+        : [emptyQuestion()]
+    );
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   };
 
   const deleteQuiz = async (quizId: string) => {
@@ -359,8 +390,9 @@ export default function CourseEditor() {
               className={`il-btn ${course.status === "published" ? "il-btn-outline" : "il-btn-success"}`}
               onClick={togglePublish}
               disabled={busy}
+              style={{ display: "flex", gap: "6px", alignItems: "center" }}
             >
-              {course.status === "published" ? "Unpublish" : "🚀 Publish"}
+              {course.status === "published" ? "Unpublish" : <><Rocket size={16} /> Publish</>}
             </button>
           </div>
         )}
@@ -497,7 +529,8 @@ export default function CourseEditor() {
 
             {sections.length === 0 && (
               <div className="il-empty">
-                <span>🗂️</span>No sections yet.
+                <FolderOpen size={48} color="#9ca3af" style={{ margin: "0 auto 12px" }} />
+                No sections yet.
               </div>
             )}
 
@@ -515,7 +548,7 @@ export default function CourseEditor() {
                           setLessonForm(emptyLesson);
                         }}
                       >
-                        ➕ Add lesson
+                        <Plus size={14} /> Add lesson
                       </button>
                       <button
                         className="il-btn il-btn-danger il-btn-sm"
@@ -528,8 +561,9 @@ export default function CourseEditor() {
 
                   {secLessons.map((l) => (
                     <div className="il-lesson" key={l._id}>
-                      <div>
-                        {l.type === "text" ? "📄" : "🎬"} <strong>{l.title}</strong>{" "}
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        {l.type === "text" ? <FileText size={16} color="#64748b" /> : <Video size={16} color="#64748b" />}
+                        <strong>{l.title}</strong>{" "}
                         <small>· {l.durationMin || 0} min</small>
                       </div>
                       <button
@@ -641,7 +675,8 @@ export default function CourseEditor() {
             <p className="il-card-sub">Quizzes students can take inside this course.</p>
             {quizzes.length === 0 ? (
               <div className="il-empty">
-                <span>📝</span>No quizzes yet. Create one below.
+                <FileQuestion size={48} color="#9ca3af" style={{ margin: "0 auto 12px" }} />
+                No quizzes yet. Create one below.
               </div>
             ) : (
               quizzes.map((q) => (
@@ -652,16 +687,37 @@ export default function CourseEditor() {
                       {q.questions?.length || 0} questions · pass at {q.passPercent}%
                     </small>
                   </div>
-                  <button className="il-btn il-btn-danger il-btn-sm" onClick={() => deleteQuiz(q._id)}>
-                    Delete
-                  </button>
+                  <div className="il-actions">
+                    <button className="il-btn il-btn-outline il-btn-sm" onClick={() => editQuiz(q)}>
+                      Edit
+                    </button>
+                    <button className="il-btn il-btn-danger il-btn-sm" onClick={() => deleteQuiz(q._id)}>
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))
             )}
           </section>
 
           <form className="il-card" onSubmit={createQuiz}>
-            <h2>Create a quiz</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2>{editingQuizId ? "Edit quiz" : "Create a quiz"}</h2>
+              {editingQuizId && (
+                <button
+                  type="button"
+                  className="il-btn il-btn-outline il-btn-sm"
+                  onClick={() => {
+                    setEditingQuizId(null);
+                    setQuizTitle("");
+                    setPassPercent("70");
+                    setQuestions([emptyQuestion()]);
+                  }}
+                >
+                  Cancel Edit
+                </button>
+              )}
+            </div>
             <p className="il-card-sub">Select the radio button next to the correct answer.</p>
 
             <div className="il-form-grid">
@@ -735,7 +791,7 @@ export default function CourseEditor() {
                 className="il-btn il-btn-outline"
                 onClick={() => setQuestions((qs) => [...qs, emptyQuestion()])}
               >
-                ➕ Add question
+                <Plus size={16} /> Add question
               </button>
               <button type="submit" className="il-btn il-btn-primary" disabled={busy}>
                 {busy ? "Saving..." : "Save quiz"}

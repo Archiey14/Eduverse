@@ -1,0 +1,38 @@
+.otp-input-container {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.otp-digit-input {
+  width: 48px;
+  height: 60px;
+  font-size: 24px;
+  font-weight: 600;
+  text-align: center;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background-color: #fff;
+  transition: all 0.2s ease;
+  color: #1f2937;
+  padding: 0;
+}
+
+.otp-digit-input:focus {
+  border-color: #4f46e5;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  background-color: #fafafa;
+}
+
+.otp-digit-input:hover:not(:focus) {
+  border-color: #d1d5db;
+}
+
+/* Fix for removing arrows in number inputs across browsers if we use type=number */
+.otp-digit-input::-webkit-outer-spin-button,
+.otp-digit-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

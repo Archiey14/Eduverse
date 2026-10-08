@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { verifyCertificate } from "../controllers/certificateController.js";
+import { verifyCertificate, downloadCertificatePdf } from "../controllers/certificateController.js";
 
 const router = Router();
 
 router.get("/:code", verifyCertificate);
+router.get("/:code/download", downloadCertificatePdf);
 
 export default router;

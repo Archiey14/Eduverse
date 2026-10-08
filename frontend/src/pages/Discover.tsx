@@ -21,6 +21,7 @@ interface DiscoverCourse {
   imageClass: string;
   icon: string;
   createdAt: number;
+  thumbnailUrl?: string;
 }
 
 interface Instructor {
@@ -125,6 +126,7 @@ function Discover() {
             imageClass: IMAGE_CLASSES[idx % IMAGE_CLASSES.length],
             icon: ICONS[idx % ICONS.length],
             createdAt: c.createdAt ? new Date(c.createdAt).getTime() : 0,
+            thumbnailUrl: c.thumbnailUrl,
           };
         });
 
@@ -346,8 +348,11 @@ function Discover() {
                     const saved = wishlist.has(course.id);
                     return (
                       <article className="discover-course-card" key={course.id}>
-                        <div className={`discover-course-image ${course.imageClass}`}>
-                          <span className="discover-course-icon">{course.icon}</span>
+                        <div
+                          className={`discover-course-image ${course.imageClass}`}
+                          style={course.thumbnailUrl ? { backgroundImage: `url(${course.thumbnailUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+                        >
+                          {!course.thumbnailUrl && <span className="discover-course-icon">{course.icon}</span>}
 
                           <button
                             type="button"

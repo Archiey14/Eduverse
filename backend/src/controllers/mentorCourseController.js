@@ -6,6 +6,7 @@ import { Category } from "../models/Category.js";
 import { Enrollment } from "../models/Enrollment.js";
 import { Review } from "../models/Review.js";
 import { QuizAttempt } from "../models/QuizAttempt.js";
+import { Notification } from "../models/Notification.js";
 import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { slugify } from "../utils/slugify.js";
@@ -511,5 +512,40 @@ export const getCourseStudentDetail = asyncHandler(async (req, res, next) => {
       enrollment,
       quizAttempts: attempts,
     },
+  });
+});
+
+export const broadcastAnnouncement = asyncHandler(async (req, res, next) => {
+  const { courseId } = req.params;
+  const { message } = req.body;
+  const mentorId = req.user._id;
+
+  if (!message || !message.trim()) {
+    return next(new AppError(400, "Announcement message is required."));
+  }
+
+  const course = await Course.findOne({ _id: courseId, mentor: mentorId });
+  if (!course) {
+    return next(new AppError(404, "Course not found or unauthorized."));
+  }
+
+  const enrollments = await Enrollment.find({ course: courseId }).select("student");
+  
+  if (enrollments.length === 0) {
+    return next(new AppError(400, "No students enrolled in this course to notify."));
+  }
+
+  const notifications = enrollments.map(enr => ({
+    user: enr.student,
+    type: "announcement",
+    message: `📢 Announcement from ${course.title}: ${message}`,
+    course: courseId,
+  }));
+
+  await Notification.insertMany(notifications);
+
+  res.status(200).json({
+    success: true,
+    message: `Announcement sent to ${enrollments.length} students.`,
   });
 });

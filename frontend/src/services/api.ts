@@ -231,6 +231,8 @@ export const api = {
   mentor: {
     getDashboard: () => request<any>("/mentor/dashboard"),
     getAnalytics: () => request<any>("/mentor/analytics"),
+    sendAnnouncement: (courseId: string, message: string) =>
+      request<any>(`/mentor/courses/${courseId}/announcement`, json("POST", { message })),
     getMyCourses: (params?: Record<string, any>) =>
       request<any>(`/mentor/courses${toQuery(params)}`),
     getCourse: (id: string) => request<any>(`/mentor/courses/${id}`),
@@ -262,16 +264,18 @@ export const api = {
     getQuiz: (quizId: string) => request<any>(`/mentor/quizzes/${quizId}`),
     createQuiz: (courseId: string, body: any) =>
       request<any>(`/mentor/courses/${courseId}/quizzes`, json("POST", body)),
+    updateQuiz: (quizId: string, body: any) =>
+      request<any>(`/mentor/quizzes/${quizId}`, json("PATCH", body)),
     deleteQuiz: (quizId: string) =>
       request<any>(`/mentor/quizzes/${quizId}`, json("DELETE")),
   },
 
   // Notifications & activity
   notifications: {
-    getAll: (page = 1) => request<any>(`/notifications?page=${page}`),
+    getAll: (page = 1, role?: "student" | "mentor") => request<any>(`/notifications?page=${page}${role ? `&role=${role}` : ""}`),
     markAsRead: (id: string) =>
       request<any>(`/notifications/${id}/read`, json("PATCH")),
-    markAllAsRead: () => request<any>("/notifications/read-all", json("PATCH")),
+    markAllAsRead: (role?: "student" | "mentor") => request<any>(`/notifications/read-all${role ? `?role=${role}` : ""}`, json("PATCH")),
   },
   activity: {
     getMyActivities: (page = 1, limit = 20) =>

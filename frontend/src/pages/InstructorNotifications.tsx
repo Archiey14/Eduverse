@@ -14,7 +14,7 @@ function InstructorNotifications() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.notifications.getAll(pageNumber);
+      const res = await api.notifications.getAll(pageNumber, "mentor");
       setItems(res.data || []);
       setUnread(res.unreadCount || 0);
       setTotalPages(res.totalPages || 1);
@@ -41,7 +41,7 @@ function InstructorNotifications() {
 
   const markAll = async () => {
     try {
-      await api.notifications.markAllAsRead();
+      await api.notifications.markAllAsRead("mentor");
       setItems((current) => current.map((n) => ({ ...n, isRead: true })));
       setUnread(0);
     } catch (err) {

@@ -15,7 +15,7 @@ function Notifications() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.notifications.getAll(pageNumber);
+      const res = await api.notifications.getAll(pageNumber, "student");
       setItems(res.data || []);
       setUnread(res.unreadCount || 0);
       setTotalPages(res.totalPages || 1);
@@ -42,7 +42,7 @@ function Notifications() {
 
   const markAll = async () => {
     try {
-      await api.notifications.markAllAsRead();
+      await api.notifications.markAllAsRead("student");
       setItems((current) => current.map((n) => ({ ...n, isRead: true })));
       setUnread(0);
     } catch (err) {

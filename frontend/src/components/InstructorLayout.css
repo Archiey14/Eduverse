@@ -249,23 +249,57 @@
 /* ---------- list items ---------- */
 .il-list-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  padding: 11px 0;
+  gap: 16px;
+  padding: 16px 0;
   border-bottom: 1px solid #f3f4f6;
-  font-size: 13px;
 }
 .il-list-item:last-child {
   border-bottom: none;
+  padding-bottom: 0;
+}
+.il-list-item > div {
+  flex: 1;
 }
 .il-list-item strong {
   display: block;
+  margin-bottom: 4px;
+  font-size: 15px;
   color: #111827;
 }
 .il-list-item small {
-  display: block;
+  font-size: 13px;
   color: #6b7280;
+}
+
+/* ---------- tabs ---------- */
+.il-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #f3f4f6;
+  padding-bottom: 12px;
+}
+.il-tab {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+.il-tab:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+.il-tab.active {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
 }
 
 /* ---------- badges ---------- */
@@ -396,9 +430,6 @@
   justify-content: center;
   height: 140px;
   background: linear-gradient(135deg, #eef2ff, #f5f3ff) center / cover no-repeat;
-}
-.il-course-thumb > span:first-child {
-  font-size: 44px;
 }
 .il-course-thumb .il-badge {
   position: absolute;
@@ -567,4 +598,45 @@
   font-size: 15px;
   line-height: 1;
   cursor: pointer;
+}
+
+/* ---------- curriculum sections & lessons ---------- */
+.il-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.il-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+}
+.il-section-head strong {
+  font-size: 16px;
+  color: #0f172a;
+}
+.il-lesson {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px 14px 44px;
+  background: #fff;
+  border-bottom: 1px solid #f1f5f9;
+}
+.il-lesson:last-child {
+  border-bottom: none;
+}
+.il-lesson strong {
+  font-size: 14px;
+  color: #334155;
+  font-weight: 600;
+}
+.il-lesson small {
+  color: #64748b;
+  font-size: 13px;
 }

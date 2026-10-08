@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import StudentLayout from "../components/StudentLayout";
+import { BookOpen, Code, Terminal } from "lucide-react";
 import "./StudentDashboard.css";
 import "./MyCourses.css";
 
@@ -25,7 +26,8 @@ function MyCourses() {
             instructor: enr.course?.mentor?.name || "Instructor",
             progress: enr.progressPercent || 0,
             completed: enr.status === "completed",
-            icon: idx % 2 === 0 ? "💻" : "🐍",
+            thumbnailUrl: enr.course?.thumbnailUrl,
+            icon: idx % 2 === 0 ? <Code size={48} color="#5b5ce2" /> : <Terminal size={48} color="#10b981" />,
             colorClass:
               idx % 3 === 0
                 ? "course-blue"
@@ -61,8 +63,12 @@ function MyCourses() {
           <div className="active-courses-grid">
             {enrolledCourses.map((course) => (
               <div className="active-course-card" key={course.id}>
-                <div className={`active-course-icon ${course.colorClass}`}>
-                  {course.icon}
+                <div className={`active-course-icon ${course.thumbnailUrl ? '' : course.colorClass}`} style={course.thumbnailUrl ? { padding: 0 } : {}}>
+                  {course.thumbnailUrl ? (
+                    <img src={course.thumbnailUrl} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    course.icon
+                  )}
                 </div>
                 <div className="active-course-info">
                   <span className="course-category">
@@ -93,7 +99,7 @@ function MyCourses() {
           </div>
         ) : (
           <div className="empty-dashboard-state" style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: "12px", border: "1px solid #eef0f4" }}>
-            <span style={{ fontSize: "40px", display: "block", marginBottom: "16px" }}>📚</span>
+            <BookOpen size={48} color="#9ca3af" style={{ display: "block", margin: "0 auto 16px" }} />
             <h3>No enrolled courses</h3>
             <p style={{ color: "#6b7280", margin: "8px auto 20px", maxWidth: "420px" }}>
               You haven't enrolled in any courses yet. Discover our curated catalog to start learning right now.
