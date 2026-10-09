@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { User } from "../models/User.js";
 import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -485,6 +486,87 @@ export const googleAuth = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Google sign-in successful",
+    token,
+    user: userPayload(user),
+  });
+});
+
+// ============================================================
+// FORGOT PASSWORD
+// ============================================================
+export const forgotPassword = asyncHandler(async (req, res, next) => {
+  const { email } = req.body;
+  if (!email) {
+    return next(new AppError(400, "Please provide an email address."));
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase().trim() });
+  if (!user) {
+    return next(new AppError(404, "No user found with that email address."));
+  }
+
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+  user.resetPasswordToken = hashedToken;
+  user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 mins
+  await user.save();
+
+  const resetUrl = `${req.protocol}://${req.get("host").includes('localhost') || req.get("host").includes('127.0.0.1') ? 'localhost:5173' : req.get("host")}/reset-password/${resetToken}`;
+
+  const message = `Forgot your password? Reset it here: ${resetUrl}.\nIf you didn't request this, please ignore this email.`;
+
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: "Your password reset token (valid for 15 min)",
+      message,
+      html: `<h2>Password Reset</h2>
+      <p>Forgot your password? Reset it <a href="${resetUrl}">here</a>.</p>
+      <p>If you didn't request this, please ignore this email.</p>`
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Token sent to email!",
+    });
+  } catch (err) {
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+    return next(new AppError(500, "There was an error sending the email. Try again later."));
+  }
+});
+
+// ============================================================
+// RESET PASSWORD
+// ============================================================
+export const resetPassword = asyncHandler(async (req, res, next) => {
+  const hashedToken = crypto.createHash("sha256").update(req.params.token).digest("hex");
+
+  const user = await User.findOne({
+    resetPasswordToken: hashedToken,
+    resetPasswordExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    return next(new AppError(400, "Token is invalid or has expired."));
+  }
+
+  if (req.body.password.length < 8) {
+    return next(new AppError(400, "Password must be at least 8 characters long."));
+  }
+
+  const salt = await bcrypt.genSalt(12);
+  user.passwordHash = await bcrypt.hash(req.body.password, salt);
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
+  await user.save();
+
+  const token = generateToken(user._id);
+  res.status(200).json({
+    success: true,
+    message: "Password reset successful",
     token,
     user: userPayload(user),
   });

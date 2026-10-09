@@ -10,6 +10,8 @@ import {
   updatePassword,
   verifyOTP,
   uploadAvatar,
+  forgotPassword,
+  resetPassword,
 } from "../controllers/authController.js";
 
 import { protect } from "../middleware/auth.js";
@@ -82,6 +84,20 @@ router.patch(
   "/password",
   protect,
   updatePassword
+);
+
+// Forgot password
+router.post(
+  "/forgot-password",
+  authLimiter,
+  forgotPassword
+);
+
+// Reset password
+router.patch(
+  "/reset-password/:token",
+  authLimiter,
+  resetPassword
 );
 
 export default router;

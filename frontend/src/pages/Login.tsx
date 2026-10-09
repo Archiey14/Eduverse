@@ -279,8 +279,9 @@ function Login() {
 
               {/* PASSWORD */}
               <div className="professional-form-group">
-                <div className="password-heading">
-                  <label htmlFor="password">Password</label>
+                <div className="password-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                  <label htmlFor="password" style={{ marginBottom: 0 }}>Password</label>
+                  <Link to="/forgot-password" style={{ fontSize: '13px', color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}>Forgot password?</Link>
                 </div>
 
                 <div className="input-wrapper">

@@ -13,6 +13,18 @@ html {
   scroll-behavior: smooth;
 }
 
+html.dark {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+html.dark img,
+html.dark video,
+html.dark iframe,
+html.dark .no-invert,
+html.dark [style*="background-image"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+
 body {
   font-family:
     Inter,

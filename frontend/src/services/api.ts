@@ -195,6 +195,14 @@ export const api = {
       code: string;
     }) => request<any>("/auth/verify-otp", json("POST", body)),
 
+    forgotPassword: (body: {
+      email: string;
+    }) => request<any>("/auth/forgot-password", json("POST", body)),
+
+    resetPassword: (token: string, body: {
+      password: string;
+    }) => request<any>(`/auth/reset-password/${token}`, json("PATCH", body)),
+
     googleAuth: (body: {
       email: string;
       name?: string;

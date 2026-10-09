@@ -8,11 +8,15 @@ import {
 } from "react-router-dom";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
+import { ThemeToggle } from "./components/ThemeToggle";
 
 // Landing & Authentication
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 // Student Pages
 import StudentDashboard from "./pages/StudentDashboard";
@@ -179,6 +183,16 @@ function AppRoutes() {
       <Route
         path="/register"
         element={<Register />}
+      />
+
+      <Route
+        path="/forgot-password"
+        element={<ForgotPassword />}
+      />
+
+      <Route
+        path="/reset-password/:token"
+        element={<ResetPassword />}
       />
 
       <Route
@@ -590,11 +604,14 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppRoutes />
+          <ThemeToggle />
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
