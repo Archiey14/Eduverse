@@ -17,6 +17,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import TermsAndConditions from "./pages/TermsAndConditions";
 
 // Student Pages
 import StudentDashboard from "./pages/StudentDashboard";
@@ -193,6 +194,11 @@ function AppRoutes() {
       <Route
         path="/reset-password/:token"
         element={<ResetPassword />}
+      />
+
+      <Route
+        path="/terms"
+        element={<TermsAndConditions />}
       />
 
       <Route

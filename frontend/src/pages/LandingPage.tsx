@@ -655,9 +655,9 @@ function LandingPage() {
                 Privacy Policy
               </a>
 
-              <a href="#terms">
+              <Link to="/terms">
                 Terms & Conditions
-              </a>
+              </Link>
             </div>
           </div>
         </div>
