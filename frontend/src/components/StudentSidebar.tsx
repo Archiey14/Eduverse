@@ -1,6 +1,11 @@
-import React from "react";
+
+import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, BookOpen, Search, FileQuestion, TrendingUp, Zap, Heart, Trophy, User, Settings, HelpCircle, GraduationCap, LogOut } from "lucide-react";
+import {
+  LayoutDashboard, BookOpen, Search, FileQuestion, TrendingUp,
+  Zap, Heart, Trophy, User, Settings, HelpCircle, GraduationCap,
+  LogOut,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 interface StudentSidebarProps {
@@ -9,7 +14,6 @@ interface StudentSidebarProps {
   onClose: () => void;
 }
 
-/** Work out which sidebar entry is highlighted from the current URL. */
 const keyFromPath = (pathname: string): string => {
   if (pathname === "/student/dashboard") return "dashboard";
   if (pathname.startsWith("/student/courses") || pathname.startsWith("/learn")) return "courses";
@@ -26,17 +30,33 @@ const keyFromPath = (pathname: string): string => {
   return "";
 };
 
+const sidebarAvatarStyle: React.CSSProperties = {
+  width: 44,
+  height: 44,
+  minWidth: 44,
+  borderRadius: "50%",
+  objectFit: "cover",
+  display: "block",
+};
+
 export const StudentSidebar: React.FC<StudentSidebarProps> = ({
   activeItem,
   isOpen,
   onClose,
 }) => {
-  const { logout, isMentor } = useAuth();
+  const { user, logout, isMentor } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
-  // The URL is the source of truth; activeItem is only a fallback for unknown routes
   const current = keyFromPath(location.pathname) || activeItem || "";
+  const displayName = user?.name || "Student";
+  const initial = displayName.charAt(0).toUpperCase();
+  const avatarUrl = user?.avatarUrl?.trim() || "";
+
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [avatarUrl]);
 
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to logout?")) {
@@ -45,7 +65,12 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
     }
   };
 
-  const item = (key: string, to: string, icon: React.ReactNode, label: string) => (
+  const item = (
+    key: string,
+    to: string,
+    icon: React.ReactNode,
+    label: string
+  ) => (
     <Link
       to={to}
       className={`dashboard-nav-item ${current === key ? "active" : ""}`}
@@ -67,6 +92,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           <span className="dashboard-logo-icon">E</span>
           <span className="dashboard-logo-text">Eduverse</span>
         </Link>
+
         <button
           type="button"
           className="sidebar-close"
@@ -76,6 +102,62 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           ×
         </button>
       </div>
+
+      {/* Student profile */}
+      <Link
+        to="/profile"
+        onClick={onClose}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          margin: "16px 16px 20px",
+          padding: "12px",
+          borderRadius: 12,
+          textDecoration: "none",
+          color: "inherit",
+          background: "rgba(127, 127, 127, 0.08)",
+          minWidth: 0,
+        }}
+      >
+        {avatarUrl && !avatarLoadFailed ? (
+          <img
+            key={avatarUrl}
+            src={avatarUrl}
+            alt={`${displayName}'s profile`}
+            style={sidebarAvatarStyle}
+            onError={() => setAvatarLoadFailed(true)}
+          />
+        ) : (
+          <div
+            className="dashboard-avatar"
+            style={{
+              ...sidebarAvatarStyle,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            {initial}
+          </div>
+        )}
+
+        <div style={{ minWidth: 0 }}>
+          <strong
+            style={{
+              display: "block",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              fontSize: 14,
+            }}
+          >
+            {displayName}
+          </strong>
+          <span style={{ fontSize: 12, opacity: 0.7 }}>Student</span>
+        </div>
+      </Link>
 
       <nav className="dashboard-navigation">
         <div className="navigation-section">
@@ -99,13 +181,16 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           {item("profile", "/profile", <User size={20} />, "Profile")}
           {item("settings", "/settings", <Settings size={20} />, "Settings")}
           {item("help", "/help", <HelpCircle size={20} />, "Help Center")}
+
           {isMentor && (
             <Link
               to="/instructor/dashboard"
               className="dashboard-nav-item"
               onClick={onClose}
             >
-              <span className="nav-item-icon"><GraduationCap size={20} /></span>
+              <span className="nav-item-icon">
+                <GraduationCap size={20} />
+              </span>
               <span>Instructor View</span>
             </Link>
           )}

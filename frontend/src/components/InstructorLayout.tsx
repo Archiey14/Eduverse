@@ -1,11 +1,26 @@
-import { useState } from "react";
+
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { 
-  LayoutDashboard, BookOpen, PlusCircle, Video, Users, ClipboardList, 
-  BarChart, User, Settings, HelpCircle, GraduationCap, LogOut, Menu, X, Bell,
-  ChevronDown, ChevronUp
+import {
+  LayoutDashboard,
+  BookOpen,
+  PlusCircle,
+  Video,
+  Users,
+  ClipboardList,
+  BarChart,
+  User,
+  Settings,
+  HelpCircle,
+  GraduationCap,
+  LogOut,
+  Menu,
+  X,
+  Bell,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import "../pages/StudentDashboard.css";
 import "./InstructorLayout.css";
@@ -25,7 +40,6 @@ export type InstructorNavKey =
 interface InstructorLayoutProps {
   children: ReactNode;
   active?: InstructorNavKey;
-  /** Page title (kept for page-level semantics / document title). */
   title?: string;
 }
 
@@ -37,31 +51,90 @@ interface NavItem {
 }
 
 const MAIN_NAV: NavItem[] = [
-  { key: "dashboard", to: "/instructor/dashboard", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
-  { key: "courses", to: "/instructor/courses", icon: <BookOpen size={20} />, label: "My Courses" },
-  { key: "create", to: "/instructor/courses/create", icon: <PlusCircle size={20} />, label: "Create Course" },
+  {
+    key: "dashboard",
+    to: "/instructor/dashboard",
+    icon: <LayoutDashboard size={20} />,
+    label: "Dashboard",
+  },
+  {
+    key: "courses",
+    to: "/instructor/courses",
+    icon: <BookOpen size={20} />,
+    label: "My Courses",
+  },
+  {
+    key: "create",
+    to: "/instructor/courses/create",
+    icon: <PlusCircle size={20} />,
+    label: "Create Course",
+  },
 ];
 
 const MANAGE_NAV: NavItem[] = [
-  { key: "lessons", to: "/instructor/lessons", icon: <Video size={20} />, label: "Manage Lessons" },
-  { key: "students", to: "/instructor/students", icon: <Users size={20} />, label: "Students" },
-  { key: "quizzes", to: "/instructor/quizzes", icon: <ClipboardList size={20} />, label: "Quizzes" },
-  { key: "analytics", to: "/instructor/analytics", icon: <BarChart size={20} />, label: "Analytics" },
+  {
+    key: "lessons",
+    to: "/instructor/lessons",
+    icon: <Video size={20} />,
+    label: "Manage Lessons",
+  },
+  {
+    key: "students",
+    to: "/instructor/students",
+    icon: <Users size={20} />,
+    label: "Students",
+  },
+  {
+    key: "quizzes",
+    to: "/instructor/quizzes",
+    icon: <ClipboardList size={20} />,
+    label: "Quizzes",
+  },
+  {
+    key: "analytics",
+    to: "/instructor/analytics",
+    icon: <BarChart size={20} />,
+    label: "Analytics",
+  },
 ];
 
 const ACCOUNT_NAV: NavItem[] = [
-  { key: "profile", to: "/instructor/profile", icon: <User size={20} />, label: "Profile" },
-  { key: "settings", to: "/instructor/settings", icon: <Settings size={20} />, label: "Settings" },
+  {
+    key: "profile",
+    to: "/instructor/profile",
+    icon: <User size={20} />,
+    label: "Profile",
+  },
+  {
+    key: "settings",
+    to: "/instructor/settings",
+    icon: <Settings size={20} />,
+    label: "Settings",
+  },
 ];
 
-export default function InstructorLayout({ children, active, title }: InstructorLayoutProps) {
-  const { user, logout, isAdmin } = useAuth();
+export default function InstructorLayout({
+  children,
+  active,
+  title,
+}: InstructorLayoutProps) {
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
   const name = user?.name || "Instructor";
   const initial = name.charAt(0).toUpperCase();
+  const avatarUrl = user?.avatarUrl?.trim() || "";
+
+  // Reset the fallback if the saved picture changes.
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [avatarUrl]);
+
+  const showAvatar = Boolean(avatarUrl) && !avatarLoadFailed;
 
   const closeSidebar = () => setSidebarOpen(false);
 
@@ -72,11 +145,57 @@ export default function InstructorLayout({ children, active, title }: Instructor
     }
   };
 
+  const renderAvatar = (size: number, className?: string) => {
+    const avatarStyle: React.CSSProperties = {
+      width: size,
+      height: size,
+      minWidth: size,
+      borderRadius: "50%",
+      objectFit: "cover",
+      display: "block",
+      flexShrink: 0,
+    };
+
+    if (showAvatar) {
+      return (
+        <img
+          src={avatarUrl}
+          alt={`${name}'s profile`}
+          className={className}
+          onError={() => setAvatarLoadFailed(true)}
+          style={avatarStyle}
+        />
+      );
+    }
+
+    return (
+      <div
+        className={className}
+        role="img"
+        aria-label={`${name}'s profile initial`}
+        style={{
+          ...avatarStyle,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#4f46e5",
+          color: "#ffffff",
+          fontWeight: 700,
+          fontSize: size * 0.45,
+        }}
+      >
+        {initial}
+      </div>
+    );
+  };
+
   const renderItem = (item: NavItem) => (
     <Link
       key={item.key}
       to={item.to}
-      className={`dashboard-nav-item ${active === item.key ? "active" : ""}`}
+      className={`dashboard-nav-item ${
+        active === item.key ? "active" : ""
+      }`}
       onClick={closeSidebar}
     >
       <span className="nav-item-icon">{item.icon}</span>
@@ -91,15 +210,24 @@ export default function InstructorLayout({ children, active, title }: Instructor
           className="dashboard-overlay"
           style={{ display: "block" }}
           onClick={closeSidebar}
-        ></div>
+        />
       )}
 
-      <aside className={`dashboard-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+      <aside
+        className={`dashboard-sidebar ${
+          sidebarOpen ? "sidebar-open" : ""
+        }`}
+      >
         <div className="dashboard-brand">
-          <Link to="/instructor/dashboard" className="dashboard-logo" onClick={closeSidebar}>
+          <Link
+            to="/instructor/dashboard"
+            className="dashboard-logo"
+            onClick={closeSidebar}
+          >
             <span className="dashboard-logo-icon">E</span>
             <span className="dashboard-logo-text">Eduverse</span>
           </Link>
+
           <button
             type="button"
             className="sidebar-close"
@@ -109,6 +237,41 @@ export default function InstructorLayout({ children, active, title }: Instructor
             <X size={20} />
           </button>
         </div>
+
+        {/* Instructor profile in the sidebar */}
+        <Link
+          to="/instructor/profile"
+          onClick={closeSidebar}
+          className="il-sidebar-profile"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: 12,
+            margin: "8px 12px 16px",
+            borderRadius: 12,
+            background: "rgba(128, 128, 128, 0.08)",
+            color: "inherit",
+            textDecoration: "none",
+            minWidth: 0,
+          }}
+        >
+          {renderAvatar(42)}
+
+          <div style={{ minWidth: 0, overflow: "hidden" }}>
+            <strong
+              style={{
+                display: "block",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {name}
+            </strong>
+            <small>Instructor</small>
+          </div>
+        </Link>
 
         <nav className="dashboard-navigation">
           <div className="navigation-section">
@@ -124,23 +287,46 @@ export default function InstructorLayout({ children, active, title }: Instructor
           <div className="navigation-section">
             <span className="navigation-title">ACCOUNT</span>
             {ACCOUNT_NAV.map(renderItem)}
-            <Link to="/help" className="dashboard-nav-item" onClick={closeSidebar}>
-              <span className="nav-item-icon"><HelpCircle size={20} /></span>
+
+            <Link
+              to="/help"
+              className="dashboard-nav-item"
+              onClick={closeSidebar}
+            >
+              <span className="nav-item-icon">
+                <HelpCircle size={20} />
+              </span>
               <span>Help Center</span>
             </Link>
           </div>
 
           <div className="navigation-section">
             <span className="navigation-title">SWITCH VIEW</span>
-            <Link to="/student/dashboard" className="dashboard-nav-item" onClick={closeSidebar}>
-              <span className="nav-item-icon"><GraduationCap size={20} /></span>
+
+            <Link
+              to="/student/dashboard"
+              className="dashboard-nav-item"
+              onClick={closeSidebar}
+            >
+              <span className="nav-item-icon">
+                <GraduationCap size={20} />
+              </span>
               <span>Student View</span>
             </Link>
           </div>
         </nav>
 
         <div className="dashboard-sidebar-bottom">
-          <button type="button" className="dashboard-logout" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            className="dashboard-logout"
+            onClick={handleLogout}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
             <LogOut size={16} />
             Logout
           </button>
@@ -158,12 +344,15 @@ export default function InstructorLayout({ children, active, title }: Instructor
             <Menu size={24} />
           </button>
 
-          <Link to="/instructor/dashboard" className="mobile-dashboard-logo">
+          <Link
+            to="/instructor/dashboard"
+            className="mobile-dashboard-logo"
+          >
             <span className="dashboard-logo-icon">E</span>
             Eduverse
           </Link>
 
-          <div style={{ flex: 1 }}></div>
+          <div style={{ flex: 1 }} />
 
           <div className="dashboard-top-actions">
             <Link
@@ -184,35 +373,87 @@ export default function InstructorLayout({ children, active, title }: Instructor
               <Bell size={20} />
             </Link>
 
-            <div className="topbar-divider"></div>
+            <div className="topbar-divider" />
 
             <div
               className="dashboard-user-menu il-user-menu"
               onClick={() => setMenuOpen((open) => !open)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setMenuOpen((open) => !open);
+                }
+
+                if (event.key === "Escape") {
+                  setMenuOpen(false);
+                }
+              }}
               tabIndex={0}
               role="button"
+              aria-haspopup="true"
+              aria-expanded={menuOpen}
             >
-              <div className="dashboard-avatar">{initial}</div>
+              {renderAvatar(38, "dashboard-avatar")}
+
               <div className="dashboard-user-info">
                 <strong>{name}</strong>
                 <span>Instructor</span>
               </div>
-              <span className="user-menu-arrow">{menuOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
+
+              <span className="user-menu-arrow">
+                {menuOpen ? (
+                  <ChevronUp size={14} />
+                ) : (
+                  <ChevronDown size={14} />
+                )}
+              </span>
 
               {menuOpen && (
-                <div className="il-dropdown" onClick={(e) => e.stopPropagation()}>
-                  <Link to="/instructor/profile" onClick={() => setMenuOpen(false)}>
-                    <User size={16} style={{ marginRight: '8px' }} /> My Profile
+                <div
+                  className="il-dropdown"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <Link
+                    to="/instructor/profile"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <User size={16} style={{ marginRight: 8 }} />
+                    My Profile
                   </Link>
-                  <Link to="/instructor/settings" onClick={() => setMenuOpen(false)}>
-                    <Settings size={16} style={{ marginRight: '8px' }} /> Settings
+
+                  <Link
+                    to="/instructor/settings"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <Settings size={16} style={{ marginRight: 8 }} />
+                    Settings
                   </Link>
-                  <Link to="/student/dashboard" onClick={() => setMenuOpen(false)}>
-                    <GraduationCap size={16} style={{ marginRight: '8px' }} /> Student View
+
+                  <Link
+                    to="/student/dashboard"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <GraduationCap
+                      size={16}
+                      style={{ marginRight: 8 }}
+                    />
+                    Student View
                   </Link>
+
                   <hr />
-                  <button type="button" className="il-dropdown-danger" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                    <LogOut size={16} style={{ marginRight: '8px' }} /> Logout
+
+                  <button
+                    type="button"
+                    className="il-dropdown-danger"
+                    onClick={handleLogout}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      width: "100%",
+                    }}
+                  >
+                    <LogOut size={16} style={{ marginRight: 8 }} />
+                    Logout
                   </button>
                 </div>
               )}

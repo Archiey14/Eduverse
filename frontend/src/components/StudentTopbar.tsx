@@ -1,6 +1,10 @@
+
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, Search, HelpCircle, Bell, User, BookOpen, Settings, GraduationCap, LogOut, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Menu, Search, HelpCircle, Bell, User, BookOpen, Settings,
+  GraduationCap, LogOut, ChevronDown, ChevronUp,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { api, getErrorMessage } from "../services/api";
 
@@ -40,23 +44,39 @@ const dividerStyle: React.CSSProperties = {
   borderWidth: "1px 0 0",
 };
 
+const avatarStyle: React.CSSProperties = {
+  width: 38,
+  height: 38,
+  minWidth: 38,
+  borderRadius: "50%",
+  objectFit: "cover",
+  display: "block",
+};
+
 export const StudentTopbar: React.FC<StudentTopbarProps> = ({
   onOpenSidebar,
   searchQuery = "",
   onSearchChange,
   searchPlaceholder = "Search courses, lessons...",
 }) => {
-  const { user, logout, roleLabel, isMentor, isAdmin, updateUser } = useAuth();
+  const { user, logout, isMentor, updateUser } = useAuth();
   const navigate = useNavigate();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
   const displayName = user?.name || "Student";
   const userInitial = displayName.charAt(0).toUpperCase();
+  const avatarUrl = user?.avatarUrl?.trim() || "";
 
-  // Only show the red dot when there really are unread notifications
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [avatarUrl]);
+
   useEffect(() => {
     let cancelled = false;
+
     api.notifications
       .getAll(1, "student")
       .then((res) => {
@@ -65,6 +85,7 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
       .catch(() => {
         if (!cancelled) setUnread(0);
       });
+
     return () => {
       cancelled = true;
     };
@@ -79,14 +100,43 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
 
   const handleBecomeInstructor = async () => {
     setMenuOpen(false);
-    if (!window.confirm("Do you want to upgrade your account to Instructor?")) return;
+
+    if (!window.confirm("Do you want to upgrade your account to Instructor?")) {
+      return;
+    }
+
     try {
-      const res = await api.auth.becomeMentor({ headline: "New Instructor" });
+      const res = await api.auth.becomeMentor({
+        headline: "New Instructor",
+      });
+
       if (res.user) updateUser(res.user);
       navigate("/instructor/dashboard");
     } catch (err) {
-      window.alert(getErrorMessage(err, "Failed to upgrade your account."));
+      window.alert(
+        getErrorMessage(err, "Failed to upgrade your account.")
+      );
     }
+  };
+
+  const renderAvatar = () => {
+    if (avatarUrl && !avatarLoadFailed) {
+      return (
+        <img
+          key={avatarUrl}
+          src={avatarUrl}
+          alt={`${displayName}'s profile`}
+          style={avatarStyle}
+          onError={() => setAvatarLoadFailed(true)}
+        />
+      );
+    }
+
+    return (
+      <div className="dashboard-avatar">
+        {userInitial}
+      </div>
+    );
   };
 
   return (
@@ -106,12 +156,15 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
       </Link>
 
       <div className="dashboard-search">
-        <span className="dashboard-search-icon"><Search size={16} color="#9ca3af" /></span>
+        <span className="dashboard-search-icon">
+          <Search size={16} color="#9ca3af" />
+        </span>
+
         <input
           type="search"
           placeholder={searchPlaceholder}
           value={searchQuery}
-          onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
+          onChange={(e) => onSearchChange?.(e.target.value)}
         />
       </div>
 
@@ -132,26 +185,37 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
           title="Notifications"
         >
           <Bell size={20} />
-          {unread > 0 && <span className="notification-indicator"></span>}
+          {unread > 0 && (
+            <span className="notification-indicator" />
+          )}
         </Link>
 
-        <div className="topbar-divider"></div>
+        <div className="topbar-divider" />
 
         <div
           className="dashboard-user-menu"
-          onClick={() => setMenuOpen(!menuOpen)}
+          onClick={() => setMenuOpen((previous) => !previous)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setMenuOpen((previous) => !previous);
+            }
+          }}
           tabIndex={0}
           role="button"
+          aria-expanded={menuOpen}
           style={{ position: "relative", cursor: "pointer" }}
         >
-          <div className="dashboard-avatar">{userInitial}</div>
+          {renderAvatar()}
 
           <div className="dashboard-user-info">
             <strong>{displayName}</strong>
             <span>Student</span>
           </div>
 
-          <span className="user-menu-arrow">{menuOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
+          <span className="user-menu-arrow">
+            {menuOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </span>
 
           {menuOpen && (
             <div
@@ -170,14 +234,34 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <Link to="/profile" style={menuLinkStyle} onClick={() => setMenuOpen(false)}>
-                <span style={{display: 'flex', gap: '8px', alignItems: 'center'}}><User size={16} /> My Profile</span>
+              <Link
+                to="/profile"
+                style={menuLinkStyle}
+                onClick={() => setMenuOpen(false)}
+              >
+                <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <User size={16} /> My Profile
+                </span>
               </Link>
-              <Link to="/student/courses" style={menuLinkStyle} onClick={() => setMenuOpen(false)}>
-                <span style={{display: 'flex', gap: '8px', alignItems: 'center'}}><BookOpen size={16} /> My Courses</span>
+
+              <Link
+                to="/student/courses"
+                style={menuLinkStyle}
+                onClick={() => setMenuOpen(false)}
+              >
+                <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <BookOpen size={16} /> My Courses
+                </span>
               </Link>
-              <Link to="/settings" style={menuLinkStyle} onClick={() => setMenuOpen(false)}>
-                <span style={{display: 'flex', gap: '8px', alignItems: 'center'}}><Settings size={16} /> Settings</span>
+
+              <Link
+                to="/settings"
+                style={menuLinkStyle}
+                onClick={() => setMenuOpen(false)}
+              >
+                <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <Settings size={16} /> Settings
+                </span>
               </Link>
 
               <hr style={dividerStyle} />
@@ -188,16 +272,21 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
                   style={{ ...menuButtonStyle, color: "#4f46e5" }}
                   onClick={handleBecomeInstructor}
                 >
-                  <span style={{display: 'flex', gap: '8px', alignItems: 'center'}}><GraduationCap size={16} /> Become Instructor</span>
+                  <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <GraduationCap size={16} /> Become Instructor
+                  </span>
                 </button>
               )}
+
               {isMentor && (
                 <Link
                   to="/instructor/dashboard"
                   style={{ ...menuLinkStyle, color: "#4f46e5" }}
                   onClick={() => setMenuOpen(false)}
                 >
-                  <span style={{display: 'flex', gap: '8px', alignItems: 'center'}}><GraduationCap size={16} /> Instructor Dashboard</span>
+                  <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <GraduationCap size={16} /> Instructor Dashboard
+                  </span>
                 </Link>
               )}
 
@@ -208,7 +297,9 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
                 style={{ ...menuButtonStyle, color: "#ef4444" }}
                 onClick={handleLogout}
               >
-                <span style={{display: 'flex', gap: '8px', alignItems: 'center'}}><LogOut size={16} /> Logout</span>
+                <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <LogOut size={16} /> Logout
+                </span>
               </button>
             </div>
           )}
