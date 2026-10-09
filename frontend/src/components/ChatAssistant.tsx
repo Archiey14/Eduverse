@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import "./ChatAssistant.css";
 
 interface ChatMessage {
@@ -327,7 +328,11 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({
                 key={msg.id}
                 className={`chat-message ${msg.role}`}
               >
-                {msg.text}
+                {msg.role === "ai" || msg.role === "system" ? (
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                ) : (
+                  msg.text
+                )}
               </div>
             ))}
 

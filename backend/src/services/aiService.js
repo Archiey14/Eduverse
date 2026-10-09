@@ -84,28 +84,7 @@ Content: ${lesson.content || "No detailed text content provided. Assume this is 
 ----------------------
 `;
 
-    // Try Gemini first
-    if (this.geminiModel) {
-      try {
-        const chat = this.geminiModel.startChat({
-          history: [
-            { role: "user", parts: [{ text: systemPrompt }] },
-            { role: "model", parts: [{ text: "Understood." }] },
-          ],
-        });
-        
-        const result = await chat.sendMessageStream(message);
-        for await (const chunk of result.stream) {
-          yield chunk.text();
-        }
-        
-        return;
-      } catch (geminiError) {
-        console.warn("Gemini streaming failed, falling back to Groq:", geminiError.message);
-      }
-    }
-
-    // Fallback to Groq
+    // Try Groq first for blazing fast speeds
     if (this.groq) {
       try {
         const stream = await this.groq.chat.completions.create({
@@ -126,7 +105,28 @@ Content: ${lesson.content || "No detailed text content provided. Assume this is 
         
         return;
       } catch (groqError) {
-        console.error("Groq fallback also failed:", groqError.message);
+        console.warn("Groq streaming failed, falling back to Gemini:", groqError.message);
+      }
+    }
+
+    // Fallback to Gemini
+    if (this.geminiModel) {
+      try {
+        const chat = this.geminiModel.startChat({
+          history: [
+            { role: "user", parts: [{ text: systemPrompt }] },
+            { role: "model", parts: [{ text: "Understood." }] },
+          ],
+        });
+        
+        const result = await chat.sendMessageStream(message);
+        for await (const chunk of result.stream) {
+          yield chunk.text();
+        }
+        
+        return;
+      } catch (geminiError) {
+        console.error("Gemini fallback also failed:", geminiError.message);
         throw new Error("Both AI providers failed. Please try again later.");
       }
     }

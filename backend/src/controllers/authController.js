@@ -81,21 +81,20 @@ export const register = asyncHandler(async (req, res, next) => {
         `=========================================\n`
     );
 
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: "Your Eduverse Verification Code",
-        message: `Your One-Time Password is: ${otp}. It expires in 5 minutes.`,
-        html: `<h2>Welcome to Eduverse!</h2>
-          <p>Your One-Time Password is: <strong>${otp}</strong></p>
-          <p>It expires in 5 minutes.</p>`,
-      });
-    } catch (err) {
+    // Send email asynchronously without blocking the response
+    sendEmail({
+      email: user.email,
+      subject: "Your Eduverse Verification Code",
+      message: `Your One-Time Password is: ${otp}. It expires in 5 minutes.`,
+      html: `<h2>Welcome to Eduverse!</h2>
+        <p>Your One-Time Password is: <strong>${otp}</strong></p>
+        <p>It expires in 5 minutes.</p>`,
+    }).catch((err) => {
       console.error(
         "Email sending failed (Check SMTP settings):",
         err.message
       );
-    }
+    });
 
     return res.status(201).json({
       success: true,
@@ -159,21 +158,20 @@ export const login = asyncHandler(async (req, res, next) => {
         `=========================================\n`
     );
 
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: "Your Eduverse Login Code",
-        message: `Your One-Time Password is: ${otp}. It expires in 5 minutes.`,
-        html: `<h2>Login Attempt</h2>
-          <p>Your One-Time Password is: <strong>${otp}</strong></p>
-          <p>It expires in 5 minutes.</p>`,
-      });
-    } catch (err) {
+    // Send email asynchronously without blocking the response
+    sendEmail({
+      email: user.email,
+      subject: "Your Eduverse Login Code",
+      message: `Your One-Time Password is: ${otp}. It expires in 5 minutes.`,
+      html: `<h2>Login Attempt</h2>
+        <p>Your One-Time Password is: <strong>${otp}</strong></p>
+        <p>It expires in 5 minutes.</p>`,
+    }).catch((err) => {
       console.error(
         "Email sending failed (Check SMTP settings):",
         err.message
       );
-    }
+    });
 
     return res.status(200).json({
       success: true,
@@ -516,26 +514,26 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
 
   const message = `Forgot your password? Reset it here: ${resetUrl}.\nIf you didn't request this, please ignore this email.`;
 
-  try {
-    await sendEmail({
-      email: user.email,
-      subject: "Your password reset token (valid for 15 min)",
-      message,
-      html: `<h2>Password Reset</h2>
-      <p>Forgot your password? Reset it <a href="${resetUrl}">here</a>.</p>
-      <p>If you didn't request this, please ignore this email.</p>`
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Token sent to email!",
-    });
-  } catch (err) {
+  // Send email asynchronously without blocking the response
+  sendEmail({
+    email: user.email,
+    subject: "Your password reset token (valid for 15 min)",
+    message,
+    html: `<h2>Password Reset</h2>
+    <p>Forgot your password? Reset it <a href="${resetUrl}">here</a>.</p>
+    <p>If you didn't request this, please ignore this email.</p>`
+  }).catch(async (err) => {
+    console.error("Password reset email failed:", err.message);
+    // Clean up token if email failed
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
-    return next(new AppError(500, "There was an error sending the email. Try again later."));
-  }
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "Token sent to email!",
+  });
 });
 
 // ============================================================

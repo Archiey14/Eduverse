@@ -165,6 +165,27 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
+/* Markdown styling inside AI messages */
+.chat-message.ai p {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+.chat-message.ai p:last-child {
+  margin-bottom: 0;
+}
+.chat-message.ai ul, .chat-message.ai ol {
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+  padding-left: 1.25rem;
+}
+.chat-message.ai li {
+  margin-bottom: 0.25rem;
+}
+.chat-message.ai strong {
+  font-weight: 600;
+  color: #111827;
+}
+
 /* Loading Dots */
 .chat-loading {
   display: flex;
