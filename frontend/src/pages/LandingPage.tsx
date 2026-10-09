@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
@@ -10,9 +11,7 @@ function LandingPage() {
       <Navbar />
 
       <main>
-        {/* =========================================
-            HERO SECTION
-        ========================================= */}
+        {/* HERO SECTION */}
         <section className="landing-hero">
           <div className="landing-container hero-grid">
             <div className="hero-content">
@@ -38,6 +37,10 @@ function LandingPage() {
                   <span>→</span>
                 </Link>
 
+                <Link to="/login" className="hero-secondary-btn">
+                  Student Login
+                </Link>
+
                 <Link
                   to="/instructor/login"
                   className="hero-secondary-btn"
@@ -61,7 +64,7 @@ function LandingPage() {
               </div>
             </div>
 
-            {/* HERO VISUAL */}
+            {/* HERO LEARNING DASHBOARD */}
             <div className="hero-visual">
               <div className="hero-glow"></div>
 
@@ -80,7 +83,6 @@ function LandingPage() {
 
                   <div className="progress-course-info">
                     <span>Continue Learning</span>
-
                     <strong>Full Stack Development</strong>
 
                     <div className="dashboard-progress-row">
@@ -99,7 +101,6 @@ function LandingPage() {
                 <div className="learning-mini-stats">
                   <div className="mini-stat">
                     <div className="mini-stat-icon">📚</div>
-
                     <div>
                       <strong>12</strong>
                       <span>Courses</span>
@@ -108,7 +109,6 @@ function LandingPage() {
 
                   <div className="mini-stat">
                     <div className="mini-stat-icon">🏆</div>
-
                     <div>
                       <strong>8</strong>
                       <span>Completed</span>
@@ -160,9 +160,7 @@ function LandingPage() {
           </div>
         </section>
 
-        {/* =========================================
-            STATS SECTION
-        ========================================= */}
+        {/* STATS SECTION */}
         <section className="landing-stats">
           <div className="landing-container stats-grid">
             <div className="stat-item">
@@ -187,13 +185,8 @@ function LandingPage() {
           </div>
         </section>
 
-        {/* =========================================
-            FEATURES SECTION
-        ========================================= */}
-        <section
-          id="features"
-          className="landing-section features-section"
-        >
+        {/* FEATURES SECTION */}
+        <section id="features" className="landing-section features-section">
           <div className="landing-container">
             <div className="section-heading">
               <span className="section-label">WHY EDUVERSE?</span>
@@ -210,14 +203,12 @@ function LandingPage() {
             </div>
 
             <div className="feature-grid">
-              {/* FEATURE 1 */}
               <div className="professional-feature-card">
                 <div className="professional-feature-icon blue-icon">
                   🎓
                 </div>
 
                 <span className="feature-number">01</span>
-
                 <h3>Quality Courses</h3>
 
                 <p>
@@ -225,19 +216,15 @@ function LandingPage() {
                   instructors and learn practical skills step by step.
                 </p>
 
-                <Link to="/courses">
-                  Explore courses →
-                </Link>
+                <Link to="/courses">Explore courses →</Link>
               </div>
 
-              {/* FEATURE 2 */}
               <div className="professional-feature-card">
                 <div className="professional-feature-icon purple-icon">
                   📝
                 </div>
 
                 <span className="feature-number">02</span>
-
                 <h3>Interactive Quizzes</h3>
 
                 <p>
@@ -245,19 +232,15 @@ function LandingPage() {
                   how well you have mastered each lesson.
                 </p>
 
-                <Link to="/register">
-                  Start learning →
-                </Link>
+                <Link to="/register">Start learning →</Link>
               </div>
 
-              {/* FEATURE 3 */}
               <div className="professional-feature-card">
                 <div className="professional-feature-icon green-icon">
                   📊
                 </div>
 
                 <span className="feature-number">03</span>
-
                 <h3>Track Your Progress</h3>
 
                 <p>
@@ -265,19 +248,15 @@ function LandingPage() {
                   and your overall learning journey.
                 </p>
 
-                <Link to="/register">
-                  Track progress →
-                </Link>
+                <Link to="/register">Track progress →</Link>
               </div>
 
-              {/* FEATURE 4 */}
               <div className="professional-feature-card">
                 <div className="professional-feature-icon orange-icon">
                   👨‍🏫
                 </div>
 
                 <span className="feature-number">04</span>
-
                 <h3>Expert Instructors</h3>
 
                 <p>
@@ -293,9 +272,7 @@ function LandingPage() {
           </div>
         </section>
 
-        {/* =========================================
-            HOW IT WORKS
-        ========================================= */}
+        {/* HOW IT WORKS */}
         <section className="how-it-works" id="how-it-works">
           <div className="landing-container">
             <div className="section-heading">
@@ -313,10 +290,8 @@ function LandingPage() {
             </div>
 
             <div className="steps-grid">
-              {/* STEP 1 */}
               <div className="step-card">
                 <div className="step-number">01</div>
-
                 <div className="step-icon">👤</div>
 
                 <h3>Create an Account</h3>
@@ -329,10 +304,8 @@ function LandingPage() {
 
               <div className="step-connector">→</div>
 
-              {/* STEP 2 */}
               <div className="step-card">
                 <div className="step-number">02</div>
-
                 <div className="step-icon">📚</div>
 
                 <h3>Choose a Course</h3>
@@ -345,10 +318,8 @@ function LandingPage() {
 
               <div className="step-connector">→</div>
 
-              {/* STEP 3 */}
               <div className="step-card">
                 <div className="step-number">03</div>
-
                 <div className="step-icon">🚀</div>
 
                 <h3>Learn & Grow</h3>
@@ -362,9 +333,7 @@ function LandingPage() {
           </div>
         </section>
 
-        {/* =========================================
-            COMMUNITY SECTION
-        ========================================= */}
+        {/* COMMUNITY SECTION */}
         <section className="learning-community">
           <div className="landing-container community-grid">
             <div className="community-content">
@@ -409,11 +378,8 @@ function LandingPage() {
               </div>
 
               <div className="community-buttons">
-                <Link
-                  to="/register"
-                  className="community-btn"
-                >
-                  Join as Student →
+                <Link to="/login" className="community-btn">
+                  Student Login →
                 </Link>
 
                 <Link
@@ -423,6 +389,10 @@ function LandingPage() {
                   Instructor Login →
                 </Link>
               </div>
+
+              <p className="community-register-note">
+                New to Eduverse? <Link to="/register">Create an account</Link>
+              </p>
             </div>
 
             {/* COMMUNITY VISUAL */}
@@ -435,9 +405,7 @@ function LandingPage() {
 
                 <div className="community-users">
                   <div className="community-user">
-                    <div className="user-avatar avatar-one">
-                      A
-                    </div>
+                    <div className="user-avatar avatar-one">A</div>
 
                     <div>
                       <strong>Alex</strong>
@@ -448,9 +416,7 @@ function LandingPage() {
                   </div>
 
                   <div className="community-user">
-                    <div className="user-avatar avatar-two">
-                      R
-                    </div>
+                    <div className="user-avatar avatar-two">R</div>
 
                     <div>
                       <strong>Rahul</strong>
@@ -461,9 +427,7 @@ function LandingPage() {
                   </div>
 
                   <div className="community-user">
-                    <div className="user-avatar avatar-three">
-                      M
-                    </div>
+                    <div className="user-avatar avatar-three">M</div>
 
                     <div>
                       <strong>Maya</strong>
@@ -487,9 +451,7 @@ function LandingPage() {
           </div>
         </section>
 
-        {/* =========================================
-            CTA SECTION
-        ========================================= */}
+        {/* CALL TO ACTION */}
         <section className="landing-cta">
           <div className="landing-container">
             <div className="cta-content">
@@ -510,39 +472,34 @@ function LandingPage() {
               </p>
 
               <div className="cta-buttons">
-                <Link
-                  to="/register"
-                  className="cta-primary-btn"
-                >
+                <Link to="/register" className="cta-primary-btn">
                   Create Your Account
                   <span>→</span>
                 </Link>
 
-                <Link
-                  to="/courses"
-                  className="cta-secondary-btn"
-                >
+                <Link to="/courses" className="cta-secondary-btn">
                   Browse Courses
                 </Link>
+              </div>
+
+              <div className="cta-login-links">
+                <span>Already have an account?</span>
+                <Link to="/login">Student Login</Link>
+                <span>·</span>
+                <Link to="/instructor/login">Instructor Login</Link>
               </div>
             </div>
           </div>
         </section>
       </main>
 
-      {/* =========================================
-          FOOTER
-      ========================================= */}
+      {/* FOOTER */}
       <footer className="landing-footer">
         <div className="landing-container">
           <div className="footer-main">
-
             {/* FOOTER BRAND */}
             <div className="footer-brand">
-              <Link
-                to="/"
-                className="footer-logo"
-              >
+              <Link to="/" className="footer-logo">
                 <span className="landing-logo-icon">L</span>
                 <span>Eduverse</span>
               </Link>
@@ -553,77 +510,47 @@ function LandingPage() {
               </p>
             </div>
 
-            {/* PLATFORM */}
+            {/* PLATFORM LINKS */}
             <div className="footer-column">
               <h4>Platform</h4>
 
-              <Link to="/">
-                Home
-              </Link>
+              <Link to="/">Home</Link>
+              <Link to="/courses">Courses</Link>
+              <Link to="/login">Student Login</Link>
+              <Link to="/register">Register</Link>
+              <Link to="/instructor/login">Instructor Login</Link>
+              <Link to="/login">Admin Login</Link>
 
-              <Link to="/courses">
-                Courses
-              </Link>
-
-              <Link to="/login">
-                Student Login
-              </Link>
-
-              <Link to="/register">
-                Register
-              </Link>
-
-              <Link to="/instructor/login">
-                Instructor Login
-              </Link>
-
-              {/* ADMIN LOGIN */}
-              <Link to="/login">
-                🛡️ Admin Login
-              </Link>
-
-              {/* ADMIN DASHBOARD */}
               {isAuthenticated && isAdmin && (
-                <Link to="/admin/dashboard">
-                  🛡️ Admin Dashboard
-                </Link>
+                <Link to="/admin/dashboard">Admin Dashboard</Link>
               )}
             </div>
 
-            {/* LEARNING */}
+            {/* LEARNING LINKS */}
             <div className="footer-column">
               <h4>Learning</h4>
 
-              <a href="#features">
-                Features
-              </a>
-
-              <a href="#how-it-works">
-                How It Works
-              </a>
-
-              <Link to="/courses">
-                Explore Courses
-              </Link>
-
-              <Link to="/register">
-                Start Learning
-              </Link>
+              <a href="#features">Features</a>
+              <a href="#how-it-works">How It Works</a>
+              <Link to="/courses">Explore Courses</Link>
+              <Link to="/register">Start Learning</Link>
             </div>
 
             {/* GET STARTED */}
             <div className="footer-column">
               <h4>Get Started</h4>
 
-              <p>
-                Ready to begin your learning journey?
-              </p>
+              <p>Ready to begin your learning journey?</p>
+
+              <Link to="/register" className="footer-register-btn">
+                Create Account →
+              </Link>
 
               <Link
-                to="/register"
-                className="footer-register-btn"
+                to="/login"
+                className="footer-instructor-btn"
               >
-                Create Account →
+                Student Login →
               </Link>
 
               <Link
@@ -632,31 +559,16 @@ function LandingPage() {
               >
                 Instructor Login →
               </Link>
-
-              {/* ADMIN LOGIN BUTTON */}
-              <Link
-                to="/login"
-                className="footer-instructor-btn"
-              >
-                🛡️ Admin Login →
-              </Link>
             </div>
           </div>
 
           {/* FOOTER BOTTOM */}
           <div className="footer-bottom">
-            <p>
-              © 2026 Eduverse. All rights reserved.
-            </p>
+            <p>© 2026 Eduverse. All rights reserved.</p>
 
             <div className="footer-bottom-links">
-              <a href="#privacy">
-                Privacy Policy
-              </a>
-
-              <a href="#terms">
-                Terms & Conditions
-              </a>
+              <a href="#privacy">Privacy Policy</a>
+              <a href="#terms">Terms & Conditions</a>
             </div>
           </div>
         </div>

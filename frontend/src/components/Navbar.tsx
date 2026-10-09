@@ -10,27 +10,28 @@ const Navbar: React.FC = () => {
       return location.pathname === "/";
     }
 
+    if (path === "/courses") {
+      return (
+        location.pathname === "/courses" ||
+        location.pathname.startsWith("/courses/")
+      );
+    }
+
     return location.pathname === path;
   };
 
   return (
     <header className="landing-navbar">
       <div className="landing-container navbar-inner">
-
-        {/* ================================
-            LOGO
-        ================================= */}
+        {/* LOGO */}
         <Link to="/" className="landing-logo">
           <span className="landing-logo-icon">L</span>
           <span>Eduverse</span>
         </Link>
 
-        {/* ================================
-            NAVIGATION
-        ================================= */}
+        {/* NAVIGATION */}
         <nav className="landing-nav-links">
-
-          {/* Home */}
+          {/* HOME */}
           <Link
             to="/"
             className={isActive("/") ? "active" : ""}
@@ -38,7 +39,7 @@ const Navbar: React.FC = () => {
             Home
           </Link>
 
-          {/* Discover */}
+          {/* DISCOVER */}
           <Link
             to="/discover"
             className={isActive("/discover") ? "active" : ""}
@@ -46,7 +47,7 @@ const Navbar: React.FC = () => {
             Discover
           </Link>
 
-          {/* Courses */}
+          {/* COURSES - PUBLIC COURSE LISTING */}
           <Link
             to="/courses"
             className={isActive("/courses") ? "active" : ""}
@@ -54,9 +55,7 @@ const Navbar: React.FC = () => {
             Courses
           </Link>
 
-          {/* ================================
-              INSTRUCTOR LOGIN
-          ================================= */}
+          {/* INSTRUCTOR LOGIN */}
           <Link
             to="/instructor/login"
             className={
@@ -68,9 +67,7 @@ const Navbar: React.FC = () => {
             Instructor Login
           </Link>
 
-          {/* ================================
-              STUDENT LOGIN
-          ================================= */}
+          {/* STUDENT LOGIN */}
           <Link
             to="/login"
             className={
@@ -79,12 +76,10 @@ const Navbar: React.FC = () => {
                 : "navbar-login-link"
             }
           >
-            Login
+            Student Login
           </Link>
 
-          {/* ================================
-              GET STARTED
-          ================================= */}
+          {/* GET STARTED */}
           <Link
             to="/register"
             className="navbar-register-btn"
@@ -92,7 +87,6 @@ const Navbar: React.FC = () => {
             Get Started
             <span className="navbar-btn-arrow">→</span>
           </Link>
-
         </nav>
       </div>
     </header>
