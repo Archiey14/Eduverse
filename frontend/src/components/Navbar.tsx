@@ -47,7 +47,7 @@ const Navbar: React.FC = () => {
             Discover
           </Link>
 
-          {/* COURSES - PUBLIC COURSE LISTING */}
+          {/* COURSES */}
           <Link
             to="/courses"
             className={isActive("/courses") ? "active" : ""}
@@ -55,28 +55,12 @@ const Navbar: React.FC = () => {
             Courses
           </Link>
 
-          {/* INSTRUCTOR LOGIN */}
-          <Link
-            to="/instructor/login"
-            className={
-              isActive("/instructor/login")
-                ? "active instructor-login-link"
-                : "instructor-login-link"
-            }
-          >
-            Instructor Login
-          </Link>
-
-          {/* STUDENT LOGIN */}
+          {/* LOGIN */}
           <Link
             to="/login"
-            className={
-              isActive("/login")
-                ? "active navbar-login-link"
-                : "navbar-login-link"
-            }
+            className={isActive("/login") ? "active navbar-login-link" : "navbar-login-link"}
           >
-            Student Login
+            Login
           </Link>
 
           {/* GET STARTED */}

@@ -18,6 +18,7 @@ import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import TermsAndConditions from "./pages/TermsAndConditions";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 // Student Pages
 import StudentDashboard from "./pages/StudentDashboard";
@@ -200,6 +201,7 @@ function AppRoutes() {
         path="/terms"
         element={<TermsAndConditions />}
       />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
       <Route
         path="/courses"
