@@ -41,6 +41,8 @@ const getMentorsFromResponse = (
 
   const data = response?.data;
 
+  if (Array.isArray(data)) return data;
+
   if (Array.isArray(data?.users)) {
     return data.users;
   }

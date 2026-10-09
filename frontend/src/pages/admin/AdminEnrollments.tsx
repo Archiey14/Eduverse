@@ -41,6 +41,8 @@ const getEnrollmentsFromResponse = (
 
   const data = response?.data;
 
+  if (Array.isArray(data)) return data;
+
   if (Array.isArray(data?.enrollments)) {
     return data.enrollments;
   }

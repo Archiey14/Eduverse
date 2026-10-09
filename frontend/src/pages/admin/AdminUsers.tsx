@@ -34,6 +34,8 @@ const getUsersFromResponse = (response: UsersResponse | User[]): User[] => {
 
   const data = response?.data;
 
+  if (Array.isArray(data)) return data;
+
   if (Array.isArray(data?.users)) return data.users;
   if (Array.isArray(data?.items)) return data.items;
   if (Array.isArray(data?.docs)) return data.docs;

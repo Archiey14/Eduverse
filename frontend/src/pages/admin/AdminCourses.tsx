@@ -43,6 +43,8 @@ const getCoursesFromResponse = (
 
   const data = response?.data;
 
+  if (Array.isArray(data)) return data;
+
   if (Array.isArray(data?.courses)) return data.courses;
   if (Array.isArray(data?.items)) return data.items;
   if (Array.isArray(data?.docs)) return data.docs;
