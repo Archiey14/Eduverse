@@ -6,16 +6,19 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
+    "predev": "npx kill-port 5001 || true",
     "dev": "nodemon server.js",
     "seed:admin": "node src/scripts/seedAdmin.js",
     "seed:demo": "node src/scripts/seedDemoData.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
+    "groq-sdk": "^1.6.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.10.0",
@@ -26,6 +29,8 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.6.0",
+    "kill-port": "^2.0.1",
     "nodemon": "^3.1.9"
   }
 }

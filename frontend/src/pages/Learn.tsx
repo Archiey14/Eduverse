@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, getErrorMessage } from "../services/api";
 import { EmptyState, Loading, Notice } from "../components/Notice";
 import CourseDiscussions from "../components/CourseDiscussions";
+import ChatAssistant from "../components/ChatAssistant";
 import { getYouTubeEmbedUrl } from "../utils/format";
 import "./Learn.css";
 
@@ -193,9 +194,15 @@ function Learn() {
         setForbidden(false);
         if (!keepSelection) {
           const resume = res.data.resumeLessonId;
-          const first = res.data.lessons?.[0]?._id;
-          const lessonId = resume || first;
-          setSelected(lessonId ? { type: "lesson", id: String(lessonId) } : null);
+          const firstLesson = res.data.lessons?.[0]?._id;
+          
+          // Verify the resume ID actually exists in our data (could be a deleted lesson)
+          const exists = 
+            res.data.lessons?.some((l: any) => l._id === resume) ||
+            res.data.quizzes?.some((q: any) => q._id === resume);
+
+          const lessonId = exists ? resume : firstLesson;
+          setSelected(lessonId ? { type: res.data.quizzes?.some((q: any) => q._id === lessonId) ? "quiz" : "lesson", id: String(lessonId) } : null);
         }
       } catch (err: any) {
         if (err?.status === 403) setForbidden(true);
@@ -485,6 +492,13 @@ function Learn() {
           <CourseDiscussions courseId={data.course._id} />
         </main>
       </div>
+
+      {currentLesson && (
+        <ChatAssistant 
+          lessonId={currentLesson._id} 
+          lessonTitle={currentLesson.title} 
+        />
+      )}
     </div>
   );
 }

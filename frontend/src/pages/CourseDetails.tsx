@@ -100,8 +100,9 @@ function CourseDetails() {
     loadCourse();
   }, [loadCourse]);
 
-  const isOwner =
-    !!course && !!user && course.mentor?._id === user.id;
+  const userId = user?.id || (user as any)?._id;
+  const mentorId = course?.mentor?._id || course?.mentor;
+  const isOwner = !!course && !!user && String(mentorId) === String(userId);
   const isPublished = course?.status === "published";
 
   const handleEnroll = async () => {

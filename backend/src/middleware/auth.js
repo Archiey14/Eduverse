@@ -74,6 +74,7 @@ export const requireRole = (...roles) => {
 
     const hasRole = roles.some((role) => req.user.roles.includes(role));
     if (!hasRole) {
+      console.log(`[DEBUG] 403 Forbidden. User ID: ${req.user._id}, Email: ${req.user.email}, Roles: ${req.user.roles}`);
       return next(
         new AppError(
           403,

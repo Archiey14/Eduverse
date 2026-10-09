@@ -651,3 +651,24 @@
   color: #64748b;
   font-size: 13px;
 }
+
+/* ---------- additional helpers ---------- */
+.il-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.il-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.il-question {
+  margin-bottom: 24px;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
+}
+

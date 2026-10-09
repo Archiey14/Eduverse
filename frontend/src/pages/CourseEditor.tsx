@@ -71,6 +71,9 @@ export default function CourseEditor() {
   const [newSection, setNewSection] = useState("");
   const [lessonSection, setLessonSection] = useState("");
   const [lessonForm, setLessonForm] = useState(emptyLesson);
+  const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [editSectionTitle, setEditSectionTitle] = useState("");
 
   // quiz state
   const [quizTitle, setQuizTitle] = useState("");
@@ -191,6 +194,22 @@ export default function CourseEditor() {
     }
   };
 
+  const saveSectionEdit = async (sectionId: string) => {
+    if (!id || !editSectionTitle.trim()) return;
+    setBusy(true);
+    try {
+      await api.mentor.updateSection(id, sectionId, { title: editSectionTitle.trim() });
+      setEditingSectionId(null);
+      setEditSectionTitle("");
+      await load();
+      flash("success", "Section updated.");
+    } catch (err) {
+      flash("error", getErrorMessage(err, "Could not update the section."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const deleteSection = async (sectionId: string) => {
     if (!id) return;
     if (!window.confirm("Delete this section and all its lessons?")) return;
@@ -203,7 +222,7 @@ export default function CourseEditor() {
     }
   };
 
-  const addLesson = async (e: FormEvent) => {
+  const saveLesson = async (e: FormEvent) => {
     e.preventDefault();
     if (!id || !lessonSection) return;
     if (!lessonForm.title.trim()) {
@@ -212,20 +231,32 @@ export default function CourseEditor() {
     }
     setBusy(true);
     try {
-      await api.mentor.addLesson(id, {
-        sectionId: lessonSection,
-        title: lessonForm.title,
-        type: lessonForm.type,
-        videoUrl: lessonForm.videoUrl,
-        content: lessonForm.content,
-        durationMin: Number(lessonForm.durationMin) || 0,
-      });
+      if (editingLessonId) {
+        await api.mentor.updateLesson(editingLessonId, {
+          title: lessonForm.title,
+          type: lessonForm.type,
+          videoUrl: lessonForm.videoUrl,
+          content: lessonForm.content,
+          durationMin: Number(lessonForm.durationMin) || 0,
+        });
+        flash("success", "Lesson updated.");
+      } else {
+        await api.mentor.addLesson(id, {
+          sectionId: lessonSection,
+          title: lessonForm.title,
+          type: lessonForm.type,
+          videoUrl: lessonForm.videoUrl,
+          content: lessonForm.content,
+          durationMin: Number(lessonForm.durationMin) || 0,
+        });
+        flash("success", "Lesson added.");
+      }
       setLessonForm(emptyLesson);
       setLessonSection("");
+      setEditingLessonId(null);
       await load();
-      flash("success", "Lesson added.");
     } catch (err) {
-      flash("error", getErrorMessage(err, "Could not add the lesson."));
+      flash("error", getErrorMessage(err, "Could not save the lesson."));
     } finally {
       setBusy(false);
     }
@@ -539,24 +570,50 @@ export default function CourseEditor() {
               return (
                 <div className="il-section" key={s._id}>
                   <div className="il-section-head">
-                    <strong>{s.title}</strong>
-                    <div className="il-actions">
-                      <button
-                        className="il-btn il-btn-outline il-btn-sm"
-                        onClick={() => {
-                          setLessonSection(lessonSection === s._id ? "" : s._id);
-                          setLessonForm(emptyLesson);
-                        }}
-                      >
-                        <Plus size={14} /> Add lesson
-                      </button>
-                      <button
-                        className="il-btn il-btn-danger il-btn-sm"
-                        onClick={() => deleteSection(s._id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    {editingSectionId === s._id ? (
+                      <div className="il-row" style={{ flex: 1, marginRight: 16 }}>
+                        <input
+                          className="il-input"
+                          style={{ flex: 1 }}
+                          value={editSectionTitle}
+                          onChange={(e) => setEditSectionTitle(e.target.value)}
+                        />
+                        <button className="il-btn il-btn-primary il-btn-sm" onClick={() => saveSectionEdit(s._id)}>Save</button>
+                        <button className="il-btn il-btn-outline il-btn-sm" onClick={() => { setEditingSectionId(null); setEditSectionTitle(""); }}>Cancel</button>
+                      </div>
+                    ) : (
+                      <strong>{s.title}</strong>
+                    )}
+                    
+                    {!editingSectionId && (
+                      <div className="il-actions">
+                        <button
+                          className="il-btn il-btn-outline il-btn-sm"
+                          onClick={() => {
+                            setEditingSectionId(s._id);
+                            setEditSectionTitle(s.title);
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="il-btn il-btn-outline il-btn-sm"
+                          onClick={() => {
+                            setLessonSection(lessonSection === s._id ? "" : s._id);
+                            setLessonForm(emptyLesson);
+                            setEditingLessonId(null);
+                          }}
+                        >
+                          <Plus size={14} /> Add lesson
+                        </button>
+                        <button
+                          className="il-btn il-btn-danger il-btn-sm"
+                          onClick={() => deleteSection(s._id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {secLessons.map((l) => (
@@ -566,12 +623,30 @@ export default function CourseEditor() {
                         <strong>{l.title}</strong>{" "}
                         <small>· {l.durationMin || 0} min</small>
                       </div>
-                      <button
-                        className="il-btn il-btn-danger il-btn-sm"
-                        onClick={() => deleteLesson(l._id)}
-                      >
-                        Remove
-                      </button>
+                      <div className="il-actions">
+                        <button
+                          className="il-btn il-btn-outline il-btn-sm"
+                          onClick={() => {
+                            setLessonSection(s._id);
+                            setEditingLessonId(l._id);
+                            setLessonForm({
+                              title: l.title || "",
+                              type: l.type || "video",
+                              videoUrl: l.videoUrl || "",
+                              content: l.content || "",
+                              durationMin: String(l.durationMin || 0),
+                            });
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="il-btn il-btn-danger il-btn-sm"
+                          onClick={() => deleteLesson(l._id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   ))}
 
@@ -582,7 +657,7 @@ export default function CourseEditor() {
                   )}
 
                   {lessonSection === s._id && (
-                    <form className="il-inline-form" onSubmit={addLesson}>
+                    <form className="il-inline-form" onSubmit={saveLesson} style={{ padding: "16px 20px" }}>
                       <div className="il-form-grid">
                         <div className="il-field full">
                           <label>Lesson title *</label>
@@ -635,14 +710,17 @@ export default function CourseEditor() {
                           </div>
                         )}
                       </div>
-                      <div className="il-actions">
+                      <div className="il-actions" style={{ marginTop: 16 }}>
                         <button type="submit" className="il-btn il-btn-primary il-btn-sm" disabled={busy}>
-                          Save lesson
+                          {editingLessonId ? "Save changes" : "Save lesson"}
                         </button>
                         <button
                           type="button"
                           className="il-btn il-btn-outline il-btn-sm"
-                          onClick={() => setLessonSection("")}
+                          onClick={() => {
+                            setLessonSection("");
+                            setEditingLessonId(null);
+                          }}
                         >
                           Cancel
                         </button>
@@ -655,6 +733,8 @@ export default function CourseEditor() {
 
             <form className="il-row" onSubmit={addSection} style={{ marginTop: 16 }}>
               <input
+                className="il-input"
+                style={{ flex: 1 }}
                 value={newSection}
                 onChange={(e) => setNewSection(e.target.value)}
                 placeholder="New section title, e.g. Section 2: Core Concepts"
@@ -757,6 +837,8 @@ export default function CourseEditor() {
                       onChange={() => updateQuestion(qi, { correctIndex: oi })}
                     />
                     <input
+                      className="il-input"
+                      style={{ flex: 1 }}
                       type="text"
                       value={opt}
                       placeholder={`Option ${oi + 1}`}
@@ -767,7 +849,7 @@ export default function CourseEditor() {
 
                 <div className="il-field">
                   <label>Explanation (optional)</label>
-                  <input
+                  <textarea
                     value={q.explanation}
                     onChange={(e) => updateQuestion(qi, { explanation: e.target.value })}
                   />

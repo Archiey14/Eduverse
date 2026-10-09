@@ -22,6 +22,7 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import activityRoutes from "./routes/activityRoutes.js";
 import certificateRoutes from "./routes/certificateRoutes.js";
 import wishlistRoutes from "./routes/wishlistRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 
 const app = express();
 
@@ -141,6 +142,8 @@ app.use("/api/activity", activityRoutes);
 app.use("/api/certificates", certificateRoutes);
 
 app.use("/api/wishlist", wishlistRoutes);
+
+app.use("/api/chat", aiRoutes);
 
 // =====================================================
 // 404 HANDLER

@@ -462,6 +462,18 @@ export const api = {
         json("POST", body)
       ),
 
+    updateSection: (
+      courseId: string,
+      sectionId: string,
+      body: {
+        title: string;
+      }
+    ) =>
+      request<any>(
+        `/mentor/courses/${courseId}/sections/${sectionId}`,
+        json("PATCH", body)
+      ),
+
     deleteSection: (
       courseId: string,
       sectionId: string,

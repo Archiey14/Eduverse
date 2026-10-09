@@ -18,3 +18,20 @@ process.on("unhandledRejection", (err) => {
   console.error(`[Unhandled Rejection] ${err.message}`);
   server.close(() => process.exit(1));
 });
+
+// Handle graceful shutdown for nodemon restarts and Ctrl+C
+const gracefulShutdown = () => {
+  console.log("Shutting down gracefully...");
+  if (server.closeAllConnections) server.closeAllConnections();
+  server.close(() => {
+    process.exit(0);
+  });
+};
+
+process.on("SIGINT", gracefulShutdown);
+process.on("SIGTERM", gracefulShutdown);
+process.on("SIGUSR2", () => {
+  server.close(() => {
+    process.kill(process.pid, "SIGUSR2");
+  });
+});
