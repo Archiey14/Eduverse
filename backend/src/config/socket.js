@@ -61,6 +61,9 @@ export const initializeSocket = (httpServer) => {
   io.on("connection", (socket) => {
     console.log(`[Messaging] Connected: ${socket.user.id}`);
 
+    // Join personal user room for targeted notifications and cross-conversation message delivery
+    socket.join(`user:${socket.user.id}`);
+
     // Join only after the server verifies conversation access.
     socket.on("join_conversation", async (payload, callback) => {
       try {
@@ -134,19 +137,38 @@ export const initializeSocket = (httpServer) => {
           type: "text",
         });
 
-        await Conversation.findByIdAndUpdate(conversationId, {
-          lastMessage: message._id,
-          lastMessageAt: message.createdAt,
-        });
+        const updatedConversation = await Conversation.findByIdAndUpdate(
+          conversationId,
+          {
+            lastMessage: message._id,
+            lastMessageAt: message.createdAt,
+          },
+          { new: true }
+        ).select("type participants course");
 
         const populatedMessage = await Message.findById(message._id)
           .populate("sender", "name avatarUrl")
           .lean();
 
+        // Deliver to everyone currently viewing this conversation room
         io.to(`conversation:${conversationId}`).emit(
           "new_message",
           populatedMessage
         );
+
+        // Also deliver to participants' personal rooms so their inboxes update in real time
+        if (
+          updatedConversation &&
+          updatedConversation.type === "direct" &&
+          Array.isArray(updatedConversation.participants)
+        ) {
+          for (const participantId of updatedConversation.participants) {
+            io.to(`user:${participantId}`).emit(
+              "new_message",
+              populatedMessage
+            );
+          }
+        }
 
         callback?.({ ok: true, message: populatedMessage });
       } catch (error) {

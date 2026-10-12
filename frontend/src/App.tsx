@@ -537,7 +537,14 @@ function AppRoutes() {
 
       </Route>
 
-      <Route path="/messages" element={<Messages />} />
+      <Route
+        path="/messages"
+        element={
+          <ProtectedRoute>
+            <Messages />
+          </ProtectedRoute>
+        }
+      />
 
       {/* =====================================================
           LEGACY /mentor/* URLS

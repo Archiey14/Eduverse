@@ -541,14 +541,17 @@
   font-size: 9px;
 }
 
-.conversation-item-content p {
+.conversation-item-content p,
+.conversation-item-category {
+  display: block;
   margin: 5px 0 4px;
   color: #6c63e9;
   font-size: 10px;
   font-weight: 700;
 }
 
-.conversation-item-content small {
+.conversation-item-content small,
+.conversation-item-preview {
   display: block;
   overflow: hidden;
   color: #8792a5;

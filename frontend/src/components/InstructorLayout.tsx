@@ -11,6 +11,7 @@ import {
   Users,
   ClipboardList,
   BarChart,
+  MessageSquare,
   User,
   Settings,
   HelpCircle,
@@ -31,6 +32,7 @@ export type InstructorNavKey =
   | "create"
   | "lessons"
   | "students"
+  | "messages"
   | "quizzes"
   | "analytics"
   | "notifications"
@@ -83,6 +85,12 @@ const MANAGE_NAV: NavItem[] = [
     to: "/instructor/students",
     icon: <Users size={20} />,
     label: "Students",
+  },
+  {
+    key: "messages",
+    to: "/messages",
+    icon: <MessageSquare size={20} />,
+    label: "Messages",
   },
   {
     key: "quizzes",

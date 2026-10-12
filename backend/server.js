@@ -62,8 +62,10 @@ const gracefulShutdown = (signal) => {
 
   console.log(`[${signal}] Shutting down gracefully...`);
 
-  // Stop accepting new connections and allow active requests
-  // to finish before the process exits.
+  if (httpServer.closeAllConnections) {
+    httpServer.closeAllConnections();
+  }
+
   httpServer.close((error) => {
     if (error) {
       console.error("Error closing HTTP server:", error);
@@ -82,6 +84,10 @@ process.on("SIGUSR2", () => {
   if (isShuttingDown) return;
 
   isShuttingDown = true;
+
+  if (httpServer.closeAllConnections) {
+    httpServer.closeAllConnections();
+  }
 
   httpServer.close(() => {
     process.kill(process.pid, "SIGUSR2");

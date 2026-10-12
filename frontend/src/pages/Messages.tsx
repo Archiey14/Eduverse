@@ -440,8 +440,17 @@ function Messages() {
         });
       }
 
-      setConversations((existing) =>
-        sortConversations(
+      setConversations((existing) => {
+        const found = existing.some(
+          (conversation) => conversation._id === conversationId
+        );
+
+        if (!found) {
+          void loadConversations();
+          return existing;
+        }
+
+        return sortConversations(
           existing.map((conversation) =>
             conversation._id === conversationId
               ? {
@@ -452,8 +461,8 @@ function Messages() {
                 }
               : conversation
           )
-        )
-      );
+        );
+      });
     };
 
     socket.on("connect", handleConnect);
@@ -481,7 +490,7 @@ function Messages() {
         socketRef.current = null;
       }
     };
-  }, []);
+  }, [loadConversations]);
 
   // Search people with a debounce to avoid excessive API requests.
   useEffect(() => {
