@@ -2,9 +2,20 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, BookOpen, Search, FileQuestion, TrendingUp,
-  Zap, Heart, Trophy, User, Settings, HelpCircle, GraduationCap,
+  LayoutDashboard,
+  BookOpen,
+  Search,
+  FileQuestion,
+  TrendingUp,
+  Zap,
+  Heart,
+  Trophy,
+  User,
+  Settings,
+  HelpCircle,
+  GraduationCap,
   LogOut,
+  MessageCircle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -16,10 +27,24 @@ interface StudentSidebarProps {
 
 const keyFromPath = (pathname: string): string => {
   if (pathname === "/student/dashboard") return "dashboard";
-  if (pathname.startsWith("/student/courses") || pathname.startsWith("/learn")) return "courses";
-  if (pathname.startsWith("/courses") || pathname.startsWith("/discover")) return "catalog";
+
+  if (
+    pathname.startsWith("/student/courses") ||
+    pathname.startsWith("/learn")
+  ) {
+    return "courses";
+  }
+
+  if (
+    pathname.startsWith("/courses") ||
+    pathname.startsWith("/discover")
+  ) {
+    return "catalog";
+  }
+
   if (pathname.startsWith("/quizzes")) return "quizzes";
   if (pathname.startsWith("/progress")) return "progress";
+  if (pathname.startsWith("/messages")) return "messages";
   if (pathname.startsWith("/wishlist")) return "wishlist";
   if (pathname.startsWith("/achievements")) return "achievements";
   if (pathname.startsWith("/activities")) return "activities";
@@ -27,6 +52,7 @@ const keyFromPath = (pathname: string): string => {
   if (pathname.startsWith("/profile")) return "profile";
   if (pathname.startsWith("/settings")) return "settings";
   if (pathname.startsWith("/help")) return "help";
+
   return "";
 };
 
@@ -47,6 +73,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
   const { user, logout, isMentor } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
   const current = keyFromPath(location.pathname) || activeItem || "";
@@ -62,6 +89,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
     if (window.confirm("Are you sure you want to logout?")) {
       logout();
       navigate("/login");
+      onClose();
     }
   };
 
@@ -73,7 +101,9 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
   ) => (
     <Link
       to={to}
-      className={`dashboard-nav-item ${current === key ? "active" : ""}`}
+      className={`dashboard-nav-item ${
+        current === key ? "active" : ""
+      }`}
       onClick={onClose}
     >
       <span className="nav-item-icon">{icon}</span>
@@ -82,7 +112,12 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
   );
 
   return (
-    <aside className={`dashboard-sidebar ${isOpen ? "sidebar-open" : ""}`}>
+    <aside
+      className={`dashboard-sidebar ${
+        isOpen ? "sidebar-open" : ""
+      }`}
+    >
+      {/* Brand */}
       <div className="dashboard-brand">
         <Link
           to="/student/dashboard"
@@ -112,7 +147,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           alignItems: "center",
           gap: 12,
           margin: "16px 16px 20px",
-          padding: "12px",
+          padding: 12,
           borderRadius: 12,
           textDecoration: "none",
           color: "inherit",
@@ -155,32 +190,113 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           >
             {displayName}
           </strong>
-          <span style={{ fontSize: 12, opacity: 0.7 }}>Student</span>
+
+          <span style={{ fontSize: 12, opacity: 0.7 }}>
+            Student
+          </span>
         </div>
       </Link>
 
+      {/* Navigation */}
       <nav className="dashboard-navigation">
+        {/* Main menu */}
         <div className="navigation-section">
           <span className="navigation-title">MAIN MENU</span>
-          {item("dashboard", "/student/dashboard", <LayoutDashboard size={20} />, "Dashboard")}
-          {item("courses", "/student/courses", <BookOpen size={20} />, "My Courses")}
-          {item("catalog", "/courses", <Search size={20} />, "Discover Courses")}
-          {item("quizzes", "/quizzes", <FileQuestion size={20} />, "Quizzes")}
-          {item("progress", "/progress", <TrendingUp size={20} />, "My Progress")}
+
+          {item(
+            "dashboard",
+            "/student/dashboard",
+            <LayoutDashboard size={20} />,
+            "Dashboard"
+          )}
+
+          {item(
+            "courses",
+            "/student/courses",
+            <BookOpen size={20} />,
+            "My Courses"
+          )}
+
+          {item(
+            "catalog",
+            "/courses",
+            <Search size={20} />,
+            "Discover Courses"
+          )}
+
+          {item(
+            "quizzes",
+            "/quizzes",
+            <FileQuestion size={20} />,
+            "Quizzes"
+          )}
+
+          {item(
+            "progress",
+            "/progress",
+            <TrendingUp size={20} />,
+            "My Progress"
+          )}
+
+          {/* Messages */}
+          {item(
+            "messages",
+            "/messages",
+            <MessageCircle size={20} />,
+            "Messages"
+          )}
         </div>
 
+        {/* Learning */}
         <div className="navigation-section">
           <span className="navigation-title">LEARNING</span>
-          {item("activities", "/activities", <Zap size={20} />, "Learning Activity")}
-          {item("wishlist", "/wishlist", <Heart size={20} />, "Wishlist")}
-          {item("achievements", "/achievements", <Trophy size={20} />, "Achievements")}
+
+          {item(
+            "activities",
+            "/activities",
+            <Zap size={20} />,
+            "Learning Activity"
+          )}
+
+          {item(
+            "wishlist",
+            "/wishlist",
+            <Heart size={20} />,
+            "Wishlist"
+          )}
+
+          {item(
+            "achievements",
+            "/achievements",
+            <Trophy size={20} />,
+            "Achievements"
+          )}
         </div>
 
+        {/* Account */}
         <div className="navigation-section">
           <span className="navigation-title">ACCOUNT</span>
-          {item("profile", "/profile", <User size={20} />, "Profile")}
-          {item("settings", "/settings", <Settings size={20} />, "Settings")}
-          {item("help", "/help", <HelpCircle size={20} />, "Help Center")}
+
+          {item(
+            "profile",
+            "/profile",
+            <User size={20} />,
+            "Profile"
+          )}
+
+          {item(
+            "settings",
+            "/settings",
+            <Settings size={20} />,
+            "Settings"
+          )}
+
+          {item(
+            "help",
+            "/help",
+            <HelpCircle size={20} />,
+            "Help Center"
+          )}
 
           {isMentor && (
             <Link
@@ -191,18 +307,22 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
               <span className="nav-item-icon">
                 <GraduationCap size={20} />
               </span>
+
               <span>Instructor View</span>
             </Link>
           )}
         </div>
       </nav>
 
+      {/* Sidebar bottom */}
       <div className="dashboard-sidebar-bottom">
         <div className="dashboard-help-card">
           <div className="help-card-icon">?</div>
+
           <div>
             <strong>Need help?</strong>
             <p>We're here to help.</p>
+
             <Link to="/help" onClick={onClose}>
               Visit Help Center →
             </Link>
@@ -214,7 +334,10 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           className="dashboard-logout"
           onClick={handleLogout}
         >
-          <span><LogOut size={20} /></span>
+          <span>
+            <LogOut size={20} />
+          </span>
+
           Logout
         </button>
       </div>

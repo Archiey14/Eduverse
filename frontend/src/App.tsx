@@ -62,6 +62,8 @@ import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminProfile from "./pages/admin/AdminProfile";
 import AdminSettings from "./pages/admin/AdminSettings";
 
+import Messages from "./pages/Messages";
+
 import "./index.css";
 
 /* =========================================================
@@ -534,6 +536,8 @@ function AppRoutes() {
         />
 
       </Route>
+
+      <Route path="/messages" element={<Messages />} />
 
       {/* =====================================================
           LEGACY /mentor/* URLS

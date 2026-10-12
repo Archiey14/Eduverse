@@ -1,3 +1,4 @@
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -23,6 +24,7 @@ import activityRoutes from "./routes/activityRoutes.js";
 import certificateRoutes from "./routes/certificateRoutes.js";
 import wishlistRoutes from "./routes/wishlistRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
+import messagingRoutes from "./routes/messagingRoutes.js";
 
 const app = express();
 
@@ -32,8 +34,8 @@ const app = express();
 
 app.use(
   helmet({
-    // Allow frontend (localhost:5173) to display
-    // profile pictures served by backend (localhost:5001)
+    // Allow the frontend to display profile pictures
+    // served by the backend.
     crossOriginResourcePolicy: {
       policy: "cross-origin",
     },
@@ -43,22 +45,22 @@ app.use(
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin
-      // (Postman, curl, mobile apps, etc.)
+      // Allow requests without an Origin header,
+      // such as Postman and server-to-server requests.
       if (!origin) {
         return callback(null, true);
       }
 
-      // Allow localhost and 127.0.0.1 during development
+      // Allow localhost and 127.0.0.1 during development.
       const isLocalhost =
         /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
 
-      // Allow configured frontend URL
+      // Allow the configured frontend URL.
       if (isLocalhost || origin === ENV.CLIENT_URL) {
         return callback(null, true);
       }
 
-      callback(null, false);
+      return callback(new Error("Origin not allowed by CORS"));
     },
     credentials: true,
   })
@@ -90,7 +92,7 @@ app.use(
 // STATIC FILES
 // =====================================================
 
-// Profile pictures are stored inside:
+// Profile pictures and other uploaded files are stored in:
 // C:\LMS\backend\uploads
 
 const uploadsPath = path.resolve("uploads");
@@ -143,7 +145,11 @@ app.use("/api/certificates", certificateRoutes);
 
 app.use("/api/wishlist", wishlistRoutes);
 
+// Existing AI assistant — keep this route unchanged.
 app.use("/api/chat", aiRoutes);
+
+// New real-time messaging API.
+app.use("/api/messaging", messagingRoutes);
 
 // =====================================================
 // 404 HANDLER

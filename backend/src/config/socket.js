@@ -1,0 +1,177 @@
+
+import { Server } from "socket.io";
+import { User } from "../models/User.js";
+import { verifyToken } from "../utils/token.js";
+import { Message } from "../models/Message.js";
+import { Conversation } from "../models/Conversation.js";
+import { canAccessConversation } from "../utils/messagingAccess.js";
+
+let io;
+
+export const initializeSocket = (httpServer) => {
+  if (io) return io;
+
+  io = new Server(httpServer, {
+    cors: {
+      origin: (origin, callback) => {
+        const allowedOrigins = [
+          process.env.CLIENT_URL,
+          "http://localhost:5173",
+          "http://127.0.0.1:5173",
+        ].filter(Boolean);
+
+        if (!origin || allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+
+        return callback(new Error("Origin not allowed by Socket.IO CORS"));
+      },
+      methods: ["GET", "POST"],
+      credentials: true,
+    },
+  });
+
+  // Authenticate every socket connection with the existing JWT.
+  io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token;
+
+      if (!token) {
+        return next(new Error("Authentication required"));
+      }
+
+      const decoded = verifyToken(token);
+      const user = await User.findById(decoded.id);
+
+      if (!user || !user.isActive) {
+        return next(new Error("Invalid or inactive user"));
+      }
+
+      socket.user = {
+        id: String(user._id),
+        name: user.name,
+      };
+
+      next();
+    } catch {
+      next(new Error("Socket authentication failed"));
+    }
+  });
+
+  io.on("connection", (socket) => {
+    console.log(`[Messaging] Connected: ${socket.user.id}`);
+
+    // Join only after the server verifies conversation access.
+    socket.on("join_conversation", async (payload, callback) => {
+      try {
+        const conversationId = payload?.conversationId;
+
+        if (
+          typeof conversationId !== "string" ||
+          !(await canAccessConversation(conversationId, socket.user.id))
+        ) {
+          return callback?.({
+            ok: false,
+            error: "You cannot access this conversation.",
+          });
+        }
+
+        socket.join(`conversation:${conversationId}`);
+
+        callback?.({ ok: true });
+      } catch (error) {
+        console.error("Join conversation error:", error);
+        callback?.({ ok: false, error: "Unable to join conversation." });
+      }
+    });
+
+    socket.on("leave_conversation", (payload, callback) => {
+      const conversationId = payload?.conversationId;
+
+      if (typeof conversationId === "string") {
+        socket.leave(`conversation:${conversationId}`);
+      }
+
+      callback?.({ ok: true });
+    });
+
+    // Message persistence and delivery happen on the server.
+    socket.on("send_message", async (payload, callback) => {
+      try {
+        const conversationId = payload?.conversationId;
+        const content =
+          typeof payload?.content === "string"
+            ? payload.content.trim()
+            : "";
+
+        if (
+          typeof conversationId !== "string" ||
+          !content ||
+          content.length > 5000
+        ) {
+          return callback?.({
+            ok: false,
+            error: "Provide a conversation ID and a message of 1–5000 characters.",
+          });
+        }
+
+        const allowed = await canAccessConversation(
+          conversationId,
+          socket.user.id
+        );
+
+        if (!allowed) {
+          return callback?.({
+            ok: false,
+            error: "You cannot send messages to this conversation.",
+          });
+        }
+
+        const message = await Message.create({
+          conversation: conversationId,
+          sender: socket.user.id,
+          content,
+          type: "text",
+        });
+
+        await Conversation.findByIdAndUpdate(conversationId, {
+          lastMessage: message._id,
+          lastMessageAt: message.createdAt,
+        });
+
+        const populatedMessage = await Message.findById(message._id)
+          .populate("sender", "name avatarUrl")
+          .lean();
+
+        io.to(`conversation:${conversationId}`).emit(
+          "new_message",
+          populatedMessage
+        );
+
+        callback?.({ ok: true, message: populatedMessage });
+      } catch (error) {
+        console.error("Send message error:", error);
+        callback?.({
+          ok: false,
+          error: "Unable to send message. Please try again.",
+        });
+      }
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log(
+        `[Messaging] Disconnected: ${socket.user.id} (${reason})`
+      );
+    });
+  });
+
+  return io;
+};
+
+export const getIO = () => {
+  if (!io) {
+    throw new Error("Socket.IO has not been initialized.");
+  }
+
+  return io;
+};

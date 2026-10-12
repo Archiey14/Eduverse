@@ -1,3 +1,4 @@
+
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:5001/api";
 
@@ -92,21 +93,16 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = getToken();
-
   const headers = new Headers(options.headers);
 
-  /*
-   * JSON requests use application/json.
-   *
-   * FormData requests must NOT manually set Content-Type because
-   * the browser automatically creates the multipart boundary.
-   */
-  if (options.body instanceof FormData) {
+  // FormData must set its own multipart Content-Type boundary.
+  if (
+    typeof FormData !== "undefined" &&
+    options.body instanceof FormData
+  ) {
     headers.delete("Content-Type");
-  } else {
-    if (!headers.has("Content-Type")) {
-      headers.set("Content-Type", "application/json");
-    }
+  } else if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
   }
 
   if (token) {
@@ -132,7 +128,7 @@ async function request<T>(
   try {
     data = await response.json();
   } catch {
-    // Non-JSON response
+    // The response may not contain JSON.
   }
 
   if (!response.ok) {
@@ -144,7 +140,7 @@ async function request<T>(
   }
 
   return data as T;
-};
+}
 
 /* ------------------------------------------------------------------ */
 /* Query + JSON helpers                                                */
@@ -154,10 +150,12 @@ const toQuery = (params?: Record<string, any>): string => {
   if (!params) return "";
 
   const qs = Object.entries(params)
-    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .filter(([, value]) =>
+      value !== undefined && value !== null && value !== ""
+    )
     .map(
-      ([k, v]) =>
-        `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`
+      ([key, value]) =>
+        `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`
     )
     .join("&");
 
@@ -199,9 +197,14 @@ export const api = {
       email: string;
     }) => request<any>("/auth/forgot-password", json("POST", body)),
 
-    resetPassword: (token: string, body: {
-      password: string;
-    }) => request<any>(`/auth/reset-password/${token}`, json("PATCH", body)),
+    resetPassword: (
+      token: string,
+      body: { password: string }
+    ) =>
+      request<any>(
+        `/auth/reset-password/${encodeURIComponent(token)}`,
+        json("PATCH", body)
+      ),
 
     googleAuth: (body: {
       email: string;
@@ -227,10 +230,8 @@ export const api = {
       newPassword: string;
     }) => request<any>("/auth/password", json("PATCH", body)),
 
-    /* Profile picture upload */
     uploadAvatar: (file: File) => {
       const formData = new FormData();
-
       formData.append("avatar", file);
 
       return request<any>("/auth/avatar", {
@@ -257,21 +258,14 @@ export const api = {
       request<any>(`/courses${toQuery(params)}`),
 
     getByIdOrSlug: (idOrSlug: string) =>
-      request<any>(
-        `/courses/${encodeURIComponent(idOrSlug)}`
-      ),
+      request<any>(`/courses/${encodeURIComponent(idOrSlug)}`),
 
     getReviews: (courseId: string, page = 1) =>
-      request<any>(
-        `/courses/${courseId}/reviews?page=${page}`
-      ),
+      request<any>(`/courses/${courseId}/reviews?page=${page}`),
 
     submitReview: (
       courseId: string,
-      body: {
-        rating: number;
-        comment?: string;
-      }
+      body: { rating: number; comment?: string }
     ) =>
       request<any>(
         `/courses/${courseId}/reviews`,
@@ -286,7 +280,7 @@ export const api = {
   },
 
   /* ---------------------------------------------------------------- */
-  /* Student & learning                                               */
+  /* Student dashboard                                                 */
   /* ---------------------------------------------------------------- */
 
   dashboard: {
@@ -297,22 +291,23 @@ export const api = {
       request<any>("/student/quizzes"),
   },
 
+  /* ---------------------------------------------------------------- */
+  /* Wishlist                                                          */
+  /* ---------------------------------------------------------------- */
+
   wishlist: {
-    getAll: () =>
-      request<any>("/wishlist"),
+    getAll: () => request<any>("/wishlist"),
 
     add: (courseId: string) =>
-      request<any>(
-        `/wishlist/${courseId}`,
-        json("POST")
-      ),
+      request<any>(`/wishlist/${courseId}`, json("POST")),
 
     remove: (courseId: string) =>
-      request<any>(
-        `/wishlist/${courseId}`,
-        json("DELETE")
-      ),
+      request<any>(`/wishlist/${courseId}`, json("DELETE")),
   },
+
+  /* ---------------------------------------------------------------- */
+  /* Enrollments                                                       */
+  /* ---------------------------------------------------------------- */
 
   enrollments: {
     enroll: (courseId: string) =>
@@ -331,16 +326,16 @@ export const api = {
       ),
   },
 
+  /* ---------------------------------------------------------------- */
+  /* Learning                                                          */
+  /* ---------------------------------------------------------------- */
+
   learn: {
     getCourseView: (courseId: string) =>
-      request<any>(
-        `/learn/courses/${courseId}`
-      ),
+      request<any>(`/learn/courses/${courseId}`),
 
     getLesson: (lessonId: string) =>
-      request<any>(
-        `/learn/lessons/${lessonId}`
-      ),
+      request<any>(`/learn/lessons/${lessonId}`),
 
     completeLesson: (lessonId: string) =>
       request<any>(
@@ -355,9 +350,7 @@ export const api = {
       ),
 
     getQuiz: (quizId: string) =>
-      request<any>(
-        `/learn/quizzes/${quizId}`
-      ),
+      request<any>(`/learn/quizzes/${quizId}`),
 
     submitQuiz: (
       quizId: string,
@@ -372,22 +365,32 @@ export const api = {
       ),
 
     getMyQuizAttempts: (quizId: string) =>
-      request<any>(
-        `/learn/quizzes/${quizId}/attempts`
-      ),
+      request<any>(`/learn/quizzes/${quizId}/attempts`),
 
     getDiscussions: (courseId: string, lessonId?: string) =>
-      request<any>(`/learn/courses/${courseId}/discussions${lessonId ? `?lessonId=${lessonId}` : ""}`),
-    
-    createDiscussion: (courseId: string, content: string, lessonId?: string) =>
-      request<any>(`/learn/courses/${courseId}/discussions`, json("POST", { content, lessonId })),
-    
+      request<any>(
+        `/learn/courses/${courseId}/discussions${toQuery({ lessonId })}`
+      ),
+
+    createDiscussion: (
+      courseId: string,
+      content: string,
+      lessonId?: string
+    ) =>
+      request<any>(
+        `/learn/courses/${courseId}/discussions`,
+        json("POST", { content, lessonId })
+      ),
+
     createReply: (discussionId: string, content: string) =>
-      request<any>(`/learn/discussions/${discussionId}/replies`, json("POST", { content })),
+      request<any>(
+        `/learn/discussions/${discussionId}/replies`,
+        json("POST", { content })
+      ),
   },
 
   /* ---------------------------------------------------------------- */
-  /* Mentor studio                                                    */
+  /* Mentor studio                                                     */
   /* ---------------------------------------------------------------- */
 
   mentor: {
@@ -397,47 +400,29 @@ export const api = {
     getAnalytics: () =>
       request<any>("/mentor/analytics"),
 
-    sendAnnouncement: (
-      courseId: string,
-      message: string
-    ) =>
+    sendAnnouncement: (courseId: string, message: string) =>
       request<any>(
         `/mentor/courses/${courseId}/announcement`,
         json("POST", { message })
       ),
 
-    getMyCourses: (
-      params?: Record<string, any>
-    ) =>
-      request<any>(
-        `/mentor/courses${toQuery(params)}`
-      ),
+    getMyCourses: (params?: Record<string, any>) =>
+      request<any>(`/mentor/courses${toQuery(params)}`),
 
     getCourse: (id: string) =>
-      request<any>(
-        `/mentor/courses/${id}`
-      ),
+      request<any>(`/mentor/courses/${id}`),
 
     createCourse: (body: any) =>
-      request<any>(
-        "/mentor/courses",
-        json("POST", body)
-      ),
+      request<any>("/mentor/courses", json("POST", body)),
 
-    updateCourse: (
-      id: string,
-      body: any
-    ) =>
+    updateCourse: (id: string, body: any) =>
       request<any>(
         `/mentor/courses/${id}`,
         json("PATCH", body)
       ),
 
     deleteCourse: (id: string) =>
-      request<any>(
-        `/mentor/courses/${id}`,
-        json("DELETE")
-      ),
+      request<any>(`/mentor/courses/${id}`, json("DELETE")),
 
     publishCourse: (id: string) =>
       request<any>(
@@ -451,12 +436,7 @@ export const api = {
         json("POST")
       ),
 
-    addSection: (
-      courseId: string,
-      body: {
-        title: string;
-      }
-    ) =>
+    addSection: (courseId: string, body: { title: string }) =>
       request<any>(
         `/mentor/courses/${courseId}/sections`,
         json("POST", body)
@@ -465,9 +445,7 @@ export const api = {
     updateSection: (
       courseId: string,
       sectionId: string,
-      body: {
-        title: string;
-      }
+      body: { title: string }
     ) =>
       request<any>(
         `/mentor/courses/${courseId}/sections/${sectionId}`,
@@ -486,18 +464,12 @@ export const api = {
         json("DELETE")
       ),
 
-    getCourseStudents: (
-      courseId: string,
-      page = 1
-    ) =>
+    getCourseStudents: (courseId: string, page = 1) =>
       request<any>(
         `/mentor/courses/${courseId}/students?page=${page}`
       ),
 
-    addLesson: (
-      courseId: string,
-      body: any
-    ) =>
+    addLesson: (courseId: string, body: any) =>
       request<any>(
         `/mentor/courses/${courseId}/lessons`,
         json("POST", body)
@@ -509,33 +481,22 @@ export const api = {
         json("DELETE")
       ),
 
-    updateLesson: (
-      lessonId: string,
-      body: any
-    ) =>
+    updateLesson: (lessonId: string, body: any) =>
       request<any>(
         `/mentor/lessons/${lessonId}`,
         json("PATCH", body)
       ),
 
     getQuiz: (quizId: string) =>
-      request<any>(
-        `/mentor/quizzes/${quizId}`
-      ),
+      request<any>(`/mentor/quizzes/${quizId}`),
 
-    createQuiz: (
-      courseId: string,
-      body: any
-    ) =>
+    createQuiz: (courseId: string, body: any) =>
       request<any>(
         `/mentor/courses/${courseId}/quizzes`,
         json("POST", body)
       ),
 
-    updateQuiz: (
-      quizId: string,
-      body: any
-    ) =>
+    updateQuiz: (quizId: string, body: any) =>
       request<any>(
         `/mentor/quizzes/${quizId}`,
         json("PATCH", body)
@@ -549,57 +510,39 @@ export const api = {
   },
 
   /* ---------------------------------------------------------------- */
-  /* Admin                                                            */
+  /* Admin                                                             */
   /* ---------------------------------------------------------------- */
 
   admin: {
     getStats: () =>
       request<any>("/admin/stats"),
 
-    getUsers: (
-      params?: Record<string, any>
-    ) =>
-      request<any>(
-        `/admin/users${toQuery(params)}`
-      ),
+    getUsers: (params?: Record<string, any>) =>
+      request<any>(`/admin/users${toQuery(params)}`),
 
     updateUser: (
       id: string,
-      body: {
-        roles?: string[];
-        isActive?: boolean;
-      }
+      body: { roles?: string[]; isActive?: boolean }
     ) =>
       request<any>(
         `/admin/users/${id}`,
         json("PATCH", body)
       ),
 
-    getCourses: (
-      params?: Record<string, any>
-    ) =>
-      request<any>(
-        `/admin/courses${toQuery(params)}`
-      ),
+    getCourses: (params?: Record<string, any>) =>
+      request<any>(`/admin/courses${toQuery(params)}`),
 
     updateCourseStatus: (
       id: string,
-      status:
-        | "draft"
-        | "published"
-        | "archived"
+      status: "draft" | "published" | "archived"
     ) =>
       request<any>(
         `/admin/courses/${id}/status`,
         json("PATCH", { status })
       ),
 
-    getEnrollments: (
-      params?: Record<string, any>
-    ) =>
-      request<any>(
-        `/admin/enrollments${toQuery(params)}`
-      ),
+    getEnrollments: (params?: Record<string, any>) =>
+      request<any>(`/admin/enrollments${toQuery(params)}`),
 
     createCategory: (body: {
       name: string;
@@ -632,7 +575,7 @@ export const api = {
   },
 
   /* ---------------------------------------------------------------- */
-  /* Notifications                                                    */
+  /* Notifications                                                     */
   /* ---------------------------------------------------------------- */
 
   notifications: {
@@ -641,9 +584,7 @@ export const api = {
       role?: "student" | "mentor"
     ) =>
       request<any>(
-        `/notifications?page=${page}${
-          role ? `&role=${role}` : ""
-        }`
+        `/notifications${toQuery({ page, role })}`
       ),
 
     markAsRead: (id: string) =>
@@ -652,28 +593,55 @@ export const api = {
         json("PATCH")
       ),
 
-    markAllAsRead: (
-      role?: "student" | "mentor"
-    ) =>
+    markAllAsRead: (role?: "student" | "mentor") =>
       request<any>(
-        `/notifications/read-all${
-          role ? `?role=${role}` : ""
-        }`,
+        `/notifications/read-all${toQuery({ role })}`,
         json("PATCH")
       ),
   },
 
   /* ---------------------------------------------------------------- */
-  /* Activity                                                         */
+  /* Messaging                                                         */
+  /* ---------------------------------------------------------------- */
+
+  messaging: {
+    // Search active users by name or email.
+    searchUsers: (query: string) =>
+      request<any>(
+        `/messaging/users${toQuery({ search: query })}`
+      ),
+
+    // Get course group chats and existing direct conversations.
+    getConversations: () =>
+      request<any>("/messaging/conversations"),
+
+    // Open or create a private conversation.
+    openDirectConversation: (userId: string) =>
+      request<any>(
+        `/messaging/direct/${encodeURIComponent(userId)}`,
+        json("POST")
+      ),
+
+    // Load message history for a conversation.
+    getMessages: (
+      conversationId: string,
+      params?: { limit?: number; before?: string }
+    ) =>
+      request<any>(
+        `/messaging/conversations/${encodeURIComponent(
+          conversationId
+        )}/messages${toQuery(params)}`
+      ),
+  },
+
+  /* ---------------------------------------------------------------- */
+  /* Activity                                                          */
   /* ---------------------------------------------------------------- */
 
   activity: {
-    getMyActivities: (
-      page = 1,
-      limit = 20
-    ) =>
+    getMyActivities: (page = 1, limit = 20) =>
       request<any>(
-        `/activity/mine?page=${page}&limit=${limit}`
+        `/activity/mine${toQuery({ page, limit })}`
       ),
   },
 };
