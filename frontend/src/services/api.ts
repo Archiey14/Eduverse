@@ -13,10 +13,8 @@ export const getToken = (): string | null =>
   sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
 
 export const setToken = (token: string, remember = true): void => {
-  // Always store in sessionStorage for the current tab so tabs don't hijack each other
   sessionStorage.setItem(TOKEN_KEY, token);
 
-  // If remember is true, also persist to localStorage for cross-restart retention
   if (remember) {
     localStorage.setItem(TOKEN_KEY, token);
   } else {
@@ -44,6 +42,7 @@ export const getStoredUser = () => {
 
 export const setStoredUser = (user: any, remember = true): void => {
   const userStr = JSON.stringify(user);
+
   sessionStorage.setItem(USER_KEY, userStr);
 
   if (remember) {
@@ -62,6 +61,42 @@ export interface UserSession {
   lastActive: string;
   createdAt: string;
   isCurrent: boolean;
+}
+
+/* ------------------------------------------------------------------ */
+/* Messaging types                                                     */
+/* ------------------------------------------------------------------ */
+
+export interface ChatAttachment {
+  fileName: string;
+  storedName?: string;
+  mimeType: string;
+  size: number;
+  url?: string;
+}
+
+export interface ChatMessage {
+  _id: string;
+  conversation: string;
+  sender: {
+    _id: string;
+    name: string;
+    avatarUrl?: string;
+  };
+  content: string;
+  type: "text" | "file";
+  attachment?: ChatAttachment;
+  reactions?: {
+    user: string;
+    emoji: string;
+  }[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface UploadedChatAttachmentResponse {
+  success: boolean;
+  message: ChatMessage;
 }
 
 /* ------------------------------------------------------------------ */
@@ -113,7 +148,7 @@ async function request<T>(
   const token = getToken();
   const headers = new Headers(options.headers);
 
-  // FormData must set its own multipart Content-Type boundary.
+  // Let the browser set the multipart boundary for FormData.
   if (
     typeof FormData !== "undefined" &&
     options.body instanceof FormData
@@ -146,7 +181,7 @@ async function request<T>(
   try {
     data = await response.json();
   } catch {
-    // The response may not contain JSON.
+    // Some successful responses, such as file downloads, may not be JSON.
   }
 
   if (!response.ok) {
@@ -161,6 +196,59 @@ async function request<T>(
 }
 
 /* ------------------------------------------------------------------ */
+/* Authenticated file download                                         */
+/* ------------------------------------------------------------------ */
+
+async function downloadAuthenticatedFile(
+  endpoint: string,
+  fallbackFileName = "attachment"
+): Promise<void> {
+  const token = getToken();
+  const headers = new Headers();
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
+  } catch {
+    throw new ApiError(
+      `Cannot reach the server at ${API_BASE_URL}. Make sure the backend is running.`,
+      0
+    );
+  }
+
+  if (!response.ok) {
+    let message = `Download failed (${response.status}).`;
+
+    try {
+      const data = await response.json();
+      message = data?.message || message;
+    } catch {
+      // Keep the default error message.
+    }
+
+    throw new ApiError(message, response.status);
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = objectUrl;
+  link.download = fallbackFileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  // Allow the browser to start the download before releasing the object URL.
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
+/* ------------------------------------------------------------------ */
 /* Query + JSON helpers                                                */
 /* ------------------------------------------------------------------ */
 
@@ -168,8 +256,9 @@ const toQuery = (params?: Record<string, any>): string => {
   if (!params) return "";
 
   const qs = Object.entries(params)
-    .filter(([, value]) =>
-      value !== undefined && value !== null && value !== ""
+    .filter(
+      ([, value]) =>
+        value !== undefined && value !== null && value !== ""
     )
     .map(
       ([key, value]) =>
@@ -206,19 +295,13 @@ export const api = {
       password: string;
     }) => request<any>("/auth/login", json("POST", body)),
 
-    verifyOTP: (body: {
-      userId: string;
-      code: string;
-    }) => request<any>("/auth/verify-otp", json("POST", body)),
+    verifyOTP: (body: { userId: string; code: string }) =>
+      request<any>("/auth/verify-otp", json("POST", body)),
 
-    forgotPassword: (body: {
-      email: string;
-    }) => request<any>("/auth/forgot-password", json("POST", body)),
+    forgotPassword: (body: { email: string }) =>
+      request<any>("/auth/forgot-password", json("POST", body)),
 
-    resetPassword: (
-      token: string,
-      body: { password: string }
-    ) =>
+    resetPassword: (token: string, body: { password: string }) =>
       request<any>(
         `/auth/reset-password/${encodeURIComponent(token)}`,
         json("PATCH", body)
@@ -259,22 +342,27 @@ export const api = {
     },
 
     getSessions: () =>
-      request<{ success: boolean; sessions: UserSession[] }>("/auth/sessions"),
+      request<{ success: boolean; sessions: UserSession[] }>(
+        "/auth/sessions"
+      ),
 
     revokeSession: (id: string) =>
-      request<{ success: boolean; message: string }>(`/auth/sessions/${id}`, {
-        method: "DELETE",
-      }),
+      request<{ success: boolean; message: string }>(
+        `/auth/sessions/${encodeURIComponent(id)}`,
+        { method: "DELETE" }
+      ),
 
     revokeOtherSessions: () =>
-      request<{ success: boolean; message: string }>("/auth/sessions", {
-        method: "DELETE",
-      }),
+      request<{ success: boolean; message: string }>(
+        "/auth/sessions",
+        { method: "DELETE" }
+      ),
 
     logout: () =>
-      request<{ success: boolean; message: string }>("/auth/logout", {
-        method: "POST",
-      }),
+      request<{ success: boolean; message: string }>(
+        "/auth/logout",
+        { method: "POST" }
+      ),
   },
 
   /* ---------------------------------------------------------------- */
@@ -297,20 +385,22 @@ export const api = {
       request<any>(`/courses/${encodeURIComponent(idOrSlug)}`),
 
     getReviews: (courseId: string, page = 1) =>
-      request<any>(`/courses/${courseId}/reviews?page=${page}`),
+      request<any>(
+        `/courses/${encodeURIComponent(courseId)}/reviews?page=${page}`
+      ),
 
     submitReview: (
       courseId: string,
       body: { rating: number; comment?: string }
     ) =>
       request<any>(
-        `/courses/${courseId}/reviews`,
+        `/courses/${encodeURIComponent(courseId)}/reviews`,
         json("POST", body)
       ),
 
     deleteMyReview: (courseId: string) =>
       request<any>(
-        `/courses/${courseId}/reviews/mine`,
+        `/courses/${encodeURIComponent(courseId)}/reviews/mine`,
         json("DELETE")
       ),
   },
@@ -335,10 +425,16 @@ export const api = {
     getAll: () => request<any>("/wishlist"),
 
     add: (courseId: string) =>
-      request<any>(`/wishlist/${courseId}`, json("POST")),
+      request<any>(
+        `/wishlist/${encodeURIComponent(courseId)}`,
+        json("POST")
+      ),
 
     remove: (courseId: string) =>
-      request<any>(`/wishlist/${courseId}`, json("DELETE")),
+      request<any>(
+        `/wishlist/${encodeURIComponent(courseId)}`,
+        json("DELETE")
+      ),
   },
 
   /* ---------------------------------------------------------------- */
@@ -347,17 +443,14 @@ export const api = {
 
   enrollments: {
     enroll: (courseId: string) =>
-      request<any>(
-        "/enrollments",
-        json("POST", { courseId })
-      ),
+      request<any>("/enrollments", json("POST", { courseId })),
 
     getMyEnrollments: () =>
       request<any>("/enrollments/mine"),
 
     unenroll: (courseId: string) =>
       request<any>(
-        `/enrollments/${courseId}`,
+        `/enrollments/${encodeURIComponent(courseId)}`,
         json("DELETE")
       ),
   },
@@ -368,44 +461,45 @@ export const api = {
 
   learn: {
     getCourseView: (courseId: string) =>
-      request<any>(`/learn/courses/${courseId}`),
+      request<any>(`/learn/courses/${encodeURIComponent(courseId)}`),
 
     getLesson: (lessonId: string) =>
-      request<any>(`/learn/lessons/${lessonId}`),
+      request<any>(`/learn/lessons/${encodeURIComponent(lessonId)}`),
 
     completeLesson: (lessonId: string) =>
       request<any>(
-        `/learn/lessons/${lessonId}/complete`,
+        `/learn/lessons/${encodeURIComponent(lessonId)}/complete`,
         json("POST")
       ),
 
     uncompleteLesson: (lessonId: string) =>
       request<any>(
-        `/learn/lessons/${lessonId}/complete`,
+        `/learn/lessons/${encodeURIComponent(lessonId)}/complete`,
         json("DELETE")
       ),
 
     getQuiz: (quizId: string) =>
-      request<any>(`/learn/quizzes/${quizId}`),
+      request<any>(`/learn/quizzes/${encodeURIComponent(quizId)}`),
 
     submitQuiz: (
       quizId: string,
-      answers: {
-        questionId: string;
-        selectedIndex: number;
-      }[]
+      answers: { questionId: string; selectedIndex: number }[]
     ) =>
       request<any>(
-        `/learn/quizzes/${quizId}/attempts`,
+        `/learn/quizzes/${encodeURIComponent(quizId)}/attempts`,
         json("POST", { answers })
       ),
 
     getMyQuizAttempts: (quizId: string) =>
-      request<any>(`/learn/quizzes/${quizId}/attempts`),
+      request<any>(
+        `/learn/quizzes/${encodeURIComponent(quizId)}/attempts`
+      ),
 
     getDiscussions: (courseId: string, lessonId?: string) =>
       request<any>(
-        `/learn/courses/${courseId}/discussions${toQuery({ lessonId })}`
+        `/learn/courses/${encodeURIComponent(courseId)}/discussions${toQuery(
+          { lessonId }
+        )}`
       ),
 
     createDiscussion: (
@@ -414,13 +508,13 @@ export const api = {
       lessonId?: string
     ) =>
       request<any>(
-        `/learn/courses/${courseId}/discussions`,
+        `/learn/courses/${encodeURIComponent(courseId)}/discussions`,
         json("POST", { content, lessonId })
       ),
 
     createReply: (discussionId: string, content: string) =>
       request<any>(
-        `/learn/discussions/${discussionId}/replies`,
+        `/learn/discussions/${encodeURIComponent(discussionId)}/replies`,
         json("POST", { content })
       ),
   },
@@ -438,7 +532,7 @@ export const api = {
 
     sendAnnouncement: (courseId: string, message: string) =>
       request<any>(
-        `/mentor/courses/${courseId}/announcement`,
+        `/mentor/courses/${encodeURIComponent(courseId)}/announcement`,
         json("POST", { message })
       ),
 
@@ -446,35 +540,38 @@ export const api = {
       request<any>(`/mentor/courses${toQuery(params)}`),
 
     getCourse: (id: string) =>
-      request<any>(`/mentor/courses/${id}`),
+      request<any>(`/mentor/courses/${encodeURIComponent(id)}`),
 
     createCourse: (body: any) =>
       request<any>("/mentor/courses", json("POST", body)),
 
     updateCourse: (id: string, body: any) =>
       request<any>(
-        `/mentor/courses/${id}`,
+        `/mentor/courses/${encodeURIComponent(id)}`,
         json("PATCH", body)
       ),
 
     deleteCourse: (id: string) =>
-      request<any>(`/mentor/courses/${id}`, json("DELETE")),
+      request<any>(
+        `/mentor/courses/${encodeURIComponent(id)}`,
+        json("DELETE")
+      ),
 
     publishCourse: (id: string) =>
       request<any>(
-        `/mentor/courses/${id}/publish`,
+        `/mentor/courses/${encodeURIComponent(id)}/publish`,
         json("POST")
       ),
 
     unpublishCourse: (id: string) =>
       request<any>(
-        `/mentor/courses/${id}/unpublish`,
+        `/mentor/courses/${encodeURIComponent(id)}/unpublish`,
         json("POST")
       ),
 
     addSection: (courseId: string, body: { title: string }) =>
       request<any>(
-        `/mentor/courses/${courseId}/sections`,
+        `/mentor/courses/${encodeURIComponent(courseId)}/sections`,
         json("POST", body)
       ),
 
@@ -484,7 +581,9 @@ export const api = {
       body: { title: string }
     ) =>
       request<any>(
-        `/mentor/courses/${courseId}/sections/${sectionId}`,
+        `/mentor/courses/${encodeURIComponent(courseId)}/sections/${encodeURIComponent(
+          sectionId
+        )}`,
         json("PATCH", body)
       ),
 
@@ -494,53 +593,53 @@ export const api = {
       force = true
     ) =>
       request<any>(
-        `/mentor/courses/${courseId}/sections/${sectionId}${
-          force ? "?force=true" : ""
-        }`,
+        `/mentor/courses/${encodeURIComponent(courseId)}/sections/${encodeURIComponent(
+          sectionId
+        )}${force ? "?force=true" : ""}`,
         json("DELETE")
       ),
 
     getCourseStudents: (courseId: string, page = 1) =>
       request<any>(
-        `/mentor/courses/${courseId}/students?page=${page}`
+        `/mentor/courses/${encodeURIComponent(courseId)}/students?page=${page}`
       ),
 
     addLesson: (courseId: string, body: any) =>
       request<any>(
-        `/mentor/courses/${courseId}/lessons`,
+        `/mentor/courses/${encodeURIComponent(courseId)}/lessons`,
         json("POST", body)
       ),
 
     deleteLesson: (lessonId: string) =>
       request<any>(
-        `/mentor/lessons/${lessonId}`,
+        `/mentor/lessons/${encodeURIComponent(lessonId)}`,
         json("DELETE")
       ),
 
     updateLesson: (lessonId: string, body: any) =>
       request<any>(
-        `/mentor/lessons/${lessonId}`,
+        `/mentor/lessons/${encodeURIComponent(lessonId)}`,
         json("PATCH", body)
       ),
 
     getQuiz: (quizId: string) =>
-      request<any>(`/mentor/quizzes/${quizId}`),
+      request<any>(`/mentor/quizzes/${encodeURIComponent(quizId)}`),
 
     createQuiz: (courseId: string, body: any) =>
       request<any>(
-        `/mentor/courses/${courseId}/quizzes`,
+        `/mentor/courses/${encodeURIComponent(courseId)}/quizzes`,
         json("POST", body)
       ),
 
     updateQuiz: (quizId: string, body: any) =>
       request<any>(
-        `/mentor/quizzes/${quizId}`,
+        `/mentor/quizzes/${encodeURIComponent(quizId)}`,
         json("PATCH", body)
       ),
 
     deleteQuiz: (quizId: string) =>
       request<any>(
-        `/mentor/quizzes/${quizId}`,
+        `/mentor/quizzes/${encodeURIComponent(quizId)}`,
         json("DELETE")
       ),
   },
@@ -561,7 +660,7 @@ export const api = {
       body: { roles?: string[]; isActive?: boolean }
     ) =>
       request<any>(
-        `/admin/users/${id}`,
+        `/admin/users/${encodeURIComponent(id)}`,
         json("PATCH", body)
       ),
 
@@ -573,7 +672,7 @@ export const api = {
       status: "draft" | "published" | "archived"
     ) =>
       request<any>(
-        `/admin/courses/${id}/status`,
+        `/admin/courses/${encodeURIComponent(id)}/status`,
         json("PATCH", { status })
       ),
 
@@ -585,10 +684,7 @@ export const api = {
       slug?: string;
       description?: string;
     }) =>
-      request<any>(
-        "/admin/categories",
-        json("POST", body)
-      ),
+      request<any>("/admin/categories", json("POST", body)),
 
     updateCategory: (
       id: string,
@@ -599,13 +695,13 @@ export const api = {
       }
     ) =>
       request<any>(
-        `/admin/categories/${id}`,
+        `/admin/categories/${encodeURIComponent(id)}`,
         json("PATCH", body)
       ),
 
     deleteCategory: (id: string) =>
       request<any>(
-        `/admin/categories/${id}`,
+        `/admin/categories/${encodeURIComponent(id)}`,
         json("DELETE")
       ),
   },
@@ -615,17 +711,14 @@ export const api = {
   /* ---------------------------------------------------------------- */
 
   notifications: {
-    getAll: (
-      page = 1,
-      role?: "student" | "mentor"
-    ) =>
+    getAll: (page = 1, role?: "student" | "mentor") =>
       request<any>(
         `/notifications${toQuery({ page, role })}`
       ),
 
     markAsRead: (id: string) =>
       request<any>(
-        `/notifications/${id}/read`,
+        `/notifications/${encodeURIComponent(id)}/read`,
         json("PATCH")
       ),
 
@@ -667,6 +760,34 @@ export const api = {
         `/messaging/conversations/${encodeURIComponent(
           conversationId
         )}/messages${toQuery(params)}`
+      ),
+
+    // Upload an attachment and create a message in the conversation.
+    // Backend must accept multipart field name "file".
+    uploadAttachment: (conversationId: string, file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      return request<UploadedChatAttachmentResponse>(
+        `/messaging/conversations/${encodeURIComponent(
+          conversationId
+        )}/attachments`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+    },
+
+    // Download a chat attachment through an authenticated endpoint.
+    // The backend must authorize conversation membership before sending it.
+    downloadAttachment: (
+      messageId: string,
+      fileName = "attachment"
+    ) =>
+      downloadAuthenticatedFile(
+        `/messaging/attachments/${encodeURIComponent(messageId)}/download`,
+        fileName
       ),
   },
 

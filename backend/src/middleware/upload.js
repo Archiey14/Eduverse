@@ -1,55 +1,106 @@
+
 import multer from "multer";
-import path from "path";
-import fs from "fs";
+import path from "node:path";
+import fs from "node:fs";
+import { randomUUID } from "node:crypto";
 
-// Create uploads directory if it doesn't exist
-const uploadDirectory = path.resolve("uploads");
+// Resolve storage directories relative to the server project.
+const uploadsDirectory = path.resolve("uploads");
+const privateUploadsDirectory = path.resolve("private-uploads");
 
-if (!fs.existsSync(uploadDirectory)) {
-  fs.mkdirSync(uploadDirectory, { recursive: true });
-}
+// Create both directories if they do not exist.
+fs.mkdirSync(uploadsDirectory, { recursive: true });
+fs.mkdirSync(privateUploadsDirectory, { recursive: true });
 
-// Store uploaded files on disk
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDirectory);
+/* =========================================================
+   PROFILE PICTURE UPLOADS
+   Existing behavior: public uploads directory, 2 MB limit.
+========================================================= */
+
+const profileStorage = multer.diskStorage({
+  destination: (_req, _file, callback) => {
+    callback(null, uploadsDirectory);
   },
 
-  filename: (req, file, cb) => {
-    const extension = path.extname(file.originalname);
+  filename: (req, file, callback) => {
+    const extension = path.extname(file.originalname).toLowerCase();
 
-    const uniqueName = `${req.user._id}-${Date.now()}${extension}`;
-
-    cb(null, uniqueName);
+    callback(null, `${req.user._id}-${Date.now()}${extension}`);
   },
 });
 
-// Allow only supported image types
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = [
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp",
-  ];
+const profileImageTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(
-      new Error(
-        "Only JPG, JPEG, PNG and WebP images are allowed."
-      ),
-      false
+const profileFileFilter = (_req, file, callback) => {
+  if (!profileImageTypes.has(file.mimetype)) {
+    return callback(
+      new Error("Only JPG, PNG, and WebP profile pictures are allowed.")
     );
   }
+
+  callback(null, true);
 };
 
-// Profile picture upload configuration
 export const uploadProfilePicture = multer({
-  storage,
-  fileFilter,
+  storage: profileStorage,
+  fileFilter: profileFileFilter,
   limits: {
-    fileSize: 2 * 1024 * 1024, // 2 MB maximum
+    fileSize: 2 * 1024 * 1024,
+    files: 1,
+  },
+});
+
+/* =========================================================
+   PRIVATE CHAT ATTACHMENTS
+   Stored outside the public /uploads directory.
+   Files must be downloaded through an authorized API route.
+========================================================= */
+
+const chatStorage = multer.diskStorage({
+  destination: (_req, _file, callback) => {
+    callback(null, privateUploadsDirectory);
+  },
+
+  filename: (_req, _file, callback) => {
+    // Use a random disk name instead of the original filename.
+    callback(null, randomUUID());
+  },
+});
+
+const chatFileTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+  "text/plain",
+  "application/zip",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
+
+const chatFileFilter = (_req, file, callback) => {
+  if (!chatFileTypes.has(file.mimetype)) {
+    return callback(
+      new Error(
+        "Unsupported attachment. Upload an image, PDF, TXT, ZIP, DOCX, PPTX, or XLSX file."
+      )
+    );
+  }
+
+  callback(null, true);
+};
+
+export const uploadChatFile = multer({
+  storage: chatStorage,
+  fileFilter: chatFileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10 MB maximum
+    files: 1,
   },
 });

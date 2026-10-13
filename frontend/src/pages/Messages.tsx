@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { FormEvent } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
 import { connectMessagingSocket } from "../services/socket";
 import { api, getErrorMessage } from "../services/api";
@@ -23,12 +23,21 @@ type MessageReaction = {
   emoji: string;
 };
 
+type MessageAttachment = {
+  fileName: string;
+  storedName?: string;
+  mimeType: string;
+  size: number;
+};
+
 type ChatMessage = {
   _id: string;
   conversation: string | { _id: string };
   content: string;
   sender: Participant | string;
   createdAt: string;
+  type?: "text" | "file";
+  attachment?: MessageAttachment;
   reactions?: MessageReaction[];
 };
 
@@ -73,6 +82,36 @@ const MESSAGE_REACTIONS = [
   "🔥",
   "🎉",
 ];
+
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+
+const ALLOWED_ATTACHMENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+  "text/plain",
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
+
+const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".gif",
+  ".pdf",
+  ".txt",
+  ".zip",
+  ".docx",
+  ".pptx",
+  ".xlsx",
+]);
 
 const getPayload = (response: unknown): unknown => {
   if (!response || typeof response !== "object") {
@@ -157,7 +196,7 @@ const getConversationFromResponse = (
   return candidate as Conversation;
 };
 
-const getConversationId = (message: ChatMessage | any): string => {
+const getConversationId = (message: ChatMessage | null | undefined): string => {
   if (!message) return "";
 
   if (typeof message.conversation === "string") {
@@ -166,10 +205,6 @@ const getConversationId = (message: ChatMessage | any): string => {
 
   if (message.conversation?._id) {
     return String(message.conversation._id);
-  }
-
-  if (message.conversationId) {
-    return String(message.conversationId);
   }
 
   return "";
@@ -185,9 +220,7 @@ const getMessageSenderId = (message: ChatMessage): string =>
     ? message.sender
     : message.sender?._id || "";
 
-const getReactionUserId = (
-  reaction: MessageReaction
-): string =>
+const getReactionUserId = (reaction: MessageReaction): string =>
   typeof reaction.user === "string"
     ? reaction.user
     : reaction.user?._id || "";
@@ -255,9 +288,7 @@ const getUserRole = (roles?: string[]): string => {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 };
 
-const formatConversationDate = (
-  date?: string | null
-): string => {
+const formatConversationDate = (date?: string | null): string => {
   if (!date) return "";
 
   const parsedDate = new Date(date);
@@ -283,10 +314,8 @@ const formatMessageTime = (date?: string): string => {
   });
 };
 
-const sortConversations = (
-  items: Conversation[]
-): Conversation[] => {
-  return [...items].sort((a, b) => {
+const sortConversations = (items: Conversation[]): Conversation[] =>
+  [...items].sort((a, b) => {
     const aDate = new Date(
       a.lastMessageAt || a.updatedAt || 0
     ).getTime();
@@ -300,7 +329,6 @@ const sortConversations = (
       (Number.isNaN(aDate) ? 0 : aDate)
     );
   });
-};
 
 const mergeMessages = (
   existing: ChatMessage[],
@@ -318,8 +346,7 @@ const mergeMessages = (
     merged.set(message._id, {
       ...previous,
       ...message,
-      reactions:
-        message.reactions ?? previous?.reactions ?? [],
+      reactions: message.reactions ?? previous?.reactions ?? [],
     });
   }
 
@@ -334,6 +361,41 @@ const mergeMessages = (
   });
 };
 
+const formatFileSize = (bytes: number): string => {
+  if (!Number.isFinite(bytes) || bytes < 0) return "";
+
+  if (bytes < 1024) return `${bytes} B`;
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const isImageAttachment = (attachment?: MessageAttachment): boolean =>
+  Boolean(attachment?.mimeType.startsWith("image/"));
+
+const getAttachmentExtension = (fileName: string): string => {
+  const lastDot = fileName.lastIndexOf(".");
+  return lastDot >= 0 ? fileName.slice(lastDot).toLowerCase() : "";
+};
+
+const getAttachmentIcon = (attachment: MessageAttachment): string => {
+  if (isImageAttachment(attachment)) return "▧";
+  if (attachment.mimeType === "application/pdf") return "PDF";
+
+  const extension = getAttachmentExtension(attachment.fileName);
+
+  if (extension === ".docx") return "DOC";
+  if (extension === ".xlsx") return "XLS";
+  if (extension === ".pptx") return "PPT";
+  if (extension === ".zip") return "ZIP";
+  if (extension === ".txt") return "TXT";
+
+  return "FILE";
+};
+
 function Messages() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversation] =
@@ -344,6 +406,11 @@ function Messages() {
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
+
+  const [uploading, setUploading] = useState(false);
+  const [attachmentError, setAttachmentError] = useState("");
+  const [downloadingMessageId, setDownloadingMessageId] =
+    useState<string | null>(null);
 
   const [error, setError] = useState("");
   const [connectionStatus, setConnectionStatus] = useState<
@@ -365,6 +432,7 @@ function Messages() {
     useRef<ReturnType<typeof connectMessagingSocket> | null>(null);
   const activeConversationRef = useRef<Conversation | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const searchRequestRef = useRef(0);
   const conversationRequestRef = useRef(0);
   const messageRequestRef = useRef(0);
@@ -429,10 +497,7 @@ function Messages() {
 
       setActiveConversation((current) => {
         if (current) {
-          return (
-            items.find((item) => item._id === current._id) ||
-            current
-          );
+          return items.find((item) => item._id === current._id) || current;
         }
 
         return items[0] || null;
@@ -511,9 +576,7 @@ function Messages() {
     };
 
     const handleDisconnect = () => {
-      if (!disposed) {
-        setConnectionStatus("disconnected");
-      }
+      if (!disposed) setConnectionStatus("disconnected");
     };
 
     const handleConnectError = (err: Error) => {
@@ -527,7 +590,6 @@ function Messages() {
       if (disposed || !message?._id) return;
 
       const conversationId = getConversationId(message);
-
       if (!conversationId) return;
 
       const currentActiveId = activeConversationRef.current?._id
@@ -535,9 +597,7 @@ function Messages() {
         : "";
 
       if (currentActiveId === String(conversationId)) {
-        setMessages((existing) =>
-          mergeMessages(existing, [message])
-        );
+        setMessages((existing) => mergeMessages(existing, [message]));
       }
 
       setConversations((existing) => {
@@ -582,10 +642,7 @@ function Messages() {
       setMessages((existing) =>
         existing.map((message) =>
           message._id === payload.messageId
-            ? {
-                ...message,
-                reactions: payload.reactions,
-              }
+            ? { ...message, reactions: payload.reactions }
             : message
         )
       );
@@ -645,9 +702,7 @@ function Messages() {
           return;
         }
 
-        setSearchResults(
-          extractArray<SearchUser>(response, "users")
-        );
+        setSearchResults(extractArray<SearchUser>(response, "users"));
       } catch (err) {
         if (
           requestId === searchRequestRef.current &&
@@ -670,7 +725,7 @@ function Messages() {
     return () => window.clearTimeout(timer);
   }, [userSearch, showNewMessage]);
 
-  // Load history and merge any live messages received during the request.
+  // Load history while preserving any live messages received during loading.
   useEffect(() => {
     const requestId = ++messageRequestRef.current;
     const conversationId = activeConversation?._id;
@@ -686,6 +741,7 @@ function Messages() {
     setMessages([]);
     setLoadingMessages(true);
     setError("");
+    setAttachmentError("");
     setReactionPickerFor(null);
 
     const loadMessages = async () => {
@@ -738,9 +794,7 @@ function Messages() {
 
     const socket = socketRef.current;
 
-    const joinConversation = () => {
-      if (cancelled || !socket?.connected) return;
-
+    if (socket?.connected) {
       socket.emit(
         "join_conversation",
         { conversationId },
@@ -752,10 +806,6 @@ function Messages() {
           );
         }
       );
-    };
-
-    if (socket?.connected) {
-      joinConversation();
     }
 
     return () => {
@@ -843,7 +893,186 @@ function Messages() {
     );
   };
 
-  // Open or create a direct conversation with a searched user.
+  const handleAttachmentSelected = async (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    const conversation = activeConversation;
+
+    // Allow the same file to be selected again later.
+    input.value = "";
+
+    if (!file || !conversation) return;
+
+    setAttachmentError("");
+    setError("");
+
+    if (file.size === 0) {
+      setAttachmentError("This file is empty.");
+      return;
+    }
+
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      setAttachmentError("The maximum attachment size is 10 MB.");
+      return;
+    }
+
+    const extension = getAttachmentExtension(file.name);
+
+    if (!ALLOWED_ATTACHMENT_EXTENSIONS.has(extension)) {
+      setAttachmentError(
+        "Unsupported file type. Choose an image, PDF, TXT, ZIP, DOCX, PPTX, or XLSX file."
+      );
+      return;
+    }
+
+    if (
+      file.type &&
+      file.type !== "application/octet-stream" &&
+      !ALLOWED_ATTACHMENT_TYPES.has(file.type)
+    ) {
+      setAttachmentError(
+        "This file format is not supported."
+      );
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const response: unknown =
+        await api.messaging.uploadAttachment(
+          conversation._id,
+          file
+        );
+
+      const object =
+        response && typeof response === "object"
+          ? (response as Record<string, unknown>)
+          : {};
+
+      const payload =
+        object.data && typeof object.data === "object"
+          ? (object.data as Record<string, unknown>)
+          : object;
+
+      const uploadedMessage =
+        payload.message && typeof payload.message === "object"
+          ? (payload.message as ChatMessage)
+          : (payload as unknown as ChatMessage);
+
+      if (!uploadedMessage?._id) {
+        throw new Error(
+          "The server did not return the uploaded attachment message."
+        );
+      }
+
+      const uploadedConversationId =
+        getConversationId(uploadedMessage);
+
+      if (uploadedConversationId === conversation._id) {
+        setMessages((existing) => {
+          if (
+            activeConversationRef.current?._id !== conversation._id
+          ) {
+            return existing;
+          }
+
+          return mergeMessages(existing, [uploadedMessage]);
+        });
+      }
+
+      setConversations((existing) => {
+        const exists = existing.some(
+          (item) => item._id === conversation._id
+        );
+
+        if (!exists) {
+          void loadConversations();
+          return existing;
+        }
+
+        return sortConversations(
+          existing.map((item) =>
+            item._id === conversation._id
+              ? {
+                  ...item,
+                  lastMessage: uploadedMessage,
+                  lastMessageAt: uploadedMessage.createdAt,
+                  updatedAt: uploadedMessage.createdAt,
+                }
+              : item
+          )
+        );
+      });
+    } catch (err) {
+      setAttachmentError(
+        getErrorMessage(err, "Unable to upload this attachment.")
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDownloadAttachment = async (message: ChatMessage) => {
+    if (!message.attachment || downloadingMessageId) return;
+
+    setDownloadingMessageId(message._id);
+    setAttachmentError("");
+
+    let objectUrl: string | null = null;
+
+    try {
+      const result: unknown =
+        await api.messaging.downloadAttachment(
+          message._id,
+          message.attachment.fileName
+        );
+
+      let blob: Blob | null = null;
+
+      if (result instanceof Blob) {
+        blob = result;
+      } else if (
+        result &&
+        typeof result === "object" &&
+        "data" in result &&
+        (result as { data?: unknown }).data instanceof Blob
+      ) {
+        blob = (result as { data: Blob }).data;
+      }
+
+      if (!blob) {
+        throw new Error(
+          "The download API did not return a file. Check downloadAttachment in api.ts."
+        );
+      }
+
+      objectUrl = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = message.attachment.fileName;
+      link.style.display = "none";
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      // Delay revocation so the browser can start the download.
+      window.setTimeout(() => {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      }, 1000);
+    } catch (err) {
+      setAttachmentError(
+        getErrorMessage(err, "Unable to download this attachment.")
+      );
+    } finally {
+      setDownloadingMessageId(null);
+    }
+  };
+
   const handleOpenDirectMessage = async (user: SearchUser) => {
     if (openingUserId) return;
 
@@ -916,9 +1145,7 @@ function Messages() {
       return;
     }
 
-    if (!conversation || !MESSAGE_REACTIONS.includes(emoji)) {
-      return;
-    }
+    if (!conversation || !MESSAGE_REACTIONS.includes(emoji)) return;
 
     socket.emit(
       "add_reaction",
@@ -962,9 +1189,7 @@ function Messages() {
     );
   };
 
-  const getConversationName = (
-    conversation: Conversation
-  ): string => {
+  const getConversationName = (conversation: Conversation): string => {
     if (conversation.type === "course") {
       return (
         conversation.displayName ||
@@ -1008,15 +1233,17 @@ function Messages() {
       return "Open conversation to view messages";
     }
 
+    if (lastMessage.type === "file" || lastMessage.attachment) {
+      return `📎 ${lastMessage.attachment?.fileName || "Attachment"}`;
+    }
+
     return lastMessage.content || "";
   };
 
   const getLastMessageSenderId = (
     lastMessage?: ChatMessage | string | null
   ): string => {
-    if (!lastMessage || typeof lastMessage === "string") {
-      return "";
-    }
+    if (!lastMessage || typeof lastMessage === "string") return "";
 
     return getMessageSenderId(lastMessage);
   };
@@ -1063,7 +1290,6 @@ function Messages() {
               >
                 {showNewMessage ? "×" : "+"}
               </span>
-
               <span>
                 {showNewMessage ? "Close panel" : "New message"}
               </span>
@@ -1082,7 +1308,6 @@ function Messages() {
                 >
                   ✉
                 </div>
-
                 <div>
                   <h2>Start a conversation</h2>
                   <p>Connect with someone on Eduverse</p>
@@ -1108,9 +1333,7 @@ function Messages() {
                   id="messages-user-search-input"
                   type="search"
                   value={userSearch}
-                  onChange={(event) =>
-                    setUserSearch(event.target.value)
-                  }
+                  onChange={(event) => setUserSearch(event.target.value)}
                   placeholder="Name or email address"
                   autoComplete="off"
                   aria-describedby="messages-search-help"
@@ -1135,10 +1358,7 @@ function Messages() {
                 Search by name or email to find a student or mentor.
               </p>
 
-              <div
-                className="messages-search-content"
-                aria-live="polite"
-              >
+              <div className="messages-search-content" aria-live="polite">
                 {userSearch.trim().length < 2 ? (
                   <div className="messages-search-prompt">
                     <span
@@ -1147,10 +1367,7 @@ function Messages() {
                     >
                       ↗
                     </span>
-
-                    <span>
-                      Enter at least 2 characters to search.
-                    </span>
+                    <span>Enter at least 2 characters to search.</span>
                   </div>
                 ) : searchingUsers ? (
                   <div className="messages-search-loading">
@@ -1173,7 +1390,6 @@ function Messages() {
                     >
                       ⌕
                     </span>
-
                     <strong>No people found</strong>
                     <p>Try another name or email address.</p>
                   </div>
@@ -1190,22 +1406,15 @@ function Messages() {
                           key={user._id}
                           type="button"
                           className="messages-search-user"
-                          onClick={() =>
-                            void handleOpenDirectMessage(user)
-                          }
+                          onClick={() => void handleOpenDirectMessage(user)}
                           disabled={openingUserId !== null}
                         >
-                          {renderAvatar(
-                            user,
-                            "messages-user-avatar"
-                          )}
+                          {renderAvatar(user, "messages-user-avatar")}
 
                           <span className="messages-user-details">
                             <strong>{user.name}</strong>
                             <small>{getUserRole(user.roles)}</small>
-                            {user.email && (
-                              <small>{user.email}</small>
-                            )}
+                            {user.email && <small>{user.email}</small>}
                           </span>
 
                           <span className="messages-user-action">
@@ -1248,10 +1457,9 @@ function Messages() {
               <div className="messages-empty-icon">✉</div>
               <strong>No conversations yet</strong>
               <p>
-                Start a private chat or enroll in a course to join
-                its group.
+                Start a private chat or enroll in a course to join its
+                group.
               </p>
-
               <button
                 type="button"
                 onClick={() => {
@@ -1273,8 +1481,7 @@ function Messages() {
                 );
 
                 const isOwnLastMessage =
-                  Boolean(currentUserId) &&
-                  lastSender === currentUserId;
+                  Boolean(currentUserId) && lastSender === currentUserId;
 
                 return (
                   <button
@@ -1284,10 +1491,7 @@ function Messages() {
                       selected ? "conversation-item-active" : ""
                     }`}
                     onClick={() => {
-                      if (
-                        conversation._id !==
-                        activeConversation?._id
-                      ) {
+                      if (conversation._id !== activeConversation?._id) {
                         setActiveConversation(conversation);
                       }
                     }}
@@ -1296,9 +1500,7 @@ function Messages() {
                     <span className="conversation-avatar">
                       {conversation.type === "course"
                         ? "▦"
-                        : getInitials(
-                            getConversationName(conversation)
-                          )}
+                        : getInitials(getConversationName(conversation))}
                     </span>
 
                     <span className="conversation-item-content">
@@ -1306,7 +1508,6 @@ function Messages() {
                         <strong>
                           {getConversationName(conversation)}
                         </strong>
-
                         <span>
                           {formatConversationDate(
                             conversation.lastMessageAt
@@ -1324,9 +1525,7 @@ function Messages() {
                         {conversation.lastMessage ? (
                           <>
                             {isOwnLastMessage ? "You: " : ""}
-                            {getLastMessageContent(
-                              conversation.lastMessage
-                            )}
+                            {getLastMessageContent(conversation.lastMessage)}
                           </>
                         ) : (
                           "Start a conversation"
@@ -1347,16 +1546,11 @@ function Messages() {
                 <span className="conversation-avatar conversation-avatar-large">
                   {activeConversation.type === "course"
                     ? "▦"
-                    : getInitials(
-                        getConversationName(activeConversation)
-                      )}
+                    : getInitials(getConversationName(activeConversation))}
                 </span>
 
                 <div className="messages-chat-header-info">
-                  <h2>
-                    {getConversationName(activeConversation)}
-                  </h2>
-
+                  <h2>{getConversationName(activeConversation)}</h2>
                   <p>
                     <span
                       className={`messages-header-dot ${
@@ -1365,7 +1559,6 @@ function Messages() {
                           : ""
                       }`}
                     />
-
                     {activeConversation.type === "course"
                       ? "Course group conversation"
                       : "Private conversation"}
@@ -1376,11 +1569,23 @@ function Messages() {
               {error && (
                 <div className="messages-error" role="alert">
                   <span>{error}</span>
-
                   <button
                     type="button"
                     onClick={() => setError("")}
                     aria-label="Dismiss error"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
+              {attachmentError && (
+                <div className="messages-error" role="alert">
+                  <span>{attachmentError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setAttachmentError("")}
+                    aria-label="Dismiss attachment error"
                   >
                     Dismiss
                   </button>
@@ -1397,17 +1602,13 @@ function Messages() {
                   <div className="messages-welcome">
                     <div className="messages-welcome-icon">✦</div>
                     <h3>Start the conversation</h3>
-                    <p>
-                      Send your first message and keep the
-                      conversation going.
-                    </p>
+                    <p>Send your first message or share a file.</p>
                   </div>
                 ) : (
                   messages.map((message) => {
                     const senderId = getMessageSenderId(message);
                     const isOwnMessage =
-                      Boolean(currentUserId) &&
-                      senderId === currentUserId;
+                      Boolean(currentUserId) && senderId === currentUserId;
 
                     const sender =
                       typeof message.sender === "string"
@@ -1425,13 +1626,13 @@ function Messages() {
                       {}
                     );
 
-                    const myReaction = (
-                      message.reactions || []
-                    ).find(
+                    const myReaction = (message.reactions || []).find(
                       (reaction) =>
                         getReactionUserId(reaction) ===
                         String(currentUserId)
                     );
+
+                    const attachment = message.attachment;
 
                     return (
                       <article
@@ -1444,9 +1645,7 @@ function Messages() {
                           renderAvatar(sender, "message-avatar")
                         ) : (
                           <span className="message-avatar">
-                            {getInitials(
-                              getMessageSenderName(message)
-                            )}
+                            {getInitials(getMessageSenderName(message))}
                           </span>
                         )}
 
@@ -1457,13 +1656,62 @@ function Messages() {
                                 ? "You"
                                 : getMessageSenderName(message)}
                             </strong>
-
                             <time dateTime={message.createdAt}>
                               {formatMessageTime(message.createdAt)}
                             </time>
                           </div>
 
-                          <p>{message.content}</p>
+                          {message.content && (
+                            <p className="message-text">
+                              {message.content}
+                            </p>
+                          )}
+
+                          {attachment && (
+                            <div className="message-attachment">
+                              {isImageAttachment(attachment) && (
+                                <div className="message-attachment-preview">
+                                  <span className="message-attachment-image-placeholder">
+                                    Image attachment
+                                  </span>
+                                </div>
+                              )}
+
+                              <div className="message-attachment-details">
+                                <span
+                                  className="message-attachment-icon"
+                                  aria-hidden="true"
+                                >
+                                  {getAttachmentIcon(attachment)}
+                                </span>
+
+                                <span className="message-attachment-text">
+                                  <strong title={attachment.fileName}>
+                                    {attachment.fileName}
+                                  </strong>
+                                  <small>
+                                    {formatFileSize(attachment.size)}
+                                  </small>
+                                </span>
+
+                                <button
+                                  type="button"
+                                  className="message-attachment-download"
+                                  onClick={() =>
+                                    void handleDownloadAttachment(message)
+                                  }
+                                  disabled={
+                                    downloadingMessageId === message._id
+                                  }
+                                  aria-label={`Download ${attachment.fileName}`}
+                                >
+                                  {downloadingMessageId === message._id
+                                    ? "Downloading…"
+                                    : "↓ Download"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
                           <div className="message-reactions">
                             <div className="message-reaction-badges">
@@ -1558,41 +1806,60 @@ function Messages() {
                 <div ref={messagesEndRef} />
               </div>
 
-              <form
-                className="messages-composer"
-                onSubmit={handleSend}
-              >
+              <form className="messages-composer" onSubmit={handleSend}>
                 <input
                   value={draft}
-                  onChange={(event) =>
-                    setDraft(event.target.value)
-                  }
+                  onChange={(event) => setDraft(event.target.value)}
                   placeholder="Write a message…"
                   maxLength={5000}
                   aria-label="Message"
                   autoComplete="off"
                 />
 
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  hidden
+                  accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.zip,.docx,.pptx,.xlsx"
+                  onChange={(event) =>
+                    void handleAttachmentSelected(event)
+                  }
+                  aria-label="Choose attachment"
+                />
+
+                <button
+                  type="button"
+                  className="messages-attach-button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading || !activeConversation}
+                  title="Attach a file (maximum 10 MB)"
+                  aria-label="Attach a file"
+                >
+                  {uploading ? "Uploading…" : "📎 Attach"}
+                </button>
+
                 <button
                   type="submit"
                   disabled={!draft.trim() || sending}
                 >
-                  <span>
-                    {sending ? "Sending…" : "Send message"}
-                  </span>
+                  <span>{sending ? "Sending…" : "Send message"}</span>
                   <span aria-hidden="true">↗</span>
                 </button>
               </form>
+
+              <p className="messages-attachment-hint">
+                Supported: images, PDF, TXT, ZIP, DOCX, PPTX and XLSX.
+                Maximum file size: 10 MB.
+              </p>
             </>
           ) : (
             <div className="messages-welcome">
               <div className="messages-welcome-icon">✉</div>
               <h2>Your conversations, in one place</h2>
               <p>
-                Select a conversation or start a new private chat
-                with someone from Eduverse.
+                Select a conversation or start a new private chat with
+                someone from Eduverse.
               </p>
-
               <button
                 type="button"
                 className="messages-welcome-button"

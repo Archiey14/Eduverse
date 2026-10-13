@@ -1,8 +1,13 @@
 
 import { Router } from "express";
 import mongoose from "mongoose";
+import multer from "multer";
+import path from "node:path";
+import fs from "node:fs/promises";
 
 import { protect } from "../middleware/auth.js";
+import { uploadChatFile } from "../middleware/upload.js";
+
 import { User } from "../models/User.js";
 import { Course } from "../models/Course.js";
 import { Enrollment } from "../models/Enrollment.js";
@@ -15,15 +20,97 @@ import {
   getOrCreateDirectConversation,
 } from "../utils/messagingAccess.js";
 
+import { getIO } from "../config/socket.js";
+
 const router = Router();
 
-// All messaging routes require authentication.
 router.use(protect);
+
+const PRIVATE_UPLOADS_DIRECTORY = path.resolve("private-uploads");
+
+// ======================================================
+// Helpers
+// ======================================================
+
+function isValidId(id) {
+  return mongoose.isValidObjectId(id);
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getSafeOriginalFileName(name = "") {
+  const baseName = path.basename(name.replace(/\\/g, "/"));
+
+  const safeName = baseName
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .trim()
+    .slice(0, 255);
+
+  return safeName || "attachment";
+}
+
+async function removeUploadedFile(filePath) {
+  if (!filePath) return;
+
+  try {
+    await fs.unlink(filePath);
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      console.error("Could not remove uploaded file:", error);
+    }
+  }
+}
+
+function emitNewMessage(message, conversationId, participantIds = []) {
+  try {
+    const io = getIO();
+
+    io.to(`conversation:${conversationId}`).emit("new_message", message);
+
+    for (const participantId of participantIds) {
+      io.to(`user:${participantId}`).emit("new_message", message);
+    }
+  } catch (error) {
+    console.error("Could not emit new message event:", error);
+  }
+}
+
+async function requireConversationAccess(req, res, next) {
+  try {
+    const { conversationId } = req.params;
+
+    if (!isValidId(conversationId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid conversation ID.",
+      });
+    }
+
+    const allowed = await canAccessConversation(
+      conversationId,
+      req.user._id
+    );
+
+    if (!allowed) {
+      return res.status(403).json({
+        success: false,
+        message: "You cannot access this conversation.",
+      });
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
 
 // ======================================================
 // GET /api/messaging/users?search=su
-// Search active users to start a direct conversation.
+// Search active users.
 // ======================================================
+
 router.get("/users", async (req, res, next) => {
   try {
     const search =
@@ -47,21 +134,12 @@ router.get("/users", async (req, res, next) => {
       });
     }
 
-    // Escape regex characters so the input is treated as literal text.
-    const escapedSearch = search.replace(
-      /[.*+?^${}()|[\]\\]/g,
-      "\\$&"
-    );
-
-    const searchRegex = new RegExp(escapedSearch, "i");
+    const searchRegex = new RegExp(escapeRegex(search), "i");
 
     const users = await User.find({
       _id: { $ne: req.user._id },
       isActive: true,
-      $or: [
-        { name: searchRegex },
-        { email: searchRegex },
-      ],
+      $or: [{ name: searchRegex }, { email: searchRegex }],
     })
       .select("_id name email avatarUrl roles")
       .sort({ name: 1 })
@@ -80,8 +158,9 @@ router.get("/users", async (req, res, next) => {
 
 // ======================================================
 // GET /api/messaging/conversations
-// Get course group chats and existing direct conversations.
+// List course and direct conversations.
 // ======================================================
+
 router.get("/conversations", async (req, res, next) => {
   try {
     const userId = req.user._id;
@@ -94,9 +173,7 @@ router.get("/conversations", async (req, res, next) => {
         .select("course")
         .lean(),
 
-      Course.find({ mentor: userId })
-        .select("_id")
-        .lean(),
+      Course.find({ mentor: userId }).select("_id").lean(),
     ]);
 
     const courseIds = [
@@ -112,15 +189,18 @@ router.get("/conversations", async (req, res, next) => {
           .select("title thumbnailUrl mentor")
           .lean();
 
-        if (!course) {
-          return null;
-        }
+        if (!course) return null;
 
         const conversation =
           await getOrCreateCourseConversation(courseId);
 
+        const conversationObject =
+          typeof conversation.toObject === "function"
+            ? conversation.toObject()
+            : conversation;
+
         return {
-          ...conversation.toObject(),
+          ...conversationObject,
           course,
           displayName: course.title,
         };
@@ -157,14 +237,15 @@ router.get("/conversations", async (req, res, next) => {
 
 // ======================================================
 // POST /api/messaging/direct/:userId
-// Create or retrieve a private conversation with a user.
+// Create or retrieve a direct conversation.
 // ======================================================
+
 router.post("/direct/:userId", async (req, res, next) => {
   try {
     const { userId: otherUserId } = req.params;
     const currentUserId = String(req.user._id);
 
-    if (!mongoose.isValidObjectId(otherUserId)) {
+    if (!isValidId(otherUserId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid user ID.",
@@ -212,13 +293,14 @@ router.post("/direct/:userId", async (req, res, next) => {
 // GET /api/messaging/conversations/:conversationId/messages
 // Retrieve message history in chronological order.
 // ======================================================
+
 router.get(
   "/conversations/:conversationId/messages",
   async (req, res, next) => {
     try {
       const { conversationId } = req.params;
 
-      if (!mongoose.isValidObjectId(conversationId)) {
+      if (!isValidId(conversationId)) {
         return res.status(400).json({
           success: false,
           message: "Invalid conversation ID.",
@@ -237,18 +319,13 @@ router.get(
         });
       }
 
-      const limitValue = Number.parseInt(
-        req.query.limit,
-        10
-      );
+      const limitValue = Number.parseInt(req.query.limit, 10);
 
       const limit = Number.isFinite(limitValue)
         ? Math.min(Math.max(limitValue, 1), 100)
         : 50;
 
-      const query = {
-        conversation: conversationId,
-      };
+      const query = { conversation: conversationId };
 
       if (req.query.before) {
         const beforeDate = new Date(req.query.before);
@@ -260,19 +337,15 @@ router.get(
           });
         }
 
-        query.createdAt = {
-          $lt: beforeDate,
-        };
+        query.createdAt = { $lt: beforeDate };
       }
 
-      // Fetch newest messages first.
       const fetchedMessages = await Message.find(query)
         .populate("sender", "name avatarUrl")
         .sort({ createdAt: -1, _id: -1 })
         .limit(limit)
         .lean();
 
-      // Return them oldest-to-newest for the chat interface.
       const messages = fetchedMessages.reverse();
 
       return res.status(200).json({
@@ -286,5 +359,196 @@ router.get(
     }
   }
 );
+
+// ======================================================
+// POST /api/messaging/conversations/:conversationId/attachments
+// Upload an attachment and create a file message.
+// Multipart field name: file
+// ======================================================
+
+router.post(
+  "/conversations/:conversationId/attachments",
+  requireConversationAccess,
+  (req, res, next) => {
+    uploadChatFile.single("file")(req, res, (error) => {
+      if (!error) return next();
+
+      if (error instanceof multer.MulterError) {
+        const isTooLarge = error.code === "LIMIT_FILE_SIZE";
+
+        return res.status(isTooLarge ? 413 : 400).json({
+          success: false,
+          message: isTooLarge
+            ? "File size cannot exceed 10 MB."
+            : error.message,
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: error.message || "Invalid attachment.",
+      });
+    });
+  },
+  async (req, res, next) => {
+    let uploadedFilePath;
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "Please select a file to upload.",
+        });
+      }
+
+      uploadedFilePath = req.file.path;
+
+      const { conversationId } = req.params;
+
+      const conversation = await Conversation.findById(conversationId)
+        .select("participants")
+        .lean();
+
+      if (!conversation) {
+        await removeUploadedFile(uploadedFilePath);
+
+        return res.status(404).json({
+          success: false,
+          message: "Conversation not found.",
+        });
+      }
+
+      const message = await Message.create({
+        conversation: conversationId,
+        sender: req.user._id,
+        content: "",
+        type: "file",
+        attachment: {
+          fileName: getSafeOriginalFileName(req.file.originalname),
+          storedName: req.file.filename,
+          mimeType: req.file.mimetype,
+          size: req.file.size,
+        },
+      });
+
+      await Conversation.findByIdAndUpdate(conversationId, {
+        lastMessage: message._id,
+        lastMessageAt: message.createdAt,
+      });
+
+      const populatedMessage = await Message.findById(message._id)
+        .populate("sender", "name avatarUrl")
+        .lean();
+
+      const participantIds = (conversation.participants || []).map(
+        (participant) => String(participant)
+      );
+
+      emitNewMessage(
+        populatedMessage,
+        String(conversationId),
+        participantIds
+      );
+
+      uploadedFilePath = null;
+
+      return res.status(201).json({
+        success: true,
+        message: "Attachment uploaded successfully.",
+        data: populatedMessage,
+      });
+    } catch (error) {
+      await removeUploadedFile(uploadedFilePath);
+      next(error);
+    }
+  }
+);
+
+// ======================================================
+// GET /api/messaging/attachments/:messageId/download
+// Download a file only if the user can access its conversation.
+// ======================================================
+
+router.get("/attachments/:messageId/download", async (req, res, next) => {
+  try {
+    const { messageId } = req.params;
+
+    if (!isValidId(messageId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid message ID.",
+      });
+    }
+
+    const message = await Message.findById(messageId).lean();
+
+    if (!message || message.type !== "file" || !message.attachment) {
+      return res.status(404).json({
+        success: false,
+        message: "Attachment not found.",
+      });
+    }
+
+    const allowed = await canAccessConversation(
+      message.conversation,
+      req.user._id
+    );
+
+    if (!allowed) {
+      return res.status(403).json({
+        success: false,
+        message: "You cannot access this attachment.",
+      });
+    }
+
+    const storedName = message.attachment.storedName;
+
+    // Stored names are generated by the server, never supplied by the client.
+    if (
+      typeof storedName !== "string" ||
+      !/^[0-9a-f-]{36}$/i.test(storedName)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid attachment storage reference.",
+      });
+    }
+
+    const filePath = path.resolve(
+      PRIVATE_UPLOADS_DIRECTORY,
+      storedName
+    );
+
+    if (path.dirname(filePath) !== PRIVATE_UPLOADS_DIRECTORY) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid attachment path.",
+      });
+    }
+
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({
+        success: false,
+        message: "The attachment file is no longer available.",
+      });
+    }
+
+    res.setHeader("X-Content-Type-Options", "nosniff");
+
+    return res.download(
+      filePath,
+      getSafeOriginalFileName(message.attachment.fileName),
+      (error) => {
+        if (error && !res.headersSent) {
+          next(error);
+        }
+      }
+    );
+  } catch (error) {
+    next(error);
+  }
+});
 
 export default router;

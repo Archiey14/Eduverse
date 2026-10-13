@@ -10,7 +10,21 @@ import { canAccessConversation } from "../utils/messagingAccess.js";
 
 let io;
 
-const ALLOWED_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "🎉"];
+const ALLOWED_REACTIONS = [
+  "👍",
+  "❤️",
+  "😂",
+  "😮",
+  "😢",
+  "🙏",
+  "🔥",
+  "🎉",
+];
+
+const getConversationRoom = (conversationId) =>
+  `conversation:${String(conversationId)}`;
+
+const getUserRoom = (userId) => `user:${String(userId)}`;
 
 export const initializeSocket = (httpServer) => {
   if (io) return io;
@@ -32,14 +46,16 @@ export const initializeSocket = (httpServer) => {
           return callback(null, true);
         }
 
-        return callback(new Error("Origin not allowed by Socket.IO CORS"));
+        return callback(
+          new Error("Origin not allowed by Socket.IO CORS")
+        );
       },
       methods: ["GET", "POST"],
       credentials: true,
     },
   });
 
-  // Authenticate every socket connection using the existing JWT.
+  // Authenticate every socket connection with the existing JWT.
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
@@ -62,6 +78,7 @@ export const initializeSocket = (httpServer) => {
 
       next();
     } catch (error) {
+      console.error("Socket authentication error:", error);
       next(new Error("Socket authentication failed"));
     }
   });
@@ -69,10 +86,10 @@ export const initializeSocket = (httpServer) => {
   io.on("connection", (socket) => {
     console.log(`[Messaging] Connected: ${socket.user.id}`);
 
-    // Personal room for notifications and cross-conversation delivery.
-    socket.join(`user:${socket.user.id}`);
+    // Personal room for user-specific notifications.
+    socket.join(getUserRoom(socket.user.id));
 
-    // Automatically join course conversation rooms.
+    // Automatically join course conversations the user can access.
     (async () => {
       try {
         const [enrollments, mentoredCourses] = await Promise.all([
@@ -93,7 +110,9 @@ export const initializeSocket = (httpServer) => {
             ...enrollments.map((enrollment) =>
               String(enrollment.course)
             ),
-            ...mentoredCourses.map((course) => String(course._id)),
+            ...mentoredCourses.map((course) =>
+              String(course._id)
+            ),
           ]),
         ];
 
@@ -106,7 +125,9 @@ export const initializeSocket = (httpServer) => {
             .lean();
 
           if (courseConversation) {
-            socket.join(`conversation:${courseConversation._id}`);
+            socket.join(
+              getConversationRoom(courseConversation._id)
+            );
           }
         }
       } catch (error) {
@@ -114,7 +135,7 @@ export const initializeSocket = (httpServer) => {
       }
     })();
 
-    // Join a conversation only after verifying access.
+    // Join a conversation only after checking the user's access.
     socket.on("join_conversation", async (payload, callback) => {
       try {
         const conversationId = payload?.conversationId;
@@ -132,7 +153,7 @@ export const initializeSocket = (httpServer) => {
           });
         }
 
-        socket.join(`conversation:${conversationId}`);
+        socket.join(getConversationRoom(conversationId));
 
         callback?.({ ok: true });
       } catch (error) {
@@ -150,13 +171,13 @@ export const initializeSocket = (httpServer) => {
       const conversationId = payload?.conversationId;
 
       if (typeof conversationId === "string") {
-        socket.leave(`conversation:${conversationId}`);
+        socket.leave(getConversationRoom(conversationId));
       }
 
       callback?.({ ok: true });
     });
 
-    // Send and persist a message.
+    // Send and persist a text message.
     socket.on("send_message", async (payload, callback) => {
       try {
         const conversationId = payload?.conversationId;
@@ -196,16 +217,19 @@ export const initializeSocket = (httpServer) => {
           type: "text",
         });
 
-        const updatedConversation = await Conversation.findByIdAndUpdate(
-          conversationId,
-          {
-            lastMessage: message._id,
-            lastMessageAt: message.createdAt,
-          },
-          { new: true }
-        ).select("type participants course");
+        const updatedConversation =
+          await Conversation.findByIdAndUpdate(
+            conversationId,
+            {
+              lastMessage: message._id,
+              lastMessageAt: message.createdAt,
+            },
+            { new: true }
+          ).select("type participants course");
 
-        const rawPopulatedMessage = await Message.findById(message._id)
+        const rawPopulatedMessage = await Message.findById(
+          message._id
+        )
           .populate("sender", "name avatarUrl")
           .lean();
 
@@ -214,9 +238,13 @@ export const initializeSocket = (httpServer) => {
           conversation: String(conversationId),
         };
 
-        // Broadcast to the conversation and relevant personal rooms.
+        /*
+         * Emit to the conversation room and relevant personal rooms.
+         * Socket.IO broadcasts to the union of rooms, so a socket in
+         * multiple target rooms receives this event only once.
+         */
         const targetRooms = new Set([
-          `conversation:${conversationId}`,
+          getConversationRoom(conversationId),
         ]);
 
         if (
@@ -224,7 +252,7 @@ export const initializeSocket = (httpServer) => {
           Array.isArray(updatedConversation.participants)
         ) {
           for (const participantId of updatedConversation.participants) {
-            targetRooms.add(`user:${String(participantId)}`);
+            targetRooms.add(getUserRoom(participantId));
           }
         } else if (
           updatedConversation?.type === "course" &&
@@ -245,12 +273,12 @@ export const initializeSocket = (httpServer) => {
             ]);
 
             if (course?.mentor) {
-              targetRooms.add(`user:${String(course.mentor)}`);
+              targetRooms.add(getUserRoom(course.mentor));
             }
 
             for (const enrollment of enrollments) {
               if (enrollment.student) {
-                targetRooms.add(`user:${String(enrollment.student)}`);
+                targetRooms.add(getUserRoom(enrollment.student));
               }
             }
           } catch (error) {
@@ -349,7 +377,7 @@ export const initializeSocket = (httpServer) => {
           reactions: updatedMessage.reactions,
         };
 
-        io.to(`conversation:${conversationId}`).emit(
+        io.to(getConversationRoom(conversationId)).emit(
           "message_reactions_updated",
           reactionData
         );
@@ -423,7 +451,7 @@ export const initializeSocket = (httpServer) => {
           reactions: updatedMessage.reactions,
         };
 
-        io.to(`conversation:${conversationId}`).emit(
+        io.to(getConversationRoom(conversationId)).emit(
           "message_reactions_updated",
           reactionData
         );
@@ -462,6 +490,6 @@ export const getIO = () => {
 
 export const emitToUser = (userId, event, data) => {
   if (io && userId) {
-    io.to(`user:${String(userId)}`).emit(event, data);
+    io.to(getUserRoom(userId)).emit(event, data);
   }
 };

@@ -1,4 +1,3 @@
-
 /* =========================================================
    EDUVERSE — PROFESSIONAL MESSAGING
    File: frontend/src/pages/Messages.css
@@ -51,9 +50,9 @@
   outline-offset: 3px;
 }
 
-/* -------------------------
-   Main Layout
-------------------------- */
+/* =========================================================
+   MAIN LAYOUT
+========================================================= */
 
 .messages-shell {
   display: grid;
@@ -191,7 +190,7 @@
 }
 
 /* =========================================================
-   NEW MESSAGE / USER SEARCH PANEL
+   USER SEARCH PANEL
 ========================================================= */
 
 .messages-user-search {
@@ -428,7 +427,7 @@
 }
 
 /* =========================================================
-   ENHANCED NEW-MESSAGE SEARCH PANEL
+   ENHANCED SEARCH PANEL
 ========================================================= */
 
 .messages-search-heading {
@@ -949,6 +948,11 @@
   box-shadow: 0 2px 5px rgb(30 41 59 / 2%);
 }
 
+.message-text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 /* Own messages */
 
 .message-row-own {
@@ -978,7 +982,255 @@
 }
 
 /* =========================================================
-   MESSAGE REACTIONS — WHATSAPP-STYLE EMOJI
+   FILE ATTACHMENTS
+========================================================= */
+
+.message-attachment {
+  width: min(100%, 440px);
+  min-width: 0;
+  margin-top: 8px;
+  overflow: hidden;
+  border: 1px solid #e3e7f1;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgb(27 39 77 / 5%);
+}
+
+.message-attachment-preview {
+  padding: 14px;
+  background: #f6f7ff;
+}
+
+.message-attachment-image-placeholder {
+  display: block;
+  color: #69748e;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.message-attachment-details {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+}
+
+.message-attachment-icon {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: #eef0ff;
+  color: #5146e5;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.message-attachment-text {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.message-attachment-text strong {
+  display: block;
+  color: #202b48;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.message-attachment-text small {
+  color: #7c879c;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.message-attachment-download,
+.chat-attachment-download {
+  display: inline-flex;
+  min-height: 36px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border: 1px solid #dcdfff;
+  border-radius: 9px;
+  background: #f3f4ff;
+  color: #5146e5;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.message-attachment-download:hover:not(:disabled),
+.chat-attachment-download:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #bdc4ff;
+  background: #e7e9ff;
+}
+
+.message-attachment-download:active:not(:disabled),
+.chat-attachment-download:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.message-attachment-download:disabled,
+.chat-attachment-download:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.message-attachment-download:focus-visible,
+.chat-attachment-download:focus-visible {
+  outline: 3px solid rgb(81 70 229 / 25%);
+  outline-offset: 3px;
+}
+
+/* Legacy attachment card class, retained for compatibility */
+
+.chat-attachment {
+  display: flex;
+  width: min(100%, 420px);
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+  padding: 14px;
+  border: 1px solid #e4e7f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgb(32 45 90 / 5%);
+  text-align: left;
+}
+
+.chat-attachment-icon {
+  display: flex;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #eef0ff;
+  font-size: 24px;
+}
+
+.chat-attachment-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-attachment-name {
+  margin: 0 0 6px;
+  color: #202b48;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.chat-attachment-size {
+  color: #78839b;
+  font-size: 11px;
+}
+
+/* Optional composer helper text */
+
+.messages-attachment-hint {
+  margin: 0;
+  padding: 0 20px 12px;
+  color: #7b8498;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.messages-attach-button {
+  flex-shrink: 0;
+}
+
+/* Optional selected-file preview above the composer */
+
+.messages-selected-file {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  margin: 0 20px 10px;
+  padding: 10px 12px;
+  border: 1px solid #dedfff;
+  border-radius: 12px;
+  background: #f7f7ff;
+}
+
+.messages-selected-file-icon {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #e9eaff;
+  color: #5149e8;
+  font-size: 18px;
+}
+
+.messages-selected-file-details {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.messages-selected-file-details strong {
+  color: #344054;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.messages-selected-file-details small {
+  color: #7b8498;
+  font-size: 10px;
+}
+
+.messages-selected-file-remove {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #7b8498;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.messages-selected-file-remove:hover {
+  background: #ececff;
+  color: #5149e8;
+}
+
+/* =========================================================
+   MESSAGE REACTIONS
 ========================================================= */
 
 .message-reactions {
@@ -1128,8 +1380,6 @@
   transform: scale(0.96);
 }
 
-/* Reaction alignment for messages sent by the current user */
-
 .message-row-own .message-reactions {
   justify-content: flex-end;
 }
@@ -1232,8 +1482,55 @@
   box-shadow: none;
 }
 
+/* Attachment picker button */
+
+.messages-composer .messages-attach-button {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid #e0e3f0;
+  border-radius: 12px;
+  background: #f8f9ff;
+  color: #5149e8;
+  font-size: 21px;
+  box-shadow: none;
+}
+
+.messages-composer .messages-attach-button:hover:not(:disabled) {
+  border-color: #c9ccff;
+  background: #efefff;
+  color: #4038ce;
+}
+
+.messages-composer .messages-attach-button span {
+  font-size: 21px;
+}
+
+.messages-composer .messages-attach-button:disabled {
+  background: #f3f4f8;
+  color: #a0a7b6;
+}
+
+/* Optional hidden file input */
+
+.messages-file-input {
+  display: none;
+}
+
+/* Optional upload status */
+
+.messages-upload-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #5149e8;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 /* =========================================================
-   EMPTY & WELCOME STATES
+   EMPTY AND WELCOME STATES
 ========================================================= */
 
 .messages-empty,
@@ -1472,6 +1769,12 @@
     gap: 6px;
     padding: 12px 14px;
   }
+
+  .messages-composer .messages-attach-button {
+    width: 42px;
+    min-width: 42px;
+    padding: 0;
+  }
 }
 
 /* =========================================================
@@ -1537,10 +1840,7 @@
     border-radius: 13px;
   }
 
-  .messages-user-search > input {
-    min-height: 39px;
-  }
-
+  .messages-user-search > input,
   .messages-search-input-wrap {
     min-height: 39px;
   }
@@ -1722,6 +2022,35 @@
     font-size: 11px;
   }
 
+  .messages-composer .messages-attach-button {
+    width: 39px;
+    min-width: 39px;
+    min-height: 39px;
+    padding: 0;
+    font-size: 19px;
+  }
+
+  .messages-composer .messages-attach-button span {
+    font-size: 19px;
+  }
+
+  .messages-attachment-hint {
+    padding: 0 12px 9px;
+    font-size: 10px;
+  }
+
+  .messages-selected-file {
+    gap: 8px;
+    margin: 0 10px 8px;
+    padding: 8px;
+  }
+
+  .messages-selected-file-icon {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+
   .messages-empty,
   .messages-welcome {
     padding: 22px 15px;
@@ -1744,6 +2073,46 @@
     gap: 8px;
     padding: 9px 12px;
     font-size: 10px;
+  }
+
+  .message-attachment-details {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .message-attachment-icon {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+    font-size: 11px;
+  }
+
+  .message-attachment-text strong {
+    font-size: 11px;
+  }
+
+  .message-attachment-text small {
+    font-size: 10px;
+  }
+
+  .message-attachment-download,
+  .chat-attachment-download {
+    min-height: 34px;
+    gap: 4px;
+    padding: 8px;
+    font-size: 10px;
+  }
+
+  .chat-attachment {
+    gap: 9px;
+    padding: 10px;
+  }
+
+  .chat-attachment-icon {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+    font-size: 20px;
   }
 }
 
@@ -1815,6 +2184,13 @@
     padding: 9px;
   }
 
+  .messages-composer .messages-attach-button {
+    width: 35px;
+    min-width: 35px;
+    min-height: 39px;
+    padding: 0;
+  }
+
   .message-reaction-picker {
     max-width: 220px;
   }
@@ -1824,6 +2200,23 @@
     height: 30px;
     flex-basis: 30px;
     font-size: 18px;
+  }
+
+  .message-attachment-details {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .message-attachment-icon {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+
+  .message-attachment-download,
+  .chat-attachment-download {
+    padding: 7px;
+    font-size: 9px;
   }
 }
 

@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
-import path from "path";
+import path from "node:path";
 
 import { ENV } from "./config/env.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -34,8 +34,7 @@ const app = express();
 
 app.use(
   helmet({
-    // Allow the frontend to display profile pictures
-    // served by the backend.
+    // Allow profile pictures to be displayed by the frontend.
     crossOriginResourcePolicy: {
       policy: "cross-origin",
     },
@@ -45,8 +44,7 @@ app.use(
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests without an Origin header,
-      // such as Postman and server-to-server requests.
+      // Allow requests without an Origin header.
       if (!origin) {
         return callback(null, true);
       }
@@ -92,8 +90,8 @@ app.use(
 // STATIC FILES
 // =====================================================
 
-// Profile pictures and other uploaded files are stored in:
-// C:\LMS\backend\uploads
+// Public profile pictures only.
+// Never expose private-uploads through express.static.
 
 const uploadsPath = path.resolve("uploads");
 
@@ -109,7 +107,7 @@ app.use("/api", apiLimiter);
 // HEALTH CHECK
 // =====================================================
 
-app.get("/api/health", (req, res) => {
+app.get("/api/health", (_req, res) => {
   res.status(200).json({
     status: "ok",
     timestamp: new Date(),
@@ -122,33 +120,22 @@ app.get("/api/health", (req, res) => {
 // =====================================================
 
 app.use("/api/auth", authRoutes);
-
 app.use("/api/categories", categoryRoutes);
-
 app.use("/api/courses", courseRoutes);
-
 app.use("/api/mentor", mentorRoutes);
-
 app.use("/api/enrollments", enrollmentRoutes);
-
 app.use("/api/learn", learnRoutes);
-
 app.use("/api/student", dashboardRoutes);
-
 app.use("/api/admin", adminRoutes);
-
 app.use("/api/notifications", notificationRoutes);
-
 app.use("/api/activity", activityRoutes);
-
 app.use("/api/certificates", certificateRoutes);
-
 app.use("/api/wishlist", wishlistRoutes);
 
-// Existing AI assistant — keep this route unchanged.
+// Existing AI assistant.
 app.use("/api/chat", aiRoutes);
 
-// New real-time messaging API.
+// Messaging, including protected attachment endpoints.
 app.use("/api/messaging", messagingRoutes);
 
 // =====================================================
