@@ -63,6 +63,13 @@ async function removeUploadedFile(filePath) {
   }
 }
 
+async function removeUploadedFiles(filePaths = []) {
+  if (!Array.isArray(filePaths) || filePaths.length === 0) return;
+  await Promise.allSettled(
+    filePaths.filter(Boolean).map((filePath) => removeUploadedFile(filePath))
+  );
+}
+
 function emitNewMessage(message, conversationId, participantIds = []) {
   try {
     const io = getIO();
@@ -342,6 +349,7 @@ router.get(
 
       const fetchedMessages = await Message.find(query)
         .populate("sender", "name avatarUrl")
+        .populate("reactions.user", "name")
         .sort({ createdAt: -1, _id: -1 })
         .limit(limit)
         .lean();
@@ -362,25 +370,36 @@ router.get(
 
 // ======================================================
 // POST /api/messaging/conversations/:conversationId/attachments
-// Upload an attachment and create a file message.
-// Multipart field name: file
+// Upload attachments and create file messages.
+// Supports single ("file") and multiple ("files") file fields,
+// plus optional "content" message text.
 // ======================================================
 
 router.post(
   "/conversations/:conversationId/attachments",
   requireConversationAccess,
   (req, res, next) => {
-    uploadChatFile.single("file")(req, res, (error) => {
+    uploadChatFile.any()(req, res, (error) => {
       if (!error) return next();
 
       if (error instanceof multer.MulterError) {
-        const isTooLarge = error.code === "LIMIT_FILE_SIZE";
+        if (error.code === "LIMIT_FILE_SIZE") {
+          return res.status(413).json({
+            success: false,
+            message: "File size cannot exceed 10 MB.",
+          });
+        }
 
-        return res.status(isTooLarge ? 413 : 400).json({
+        if (error.code === "LIMIT_FILE_COUNT") {
+          return res.status(400).json({
+            success: false,
+            message: "You can upload a maximum of 10 files at once.",
+          });
+        }
+
+        return res.status(400).json({
           success: false,
-          message: isTooLarge
-            ? "File size cannot exceed 10 MB."
-            : error.message,
+          message: error.message,
         });
       }
 
@@ -391,17 +410,23 @@ router.post(
     });
   },
   async (req, res, next) => {
-    let uploadedFilePath;
+    let uploadedFilePaths = [];
 
     try {
-      if (!req.file) {
+      const uploadedFiles = Array.isArray(req.files)
+        ? req.files
+        : req.file
+        ? [req.file]
+        : [];
+
+      if (uploadedFiles.length === 0) {
         return res.status(400).json({
           success: false,
-          message: "Please select a file to upload.",
+          message: "Please select at least one file to upload.",
         });
       }
 
-      uploadedFilePath = req.file.path;
+      uploadedFilePaths = uploadedFiles.map((file) => file.path);
 
       const { conversationId } = req.params;
 
@@ -410,7 +435,7 @@ router.post(
         .lean();
 
       if (!conversation) {
-        await removeUploadedFile(uploadedFilePath);
+        await removeUploadedFiles(uploadedFilePaths);
 
         return res.status(404).json({
           success: false,
@@ -418,47 +443,68 @@ router.post(
         });
       }
 
-      const message = await Message.create({
-        conversation: conversationId,
-        sender: req.user._id,
-        content: "",
-        type: "file",
-        attachment: {
-          fileName: getSafeOriginalFileName(req.file.originalname),
-          storedName: req.file.filename,
-          mimeType: req.file.mimetype,
-          size: req.file.size,
-        },
-      });
+      const contentText =
+        typeof req.body.content === "string" ? req.body.content.trim() : "";
 
+      const createdMessages = [];
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        const file = uploadedFiles[i];
+        const message = await Message.create({
+          conversation: conversationId,
+          sender: req.user._id,
+          // Attach caption text to the first file message
+          content: i === 0 ? contentText : "",
+          type: "file",
+          attachment: {
+            fileName: getSafeOriginalFileName(file.originalname),
+            storedName: file.filename,
+            mimeType: file.mimetype,
+            size: file.size,
+          },
+        });
+        createdMessages.push(message);
+      }
+
+      const lastMessage = createdMessages[createdMessages.length - 1];
       await Conversation.findByIdAndUpdate(conversationId, {
-        lastMessage: message._id,
-        lastMessageAt: message.createdAt,
+        lastMessage: lastMessage._id,
+        lastMessageAt: lastMessage.createdAt,
       });
 
-      const populatedMessage = await Message.findById(message._id)
+      const populatedMessages = await Message.find({
+        _id: { $in: createdMessages.map((msg) => msg._id) },
+      })
         .populate("sender", "name avatarUrl")
+        .populate("reactions.user", "name")
+        .sort({ createdAt: 1, _id: 1 })
         .lean();
 
       const participantIds = (conversation.participants || []).map(
         (participant) => String(participant)
       );
 
-      emitNewMessage(
-        populatedMessage,
-        String(conversationId),
-        participantIds
-      );
+      for (const popMsg of populatedMessages) {
+        emitNewMessage(
+          popMsg,
+          String(conversationId),
+          participantIds
+        );
+      }
 
-      uploadedFilePath = null;
+      uploadedFilePaths = [];
 
       return res.status(201).json({
         success: true,
-        message: "Attachment uploaded successfully.",
-        data: populatedMessage,
+        message:
+          uploadedFiles.length === 1
+            ? "Attachment uploaded successfully."
+            : "Attachments uploaded successfully.",
+        data: populatedMessages,
+        messages: populatedMessages,
+        message: populatedMessages[0],
       });
     } catch (error) {
-      await removeUploadedFile(uploadedFilePath);
+      await removeUploadedFiles(uploadedFilePaths);
       next(error);
     }
   }

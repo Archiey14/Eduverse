@@ -65,6 +65,9 @@ type SocketResult = {
   ok: boolean;
   error?: string;
   message?: ChatMessage;
+  reactions?: MessageReaction[];
+  conversationId?: string;
+  messageId?: string;
 };
 
 type StoredUser = {
@@ -396,12 +399,29 @@ const getAttachmentIcon = (attachment: MessageAttachment): string => {
   return "FILE";
 };
 
+const MAX_STAGED_FILES = 10;
+
+const getFileTypeIcon = (fileName: string, mimeType?: string): string => {
+  if (mimeType?.startsWith("image/")) return "🖼";
+  if (mimeType === "application/pdf") return "📄";
+  const ext = getAttachmentExtension(fileName);
+  if ([".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(ext)) return "🖼";
+  if (ext === ".pdf") return "📄";
+  if (ext === ".docx") return "📝";
+  if (ext === ".xlsx") return "📊";
+  if (ext === ".pptx") return "📑";
+  if (ext === ".zip") return "🗜";
+  if (ext === ".txt") return "📃";
+  return "📎";
+};
+
 function Messages() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversation] =
     useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
 
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -445,6 +465,34 @@ function Messages() {
   useEffect(() => {
     activeConversationRef.current = activeConversation;
   }, [activeConversation]);
+
+  // Dismiss reaction picker when clicking outside or pressing Escape.
+  useEffect(() => {
+    if (!reactionPickerFor) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        !target?.closest(".message-reaction-picker") &&
+        !target?.closest(".message-reaction-trigger")
+      ) {
+        setReactionPickerFor(null);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setReactionPickerFor(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [reactionPickerFor]);
 
   const loadConversations = useCallback(async () => {
     const requestId = ++conversationRequestRef.current;
@@ -823,15 +871,108 @@ function Messages() {
     });
   }, [messages]);
 
-  const handleSend = (event: FormEvent<HTMLFormElement>) => {
+  const handleSend = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const content = draft.trim();
     const conversation = activeConversation;
     const socket = socketRef.current;
 
-    if (!content || !conversation || sending) return;
+    if (!conversation || sending || uploading) return;
 
+    // Must have either message text or attached files to send
+    if (!content && stagedFiles.length === 0) return;
+
+    setError("");
+    setAttachmentError("");
+
+    // If files are staged, upload them together with any message text
+    if (stagedFiles.length > 0) {
+      setUploading(true);
+      const filesToSend = [...stagedFiles];
+
+      try {
+        const response: unknown = await api.messaging.uploadAttachments(
+          conversation._id,
+          filesToSend,
+          content
+        );
+
+        setStagedFiles([]);
+        setDraft("");
+
+        const object =
+          response && typeof response === "object"
+            ? (response as Record<string, unknown>)
+            : {};
+
+        const payload =
+          object.data && typeof object.data === "object"
+            ? (object.data as Record<string, unknown>)
+            : object;
+
+        let uploadedList: ChatMessage[] = [];
+        if (Array.isArray(object.messages)) {
+          uploadedList = object.messages as ChatMessage[];
+        } else if (Array.isArray(object.data)) {
+          uploadedList = object.data as ChatMessage[];
+        } else if (Array.isArray(payload.messages)) {
+          uploadedList = payload.messages as ChatMessage[];
+        } else if (Array.isArray(payload.data)) {
+          uploadedList = payload.data as ChatMessage[];
+        } else if (object.message && typeof object.message === "object") {
+          uploadedList = [object.message as ChatMessage];
+        } else if (payload.message && typeof payload.message === "object") {
+          uploadedList = [payload.message as ChatMessage];
+        }
+
+        if (uploadedList.length > 0) {
+          setMessages((existing) => {
+            if (
+              activeConversationRef.current?._id !== conversation._id
+            ) {
+              return existing;
+            }
+
+            return mergeMessages(existing, uploadedList);
+          });
+
+          const latestUploaded = uploadedList[uploadedList.length - 1];
+          setConversations((existing) => {
+            const exists = existing.some(
+              (item) => item._id === conversation._id
+            );
+
+            if (!exists) {
+              void loadConversations();
+              return existing;
+            }
+
+            return sortConversations(
+              existing.map((item) =>
+                item._id === conversation._id
+                  ? {
+                      ...item,
+                      lastMessage: latestUploaded,
+                      lastMessageAt: latestUploaded.createdAt,
+                      updatedAt: latestUploaded.createdAt,
+                    }
+                  : item
+              )
+            );
+          });
+        }
+      } catch (err) {
+        setAttachmentError(
+          getErrorMessage(err, "Unable to upload and send attachments.")
+        );
+      } finally {
+        setUploading(false);
+      }
+      return;
+    }
+
+    // Standard text message via Socket.IO
     if (!socket?.connected) {
       setError(
         "You're disconnected. Please wait for reconnection."
@@ -840,7 +981,6 @@ function Messages() {
     }
 
     setSending(true);
-    setError("");
 
     socket.emit(
       "send_message",
@@ -893,126 +1033,98 @@ function Messages() {
     );
   };
 
-  const handleAttachmentSelected = async (
+  const handleAttachmentSelected = (
     event: ChangeEvent<HTMLInputElement>
   ) => {
     const input = event.currentTarget;
-    const file = input.files?.[0];
+    const selectedFiles = Array.from(input.files || []);
     const conversation = activeConversation;
 
-    // Allow the same file to be selected again later.
+    // Reset so the same file can be selected again if removed
     input.value = "";
 
-    if (!file || !conversation) return;
+    if (selectedFiles.length === 0 || !conversation) return;
 
     setAttachmentError("");
     setError("");
 
-    if (file.size === 0) {
-      setAttachmentError("This file is empty.");
-      return;
-    }
+    const currentCount = stagedFiles.length;
+    const remainingSlots = MAX_STAGED_FILES - currentCount;
 
-    if (file.size > MAX_ATTACHMENT_SIZE) {
-      setAttachmentError("The maximum attachment size is 10 MB.");
-      return;
-    }
-
-    const extension = getAttachmentExtension(file.name);
-
-    if (!ALLOWED_ATTACHMENT_EXTENSIONS.has(extension)) {
+    if (remainingSlots <= 0) {
       setAttachmentError(
-        "Unsupported file type. Choose an image, PDF, TXT, ZIP, DOCX, PPTX, or XLSX file."
+        `You can attach up to ${MAX_STAGED_FILES} files at once.`
       );
       return;
     }
 
-    if (
-      file.type &&
-      file.type !== "application/octet-stream" &&
-      !ALLOWED_ATTACHMENT_TYPES.has(file.type)
-    ) {
-      setAttachmentError(
-        "This file format is not supported."
-      );
-      return;
-    }
+    const validFiles: File[] = [];
+    const errors: string[] = [];
 
-    setUploading(true);
-
-    try {
-      const response: unknown =
-        await api.messaging.uploadAttachment(
-          conversation._id,
-          file
-        );
-
-      const object =
-        response && typeof response === "object"
-          ? (response as Record<string, unknown>)
-          : {};
-
-      const payload =
-        object.data && typeof object.data === "object"
-          ? (object.data as Record<string, unknown>)
-          : object;
-
-      const uploadedMessage =
-        payload.message && typeof payload.message === "object"
-          ? (payload.message as ChatMessage)
-          : (payload as unknown as ChatMessage);
-
-      if (!uploadedMessage?._id) {
-        throw new Error(
-          "The server did not return the uploaded attachment message."
-        );
+    for (const file of selectedFiles) {
+      if (file.size === 0) {
+        errors.push(`"${file.name}" is empty.`);
+        continue;
       }
 
-      const uploadedConversationId =
-        getConversationId(uploadedMessage);
-
-      if (uploadedConversationId === conversation._id) {
-        setMessages((existing) => {
-          if (
-            activeConversationRef.current?._id !== conversation._id
-          ) {
-            return existing;
-          }
-
-          return mergeMessages(existing, [uploadedMessage]);
-        });
+      if (file.size > MAX_ATTACHMENT_SIZE) {
+        errors.push(`"${file.name}" exceeds the 10 MB limit.`);
+        continue;
       }
 
-      setConversations((existing) => {
-        const exists = existing.some(
-          (item) => item._id === conversation._id
+      const extension = getAttachmentExtension(file.name);
+
+      if (!ALLOWED_ATTACHMENT_EXTENSIONS.has(extension)) {
+        errors.push(`"${file.name}" has an unsupported format.`);
+        continue;
+      }
+
+      if (
+        file.type &&
+        file.type !== "application/octet-stream" &&
+        !ALLOWED_ATTACHMENT_TYPES.has(file.type)
+      ) {
+        errors.push(`"${file.name}" format is not supported.`);
+        continue;
+      }
+
+      const isDuplicate =
+        stagedFiles.some(
+          (item) => item.name === file.name && item.size === file.size
+        ) ||
+        validFiles.some(
+          (item) => item.name === file.name && item.size === file.size
         );
 
-        if (!exists) {
-          void loadConversations();
-          return existing;
-        }
+      if (isDuplicate) {
+        continue;
+      }
 
-        return sortConversations(
-          existing.map((item) =>
-            item._id === conversation._id
-              ? {
-                  ...item,
-                  lastMessage: uploadedMessage,
-                  lastMessageAt: uploadedMessage.createdAt,
-                  updatedAt: uploadedMessage.createdAt,
-                }
-              : item
-          )
-        );
-      });
-    } catch (err) {
-      setAttachmentError(
-        getErrorMessage(err, "Unable to upload this attachment.")
-      );
-    } finally {
-      setUploading(false);
+      if (validFiles.length >= remainingSlots) {
+        errors.push(`Maximum ${MAX_STAGED_FILES} files allowed.`);
+        break;
+      }
+
+      validFiles.push(file);
     }
+
+    if (errors.length > 0) {
+      setAttachmentError(errors.join(" "));
+    }
+
+    if (validFiles.length > 0) {
+      setStagedFiles((prev) => [...prev, ...validFiles]);
+    }
+  };
+
+  const handleRemoveStagedFile = (indexToRemove: number) => {
+    setStagedFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    setAttachmentError("");
+  };
+
+  const handleClearAllStagedFiles = () => {
+    setStagedFiles([]);
+    setAttachmentError("");
   };
 
   const handleDownloadAttachment = async (message: ChatMessage) => {
@@ -1116,6 +1228,9 @@ function Messages() {
       );
 
       setActiveConversation(completeConversation);
+      setStagedFiles([]);
+      setAttachmentError("");
+      setReactionPickerFor(null);
       setShowNewMessage(false);
       setUserSearch("");
       setSearchResults([]);
@@ -1157,6 +1272,17 @@ function Messages() {
       (result: SocketResult) => {
         if (!result?.ok) {
           setError(result?.error || "Unable to add reaction.");
+        } else if (result.reactions) {
+          setMessages((existing) =>
+            existing.map((item) =>
+              item._id === message._id
+                ? {
+                    ...item,
+                    reactions: result.reactions as MessageReaction[],
+                  }
+                : item
+            )
+          );
         }
       }
     );
@@ -1184,9 +1310,22 @@ function Messages() {
       (result: SocketResult) => {
         if (!result?.ok) {
           setError(result?.error || "Unable to remove reaction.");
+        } else if (result.reactions) {
+          setMessages((existing) =>
+            existing.map((item) =>
+              item._id === message._id
+                ? {
+                    ...item,
+                    reactions: result.reactions as MessageReaction[],
+                  }
+                : item
+            )
+          );
         }
       }
     );
+
+    setReactionPickerFor(null);
   };
 
   const getConversationName = (conversation: Conversation): string => {
@@ -1493,6 +1632,9 @@ function Messages() {
                     onClick={() => {
                       if (conversation._id !== activeConversation?._id) {
                         setActiveConversation(conversation);
+                        setStagedFiles([]);
+                        setAttachmentError("");
+                        setReactionPickerFor(null);
                       }
                     }}
                     aria-pressed={selected}
@@ -1745,7 +1887,7 @@ function Messages() {
                                     }`}
                                   >
                                     <span>{emoji}</span>
-                                    <span>{count}</span>
+                                    <strong>{count}</strong>
                                   </button>
                                 )
                               )}
@@ -1781,12 +1923,22 @@ function Messages() {
                                     <button
                                       key={emoji}
                                       type="button"
-                                      onClick={() =>
-                                        handleMessageReaction(
-                                          message,
-                                          emoji
-                                        )
+                                      className={
+                                        myReaction?.emoji === emoji
+                                          ? "is-active-choice"
+                                          : ""
                                       }
+                                      onClick={() => {
+                                        if (myReaction?.emoji === emoji) {
+                                          handleRemoveReaction(message);
+                                        } else {
+                                          handleMessageReaction(
+                                            message,
+                                            emoji
+                                          );
+                                        }
+                                        setReactionPickerFor(null);
+                                      }}
                                       aria-label={`React with ${emoji}`}
                                       title={emoji}
                                     >
@@ -1806,50 +1958,131 @@ function Messages() {
                 <div ref={messagesEndRef} />
               </div>
 
+              {/* Staged attachments preview tray */}
+              {stagedFiles.length > 0 && (
+                <div
+                  className="messages-staged-tray"
+                  aria-label="Attached files"
+                >
+                  <div className="messages-staged-header">
+                    <span className="messages-staged-title">
+                      📎 Attached ({stagedFiles.length}/{MAX_STAGED_FILES})
+                    </span>
+                    <button
+                      type="button"
+                      className="messages-staged-clear-btn"
+                      onClick={handleClearAllStagedFiles}
+                      disabled={uploading}
+                    >
+                      Remove all
+                    </button>
+                  </div>
+
+                  <div className="messages-staged-list">
+                    {stagedFiles.map((file, index) => (
+                      <div
+                        key={`${file.name}-${file.size}-${index}`}
+                        className="messages-staged-chip"
+                      >
+                        <span
+                          className="messages-staged-icon"
+                          aria-hidden="true"
+                        >
+                          {getFileTypeIcon(file.name, file.type)}
+                        </span>
+                        <div className="messages-staged-info">
+                          <span
+                            className="messages-staged-name"
+                            title={file.name}
+                          >
+                            {file.name}
+                          </span>
+                          <span className="messages-staged-size">
+                            {formatFileSize(file.size)}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="messages-staged-remove"
+                          onClick={() => handleRemoveStagedFile(index)}
+                          disabled={uploading}
+                          aria-label={`Remove ${file.name}`}
+                          title={`Remove ${file.name}`}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <form className="messages-composer" onSubmit={handleSend}>
                 <input
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
-                  placeholder="Write a message…"
+                  placeholder={
+                    stagedFiles.length > 0
+                      ? "Add a caption or message (optional)…"
+                      : "Write a message…"
+                  }
                   maxLength={5000}
                   aria-label="Message"
                   autoComplete="off"
+                  disabled={sending || uploading}
                 />
 
                 <input
                   ref={fileInputRef}
                   type="file"
+                  multiple
                   hidden
                   accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.zip,.docx,.pptx,.xlsx"
-                  onChange={(event) =>
-                    void handleAttachmentSelected(event)
-                  }
-                  aria-label="Choose attachment"
+                  onChange={handleAttachmentSelected}
+                  aria-label="Choose attachments"
                 />
 
                 <button
                   type="button"
-                  className="messages-attach-button"
+                  className={`messages-attach-button ${
+                    stagedFiles.length > 0 ? "has-attachments" : ""
+                  }`}
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading || !activeConversation}
-                  title="Attach a file (maximum 10 MB)"
-                  aria-label="Attach a file"
+                  disabled={uploading || sending || !activeConversation}
+                  title="Attach files (up to 10 files, maximum 10 MB each)"
+                  aria-label="Attach files"
                 >
-                  {uploading ? "Uploading…" : "📎 Attach"}
+                  <span aria-hidden="true">📎</span>
+                  {stagedFiles.length > 0 && (
+                    <span className="messages-attach-badge">
+                      {stagedFiles.length}
+                    </span>
+                  )}
                 </button>
 
                 <button
                   type="submit"
-                  disabled={!draft.trim() || sending}
+                  disabled={
+                    (!draft.trim() && stagedFiles.length === 0) ||
+                    sending ||
+                    uploading
+                  }
+                  className="messages-send-btn"
                 >
-                  <span>{sending ? "Sending…" : "Send message"}</span>
+                  <span>
+                    {uploading
+                      ? "Uploading…"
+                      : sending
+                      ? "Sending…"
+                      : "Send message"}
+                  </span>
                   <span aria-hidden="true">↗</span>
                 </button>
               </form>
 
               <p className="messages-attachment-hint">
                 Supported: images, PDF, TXT, ZIP, DOCX, PPTX and XLSX.
-                Maximum file size: 10 MB.
+                Maximum 10 files, up to 10 MB each.
               </p>
             </>
           ) : (

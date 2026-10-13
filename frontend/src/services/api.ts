@@ -96,7 +96,9 @@ export interface ChatMessage {
 
 export interface UploadedChatAttachmentResponse {
   success: boolean;
-  message: ChatMessage;
+  message?: ChatMessage;
+  messages?: ChatMessage[];
+  data?: ChatMessage | ChatMessage[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -762,11 +764,23 @@ export const api = {
         )}/messages${toQuery(params)}`
       ),
 
-    // Upload an attachment and create a message in the conversation.
-    // Backend must accept multipart field name "file".
-    uploadAttachment: (conversationId: string, file: File) => {
+    // Upload one or multiple attachments and create messages in the conversation.
+    // Supports optional text message caption.
+    uploadAttachments: (
+      conversationId: string,
+      files: File[],
+      content?: string
+    ) => {
       const formData = new FormData();
-      formData.append("file", file);
+      for (const file of files) {
+        formData.append("files", file);
+      }
+      if (files.length === 1) {
+        formData.append("file", files[0]);
+      }
+      if (content && content.trim()) {
+        formData.append("content", content.trim());
+      }
 
       return request<UploadedChatAttachmentResponse>(
         `/messaging/conversations/${encodeURIComponent(
@@ -778,6 +792,14 @@ export const api = {
         }
       );
     },
+
+    // Upload a single attachment and create a message in the conversation.
+    uploadAttachment: (
+      conversationId: string,
+      file: File,
+      content?: string
+    ) =>
+      api.messaging.uploadAttachments(conversationId, [file], content),
 
     // Download a chat attachment through an authenticated endpoint.
     // The backend must authorize conversation membership before sending it.

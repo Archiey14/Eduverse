@@ -311,6 +311,69 @@ export const initializeSocket = (httpServer) => {
       }
     });
 
+    const broadcastReactionUpdate = async (conversationId, reactionData) => {
+      try {
+        const conversation = await Conversation.findById(conversationId)
+          .select("type participants course")
+          .lean();
+
+        const targetRooms = new Set([
+          getConversationRoom(conversationId),
+        ]);
+
+        if (
+          conversation?.type === "direct" &&
+          Array.isArray(conversation.participants)
+        ) {
+          for (const participantId of conversation.participants) {
+            targetRooms.add(getUserRoom(participantId));
+          }
+        } else if (
+          conversation?.type === "course" &&
+          conversation.course
+        ) {
+          try {
+            const [course, enrollments] = await Promise.all([
+              Course.findById(conversation.course)
+                .select("mentor")
+                .lean(),
+              Enrollment.find({
+                course: conversation.course,
+                status: "active",
+              })
+                .select("student")
+                .lean(),
+            ]);
+
+            if (course?.mentor) {
+              targetRooms.add(getUserRoom(course.mentor));
+            }
+
+            for (const enrollment of enrollments) {
+              if (enrollment.student) {
+                targetRooms.add(getUserRoom(enrollment.student));
+              }
+            }
+          } catch (courseError) {
+            console.error("Error collecting course reaction rooms:", courseError);
+          }
+        }
+
+        let broadcastTarget = io;
+        for (const room of targetRooms) {
+          broadcastTarget = broadcastTarget.to(room);
+        }
+
+        broadcastTarget.emit("message_reactions_updated", reactionData);
+      } catch (error) {
+        console.error("Error broadcasting message reaction update:", error);
+        io.to(getConversationRoom(conversationId)).emit(
+          "message_reactions_updated",
+          reactionData
+        );
+      }
+    };
+
     // Add a reaction or change the current user's reaction.
     socket.on("add_reaction", async (payload, callback) => {
       try {
@@ -377,10 +440,7 @@ export const initializeSocket = (httpServer) => {
           reactions: updatedMessage.reactions,
         };
 
-        io.to(getConversationRoom(conversationId)).emit(
-          "message_reactions_updated",
-          reactionData
-        );
+        await broadcastReactionUpdate(conversationId, reactionData);
 
         callback?.({
           ok: true,
@@ -451,10 +511,7 @@ export const initializeSocket = (httpServer) => {
           reactions: updatedMessage.reactions,
         };
 
-        io.to(getConversationRoom(conversationId)).emit(
-          "message_reactions_updated",
-          reactionData
-        );
+        await broadcastReactionUpdate(conversationId, reactionData);
 
         callback?.({
           ok: true,

@@ -19,6 +19,7 @@ fs.mkdirSync(privateUploadsDirectory, { recursive: true });
 
 const profileStorage = multer.diskStorage({
   destination: (_req, _file, callback) => {
+    fs.mkdirSync(uploadsDirectory, { recursive: true });
     callback(null, uploadsDirectory);
   },
 
@@ -62,6 +63,7 @@ export const uploadProfilePicture = multer({
 
 const chatStorage = multer.diskStorage({
   destination: (_req, _file, callback) => {
+    fs.mkdirSync(privateUploadsDirectory, { recursive: true });
     callback(null, privateUploadsDirectory);
   },
 
@@ -101,6 +103,6 @@ export const uploadChatFile = multer({
   fileFilter: chatFileFilter,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10 MB maximum
-    files: 1,
+    files: 10,
   },
 });

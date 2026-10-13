@@ -19,3 +19,7 @@ pnpm-debug.log*
 Thumbs.db
 server/uploads/
 server/.env
+backend/uploads/
+backend/private-uploads/
+uploads/
+private-uploads/
