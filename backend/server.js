@@ -79,12 +79,8 @@ const gracefulShutdown = (signal) => {
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 
-// Preserve support for development tools that restart the server.
-process.on("SIGUSR2", () => {
-  if (isShuttingDown) return;
-
-  isShuttingDown = true;
-
+// Preserve support for development tools (like nodemon) that restart the server.
+process.once("SIGUSR2", () => {
   if (httpServer.closeAllConnections) {
     httpServer.closeAllConnections();
   }

@@ -282,3 +282,9 @@ export const getIO = () => {
 
   return io;
 };
+
+export const emitToUser = (userId, event, data) => {
+  if (io && userId) {
+    io.to(`user:${String(userId)}`).emit(event, data);
+  }
+};

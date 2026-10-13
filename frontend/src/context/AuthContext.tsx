@@ -134,6 +134,11 @@ export const AuthProvider: React.FC<{
   ------------------------------------------------------- */
 
   const logout = useCallback(() => {
+    try {
+      api.auth.logout().catch(() => {});
+    } catch {
+      // Ignore network errors on logout
+    }
     removeToken();
 
     setTokenState(null);

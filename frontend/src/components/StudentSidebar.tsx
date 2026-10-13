@@ -18,6 +18,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../context/NotificationContext";
 
 interface StudentSidebarProps {
   activeItem?: string;
@@ -71,6 +72,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
   onClose,
 }) => {
   const { user, logout, isMentor } = useAuth();
+  const { unreadMessages } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -105,9 +107,26 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
         current === key ? "active" : ""
       }`}
       onClick={onClose}
+      style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
     >
-      <span className="nav-item-icon">{icon}</span>
-      <span>{label}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span className="nav-item-icon">{icon}</span>
+        <span>{label}</span>
+      </div>
+      {key === "messages" && unreadMessages > 0 && (
+        <span
+          style={{
+            background: "#6366f1",
+            color: "#fff",
+            fontSize: 11,
+            fontWeight: 700,
+            padding: "2px 7px",
+            borderRadius: 9999,
+          }}
+        >
+          {unreadMessages}
+        </span>
+      )}
     </Link>
   );
 

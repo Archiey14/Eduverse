@@ -2,6 +2,8 @@ import { verifyToken } from "../utils/token.js";
 import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/User.js";
+import { Session } from "../models/Session.js";
+import { touchSession } from "../utils/sessionHelper.js";
 
 export const protect = asyncHandler(async (req, res, next) => {
   let token;
@@ -24,6 +26,30 @@ export const protect = asyncHandler(async (req, res, next) => {
     decoded = verifyToken(token);
   } catch (err) {
     return next(new AppError(401, "Token verification failed."));
+  }
+
+  // Session validation: If token is associated with a session, ensure it is still active
+  if (decoded.sessionId) {
+    const session = await Session.findById(decoded.sessionId);
+    if (!session || !session.isActive) {
+      return next(
+        new AppError(
+          401,
+          "Your session has ended or been logged out. Please log in again."
+        )
+      );
+    }
+
+    if (session.expiresAt && session.expiresAt < new Date()) {
+      return next(
+        new AppError(401, "Your session has expired. Please log in again.")
+      );
+    }
+
+    // Touch session activity asynchronously
+    touchSession(session._id);
+    req.session = session;
+    req.sessionId = String(session._id);
   }
 
   // Role changes apply immediately because we read fresh user data on every request

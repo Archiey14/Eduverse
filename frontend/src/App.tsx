@@ -10,6 +10,8 @@ import {
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { NotificationProvider } from "./context/NotificationContext";
+import { SessionTimeoutModal } from "./components/SessionTimeoutModal";
 
 // Landing & Authentication
 import LandingPage from "./pages/LandingPage";
@@ -626,8 +628,11 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
-          <AppRoutes />
-          <ThemeToggle />
+          <NotificationProvider>
+            <AppRoutes />
+            <SessionTimeoutModal />
+            <ThemeToggle />
+          </NotificationProvider>
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>

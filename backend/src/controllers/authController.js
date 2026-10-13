@@ -5,6 +5,12 @@ import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateToken } from "../utils/token.js";
 import { sendEmail } from "../utils/sendEmail.js";
+import {
+  createSession,
+  revokeSession,
+  revokeOtherSessions,
+  getUserSessions,
+} from "../utils/sessionHelper.js";
 
 // One shape for every response that returns the logged-in user.
 const userPayload = (user) => ({
@@ -104,7 +110,8 @@ export const register = asyncHandler(async (req, res, next) => {
     });
   }
 
-  const token = generateToken(user._id);
+  const session = await createSession({ userId: user._id, req });
+  const token = generateToken(user._id, session?._id);
 
   res.status(201).json({
     success: true,
@@ -182,7 +189,8 @@ export const login = asyncHandler(async (req, res, next) => {
     });
   }
 
-  const token = generateToken(user._id);
+  const session = await createSession({ userId: user._id, req });
+  const token = generateToken(user._id, session?._id);
 
   res.status(200).json({
     success: true,
@@ -222,7 +230,8 @@ export const verifyOTP = asyncHandler(async (req, res, next) => {
 
   await user.save();
 
-  const token = generateToken(user._id);
+  const session = await createSession({ userId: user._id, req });
+  const token = generateToken(user._id, session?._id);
 
   res.status(200).json({
     success: true,
@@ -567,5 +576,47 @@ export const resetPassword = asyncHandler(async (req, res, next) => {
     message: "Password reset successful",
     token,
     user: userPayload(user),
+  });
+});
+
+// ============================================================
+// SESSION MANAGEMENT
+// ============================================================
+
+export const getMySessions = asyncHandler(async (req, res) => {
+  const sessions = await getUserSessions(req.user._id, req.sessionId);
+  res.status(200).json({
+    success: true,
+    sessions,
+  });
+});
+
+export const revokeSessionById = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const revoked = await revokeSession(id, req.user._id);
+  if (!revoked) {
+    return next(new AppError(404, "Session not found."));
+  }
+  res.status(200).json({
+    success: true,
+    message: "Session terminated successfully.",
+  });
+});
+
+export const revokeOtherSessionsHandler = asyncHandler(async (req, res) => {
+  await revokeOtherSessions(req.sessionId, req.user._id);
+  res.status(200).json({
+    success: true,
+    message: "Logged out from all other devices successfully.",
+  });
+});
+
+export const logoutSession = asyncHandler(async (req, res) => {
+  if (req.sessionId) {
+    await revokeSession(req.sessionId, req.user._id);
+  }
+  res.status(200).json({
+    success: true,
+    message: "Logged out successfully.",
   });
 });

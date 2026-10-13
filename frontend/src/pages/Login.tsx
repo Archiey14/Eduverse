@@ -200,6 +200,27 @@ function Login() {
               <p>Sign in to continue to your account</p>
             </div>
 
+            {new URLSearchParams(location.search).get("reason") === "inactivity" && !error && (
+              <div
+                style={{
+                  background: "#fffbeb",
+                  border: "1px solid #fde68a",
+                  borderRadius: 10,
+                  padding: "12px 16px",
+                  color: "#92400e",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  marginBottom: 16,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <span>⏱️</span>
+                <span>Your session ended due to inactivity. Please sign in again.</span>
+              </div>
+            )}
+
             {error && (
               <div className="professional-error" role="alert">
                 <span className="error-icon">!</span>

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api, getErrorMessage } from "../services/api";
 import StudentLayout from "../components/StudentLayout";
+import { ActiveSessionsCard } from "../components/ActiveSessionsCard";
 import "./Settings.css";
 
 function Settings() {
@@ -217,6 +218,9 @@ function Settings() {
             {passwordBusy ? "Updating..." : "Update Password"}
           </button>
         </form>
+
+        {/* Active Sessions & Devices */}
+        <ActiveSessionsCard />
       </section>
 
       <footer className="settings-footer">

@@ -46,6 +46,17 @@ export const setStoredUser = (user: any): void => {
   target.setItem(USER_KEY, JSON.stringify(user));
 };
 
+export interface UserSession {
+  _id: string;
+  device: string;
+  browser: string;
+  os: string;
+  ipAddress: string;
+  lastActive: string;
+  createdAt: string;
+  isCurrent: boolean;
+}
+
 /* ------------------------------------------------------------------ */
 /* Errors                                                              */
 /* ------------------------------------------------------------------ */
@@ -239,6 +250,24 @@ export const api = {
         body: formData,
       });
     },
+
+    getSessions: () =>
+      request<{ success: boolean; sessions: UserSession[] }>("/auth/sessions"),
+
+    revokeSession: (id: string) =>
+      request<{ success: boolean; message: string }>(`/auth/sessions/${id}`, {
+        method: "DELETE",
+      }),
+
+    revokeOtherSessions: () =>
+      request<{ success: boolean; message: string }>("/auth/sessions", {
+        method: "DELETE",
+      }),
+
+    logout: () =>
+      request<{ success: boolean; message: string }>("/auth/logout", {
+        method: "POST",
+      }),
   },
 
   /* ---------------------------------------------------------------- */

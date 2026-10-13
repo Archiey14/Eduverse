@@ -6,6 +6,7 @@ import {
   GraduationCap, LogOut, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../context/NotificationContext";
 import { api, getErrorMessage } from "../services/api";
 
 interface StudentTopbarProps {
@@ -60,10 +61,10 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
   searchPlaceholder = "Search courses, lessons...",
 }) => {
   const { user, logout, isMentor, updateUser } = useAuth();
+  const { unreadNotifications } = useNotifications();
   const navigate = useNavigate();
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
   const displayName = user?.name || "Student";
@@ -73,23 +74,6 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
   useEffect(() => {
     setAvatarLoadFailed(false);
   }, [avatarUrl]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    api.notifications
-      .getAll(1, "student")
-      .then((res) => {
-        if (!cancelled) setUnread(res.unreadCount || 0);
-      })
-      .catch(() => {
-        if (!cancelled) setUnread(0);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to logout?")) {
@@ -183,10 +167,31 @@ export const StudentTopbar: React.FC<StudentTopbarProps> = ({
           className="dashboard-icon-button notification-button"
           aria-label="Notifications"
           title="Notifications"
+          style={{ position: "relative" }}
         >
           <Bell size={20} />
-          {unread > 0 && (
-            <span className="notification-indicator" />
+          {unreadNotifications > 0 && (
+            <span
+              style={{
+                position: "absolute",
+                top: 4,
+                right: 4,
+                minWidth: 16,
+                height: 16,
+                padding: "0 4px",
+                borderRadius: 8,
+                background: "#ef4444",
+                color: "#ffffff",
+                fontSize: 10,
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                lineHeight: 1,
+              }}
+            >
+              {unreadNotifications > 99 ? "99+" : unreadNotifications}
+            </span>
           )}
         </Link>
 

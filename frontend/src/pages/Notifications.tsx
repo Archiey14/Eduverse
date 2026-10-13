@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, getErrorMessage } from "../services/api";
+import { connectMessagingSocket } from "../services/socket";
 import StudentLayout from "../components/StudentLayout";
 import { timeAgo } from "../utils/format";
 
@@ -29,6 +30,32 @@ function Notifications() {
   useEffect(() => {
     load(page);
   }, [load, page]);
+
+  useEffect(() => {
+    let socket: any = null;
+    try {
+      socket = connectMessagingSocket();
+    } catch {
+      return;
+    }
+
+    if (!socket) return;
+
+    const handleIncoming = (newNotif: any) => {
+      setItems((prev) => {
+        if (prev.some((item) => String(item._id) === String(newNotif._id))) {
+          return prev;
+        }
+        return [newNotif, ...prev];
+      });
+      setUnread((count) => count + 1);
+    };
+
+    socket.on("new_notification", handleIncoming);
+    return () => {
+      socket.off("new_notification", handleIncoming);
+    };
+  }, []);
 
   const markRead = async (id: string) => {
     try {

@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { api, getErrorMessage } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import InstructorLayout from "../components/InstructorLayout";
+import { ActiveSessionsCard } from "../components/ActiveSessionsCard";
 
 function InstructorSettings() {
   const { user, updateUser } = useAuth();
@@ -163,6 +164,9 @@ function InstructorSettings() {
           {passwordBusy ? "Updating..." : "Update password"}
         </button>
       </form>
+
+      {/* Active Sessions & Devices */}
+      <ActiveSessionsCard />
     </InstructorLayout>
   );
 }

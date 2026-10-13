@@ -12,6 +12,10 @@ import {
   uploadAvatar,
   forgotPassword,
   resetPassword,
+  getMySessions,
+  revokeSessionById,
+  revokeOtherSessionsHandler,
+  logoutSession,
 } from "../controllers/authController.js";
 
 import { protect } from "../middleware/auth.js";
@@ -98,6 +102,31 @@ router.patch(
   "/reset-password/:token",
   authLimiter,
   resetPassword
+);
+
+// Session management
+router.get(
+  "/sessions",
+  protect,
+  getMySessions
+);
+
+router.delete(
+  "/sessions/:id",
+  protect,
+  revokeSessionById
+);
+
+router.delete(
+  "/sessions",
+  protect,
+  revokeOtherSessionsHandler
+);
+
+router.post(
+  "/logout",
+  protect,
+  logoutSession
 );
 
 export default router;

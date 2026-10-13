@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../context/NotificationContext";
 import {
   LayoutDashboard,
   BookOpen,
@@ -127,6 +128,7 @@ export default function InstructorLayout({
   title,
 }: InstructorLayoutProps) {
   const { user, logout } = useAuth();
+  const { unreadNotifications, unreadMessages } = useNotifications();
   const navigate = useNavigate();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -205,9 +207,26 @@ export default function InstructorLayout({
         active === item.key ? "active" : ""
       }`}
       onClick={closeSidebar}
+      style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
     >
-      <span className="nav-item-icon">{item.icon}</span>
-      <span>{item.label}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span className="nav-item-icon">{item.icon}</span>
+        <span>{item.label}</span>
+      </div>
+      {item.key === "messages" && unreadMessages > 0 && (
+        <span
+          style={{
+            background: "#6366f1",
+            color: "#fff",
+            fontSize: 11,
+            fontWeight: 700,
+            padding: "2px 7px",
+            borderRadius: 9999,
+          }}
+        >
+          {unreadMessages}
+        </span>
+      )}
     </Link>
   );
 
@@ -377,8 +396,32 @@ export default function InstructorLayout({
               className="dashboard-icon-button"
               aria-label="Notifications"
               title="Notifications"
+              style={{ position: "relative" }}
             >
               <Bell size={20} />
+              {unreadNotifications > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    right: 4,
+                    minWidth: 16,
+                    height: 16,
+                    padding: "0 4px",
+                    borderRadius: 8,
+                    background: "#ef4444",
+                    color: "#ffffff",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    lineHeight: 1,
+                  }}
+                >
+                  {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                </span>
+              )}
             </Link>
 
             <div className="topbar-divider" />
