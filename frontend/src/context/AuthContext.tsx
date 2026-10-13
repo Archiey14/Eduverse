@@ -114,7 +114,7 @@ export const AuthProvider: React.FC<{
   ) => {
     saveToken(newToken, remember);
 
-    setStoredUser(newUser);
+    setStoredUser(newUser, remember);
 
     setTokenState(newToken);
     setUserState(newUser);

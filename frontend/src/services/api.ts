@@ -10,27 +10,31 @@ const USER_KEY = "eduverse_user";
 /* ------------------------------------------------------------------ */
 
 export const getToken = (): string | null =>
-  localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+  sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
 
 export const setToken = (token: string, remember = true): void => {
-  const target = remember ? localStorage : sessionStorage;
-  const other = remember ? sessionStorage : localStorage;
+  // Always store in sessionStorage for the current tab so tabs don't hijack each other
+  sessionStorage.setItem(TOKEN_KEY, token);
 
-  other.removeItem(TOKEN_KEY);
-  target.setItem(TOKEN_KEY, token);
+  // If remember is true, also persist to localStorage for cross-restart retention
+  if (remember) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
 };
 
 export const clearToken = (): void => {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(USER_KEY);
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
 };
 
 export const getStoredUser = () => {
   try {
     const raw =
-      localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
+      sessionStorage.getItem(USER_KEY) || localStorage.getItem(USER_KEY);
 
     return raw ? JSON.parse(raw) : null;
   } catch {
@@ -38,12 +42,15 @@ export const getStoredUser = () => {
   }
 };
 
-export const setStoredUser = (user: any): void => {
-  const target = sessionStorage.getItem(TOKEN_KEY)
-    ? sessionStorage
-    : localStorage;
+export const setStoredUser = (user: any, remember = true): void => {
+  const userStr = JSON.stringify(user);
+  sessionStorage.setItem(USER_KEY, userStr);
 
-  target.setItem(USER_KEY, JSON.stringify(user));
+  if (remember) {
+    localStorage.setItem(USER_KEY, userStr);
+  } else {
+    localStorage.removeItem(USER_KEY);
+  }
 };
 
 export interface UserSession {

@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import type { FormEvent } from "react";
+import { useAuth } from "../context/AuthContext";
 import { connectMessagingSocket } from "../services/socket";
 import { api, getErrorMessage } from "../services/api";
 import "./Messages.css";
@@ -162,8 +163,8 @@ const getMessageSenderId = (message: ChatMessage): string =>
 const getStoredCurrentUser = (): StoredUser | null => {
   try {
     const raw =
-      localStorage.getItem("eduverse_user") ||
-      sessionStorage.getItem("eduverse_user");
+      sessionStorage.getItem("eduverse_user") ||
+      localStorage.getItem("eduverse_user");
 
     if (!raw) return null;
 
@@ -301,7 +302,8 @@ function Messages() {
   const messageRequestRef = useRef(0);
   const mountedRef = useRef(false);
 
-  const currentUserId = getCurrentUserId();
+  const { user: authUser } = useAuth();
+  const currentUserId = authUser?.id || authUser?._id || getCurrentUserId();
 
   useEffect(() => {
     activeConversationRef.current = activeConversation;

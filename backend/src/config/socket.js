@@ -199,23 +199,16 @@ export const initializeSocket = (httpServer) => {
           conversation: String(conversationId),
         };
 
-        // 1. Deliver to everyone actively in this conversation room
-        io.to(`conversation:${conversationId}`).emit(
-          "new_message",
-          populatedMessage
-        );
+        // Collect target rooms: conversation room + personal user rooms for notification delivery
+        const targetRooms = new Set([`conversation:${conversationId}`]);
 
-        // 2. Also deliver to individual participants' personal rooms
         if (
           updatedConversation &&
           updatedConversation.type === "direct" &&
           Array.isArray(updatedConversation.participants)
         ) {
           for (const participantId of updatedConversation.participants) {
-            io.to(`user:${participantId}`).emit(
-              "new_message",
-              populatedMessage
-            );
+            targetRooms.add(`user:${participantId}`);
           }
         } else if (
           updatedConversation &&
@@ -232,28 +225,27 @@ export const initializeSocket = (httpServer) => {
               status: "active",
             }).select("student");
 
-            const recipientIds = new Set();
             if (course?.mentor) {
-              recipientIds.add(String(course.mentor));
+              targetRooms.add(`user:${course.mentor}`);
             }
             if (Array.isArray(enrollments)) {
               for (const en of enrollments) {
                 if (en.student) {
-                  recipientIds.add(String(en.student));
+                  targetRooms.add(`user:${en.student}`);
                 }
               }
-            }
-
-            for (const participantId of recipientIds) {
-              io.to(`user:${participantId}`).emit(
-                "new_message",
-                populatedMessage
-              );
             }
           } catch (err) {
             console.error("Error broadcasting course message to students:", err);
           }
         }
+
+        // Socket.IO automatically deduplicates sockets when chaining .to() so each client receives the message exactly once
+        let broadcastTarget = io;
+        for (const room of targetRooms) {
+          broadcastTarget = broadcastTarget.to(room);
+        }
+        broadcastTarget.emit("new_message", populatedMessage);
 
         callback?.({ ok: true, message: populatedMessage });
       } catch (error) {

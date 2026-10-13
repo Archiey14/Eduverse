@@ -101,29 +101,69 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
+  const recentlySeenRef = React.useRef<Map<string, number>>(new Map());
+  const userRef = React.useRef(user);
+  userRef.current = user;
+  const isMentorRef = React.useRef(isMentor);
+  isMentorRef.current = isMentor;
+  const locationRef = React.useRef(location.pathname);
+  locationRef.current = location.pathname;
+
+  const isDuplicateEvent = useCallback((key: string, cooldownMs = 5000): boolean => {
+    const now = Date.now();
+    const lastTime = recentlySeenRef.current.get(key);
+    if (lastTime && now - lastTime < cooldownMs) {
+      return true;
+    }
+    recentlySeenRef.current.set(key, now);
+
+    // Keep memory clean
+    if (recentlySeenRef.current.size > 100) {
+      for (const [k, v] of recentlySeenRef.current.entries()) {
+        if (now - v > 30000) {
+          recentlySeenRef.current.delete(k);
+        }
+      }
+    }
+    return false;
+  }, []);
+
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   const showToast = useCallback(
     (toast: Omit<ToastItem, "id" | "timestamp">) => {
-      const id = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      const newToast: ToastItem = {
-        ...toast,
-        id,
-        timestamp: new Date(),
-      };
+      setToasts((prev) => {
+        // Prevent duplicate toasts with the same title and message from appearing simultaneously
+        const isDuplicate = prev.some(
+          (t) => t.title === toast.title && t.message === toast.message
+        );
+        if (isDuplicate) {
+          return prev;
+        }
 
-      setToasts((prev) => [newToast, ...prev].slice(0, 4));
-      playNotificationSound(toast.type);
+        const id = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        const newToast: ToastItem = {
+          ...toast,
+          id,
+          timestamp: new Date(),
+        };
 
-      // Auto-dismiss after 6 seconds
-      setTimeout(() => {
-        dismissToast(id);
-      }, 6000);
+        // Auto-dismiss after 6 seconds
+        setTimeout(() => {
+          dismissToast(id);
+        }, 6000);
+
+        playNotificationSound(toast.type);
+        return [newToast, ...prev].slice(0, 4);
+      });
     },
     [dismissToast]
   );
+
+  const showToastRef = React.useRef(showToast);
+  showToastRef.current = showToast;
 
   const refreshNotifications = useCallback(async () => {
     if (!token) return;
@@ -141,6 +181,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
       setUnreadNotifications(0);
       setUnreadMessages(0);
       setToasts([]);
+      recentlySeenRef.current.clear();
       return;
     }
 
@@ -175,6 +216,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!socket) return;
 
     const handleNewNotification = (notification: any) => {
+      const notifKey = notification?._id
+        ? `notif:${notification._id}`
+        : `notif:${notification?.type}:${notification?.message}:${notification?.course?._id || notification?.course || ""}`;
+
+      if (isDuplicateEvent(notifKey)) {
+        return;
+      }
+
       setUnreadNotifications((prev) => prev + 1);
 
       let title = "New Notification";
@@ -184,20 +233,29 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         title = "⭐ New Course Review";
       }
 
-      showToast({
+      showToastRef.current({
         title,
         message: notification?.message || "You have a new update.",
         type: "notification",
-        link: isMentor ? "/instructor/notifications" : "/notifications",
+        link: isMentorRef.current ? "/instructor/notifications" : "/notifications",
       });
     };
 
     const handleNewMessage = (msg: any) => {
+      const msgKey = msg?._id
+        ? `msg:${msg._id}`
+        : `msg:${msg?.conversation}:${msg?.createdAt}:${msg?.content}`;
+
+      if (isDuplicateEvent(msgKey)) {
+        return;
+      }
+
       // If user is currently looking at /messages, let Messages.tsx handle the conversation
-      const isViewingChat = location.pathname.startsWith("/messages");
+      const isViewingChat = locationRef.current.startsWith("/messages");
 
       // Don't toast own sent messages
-      if (msg?.sender?._id && user?.id && String(msg.sender._id) === String(user.id)) {
+      const currentUserId = userRef.current?.id || userRef.current?._id;
+      if (msg?.sender?._id && currentUserId && String(msg.sender._id) === String(currentUserId)) {
         return;
       }
 
@@ -210,7 +268,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
             ? `${msg.content.slice(0, 60)}...`
             : msg?.content || "Sent you a message";
 
-        showToast({
+        showToastRef.current({
           title: `💬 ${senderName}`,
           message: contentSnippet,
           type: "message",
@@ -227,7 +285,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
       socket.off("new_notification", handleNewNotification);
       socket.off("new_message", handleNewMessage);
     };
-  }, [token, user?.id, isMentor, location.pathname, showToast]);
+  }, [token, isDuplicateEvent]);
 
   return (
     <NotificationContext.Provider
