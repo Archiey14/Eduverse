@@ -74,11 +74,19 @@ function emitNewMessage(message, conversationId, participantIds = []) {
   try {
     const io = getIO();
 
-    io.to(`conversation:${conversationId}`).emit("new_message", message);
-
+    const targetRooms = new Set([`conversation:${conversationId}`]);
     for (const participantId of participantIds) {
-      io.to(`user:${participantId}`).emit("new_message", message);
+      if (participantId) {
+        targetRooms.add(`user:${participantId}`);
+      }
     }
+
+    let broadcastTarget = io;
+    for (const room of targetRooms) {
+      broadcastTarget = broadcastTarget.to(room);
+    }
+
+    broadcastTarget.emit("new_message", message);
   } catch (error) {
     console.error("Could not emit new message event:", error);
   }
@@ -413,11 +421,29 @@ router.post(
     let uploadedFilePaths = [];
 
     try {
-      const uploadedFiles = Array.isArray(req.files)
-        ? req.files
-        : req.file
-        ? [req.file]
-        : [];
+      let uploadedFiles = [];
+      if (Array.isArray(req.files)) {
+        const filesFields = req.files.filter((f) => f.fieldname === "files");
+        const singleFileFields = req.files.filter((f) => f.fieldname === "file");
+
+        if (filesFields.length > 0) {
+          uploadedFiles = filesFields;
+          const redundantFiles = req.files.filter((f) => f.fieldname !== "files");
+          if (redundantFiles.length > 0) {
+            await removeUploadedFiles(redundantFiles.map((f) => f.path));
+          }
+        } else if (singleFileFields.length > 0) {
+          uploadedFiles = singleFileFields;
+          const redundantFiles = req.files.filter((f) => f.fieldname !== "file");
+          if (redundantFiles.length > 0) {
+            await removeUploadedFiles(redundantFiles.map((f) => f.path));
+          }
+        } else {
+          uploadedFiles = req.files;
+        }
+      } else if (req.file) {
+        uploadedFiles = [req.file];
+      }
 
       if (uploadedFiles.length === 0) {
         return res.status(400).json({

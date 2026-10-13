@@ -775,9 +775,6 @@ export const api = {
       for (const file of files) {
         formData.append("files", file);
       }
-      if (files.length === 1) {
-        formData.append("file", files[0]);
-      }
       if (content && content.trim()) {
         formData.append("content", content.trim());
       }

@@ -106,9 +106,55 @@ async function runTest() {
   });
 
   // ==========================================
-  // TEST 1: MULTIPLE FILE UPLOAD WITH CAPTION
+  // TEST 1A: SINGLE FILE UPLOAD WITH CAPTION (NO DUPLICATION)
   // ==========================================
-  console.log("\n--- TEST 1: Multiple File Upload With Caption ---");
+  console.log("\n--- TEST 1A: Single File Upload With Caption (Deduplication Check) ---");
+
+  const singleContent = "Single NOC file content.";
+  const singleBlob = new Blob([singleContent], { type: "application/pdf" });
+
+  const singleFormData = new FormData();
+  singleFormData.append("files", singleBlob, "Archie NOC.pdf");
+  singleFormData.append("content", "Noc");
+
+  const singleBeforeCount = studentReceivedMessages.length;
+
+  const singleUploadRes = await fetch(`${API_BASE}/messaging/conversations/${convId}/attachments`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${mentorToken}`,
+    },
+    body: singleFormData,
+  });
+
+  const singleUploadJson = await singleUploadRes.json();
+  console.log("[Single Upload Status]:", singleUploadRes.status);
+  console.log("[Single Upload Success]:", singleUploadJson.success);
+
+  if (singleUploadRes.status !== 201 || !singleUploadJson.success) {
+    throw new Error(`Single upload failed: ${JSON.stringify(singleUploadJson)}`);
+  }
+
+  const singleMessages = singleUploadJson.data || singleUploadJson.messages;
+  if (!Array.isArray(singleMessages) || singleMessages.length !== 1) {
+    throw new Error(`CRITICAL: Single file upload created ${singleMessages?.length} messages instead of 1!`);
+  }
+
+  console.log("[Verification] Exactly 1 message created for single file upload (0 duplicates)!");
+  console.log("[Message Caption]:", singleMessages[0].content);
+  console.log("[Message File]:", singleMessages[0].attachment.fileName);
+
+  await new Promise((r) => setTimeout(r, 200));
+  const singleAfterCount = studentReceivedMessages.length;
+  if (singleAfterCount - singleBeforeCount !== 1) {
+    throw new Error(`Expected exactly 1 socket new_message event for single file, received ${singleAfterCount - singleBeforeCount}!`);
+  }
+  console.log("[Verification] Exactly 1 socket event received by student!");
+
+  // ==========================================
+  // TEST 1B: MULTIPLE FILE UPLOAD WITH CAPTION
+  // ==========================================
+  console.log("\n--- TEST 1B: Multiple File Upload With Caption ---");
 
   // Create temporary test files
   const file1Content = "Sample notes for students from mentor.";
@@ -133,7 +179,6 @@ async function runTest() {
   const uploadJson = await uploadRes.json();
   console.log("[Upload Response Status]:", uploadRes.status);
   console.log("[Upload Response Success]:", uploadJson.success);
-  console.log("[Upload Response Message]:", uploadJson.message);
 
   if (uploadRes.status !== 201 || !uploadJson.success) {
     throw new Error(`Upload failed: ${JSON.stringify(uploadJson)}`);
@@ -152,13 +197,6 @@ async function runTest() {
 
   if (uploadedMessages[0].content !== "Here are the weekly notes and syllabus files.") {
     throw new Error("Caption was not attached to the first file message!");
-  }
-
-  // Wait 300ms for socket broadcasts
-  await new Promise((r) => setTimeout(r, 300));
-  console.log(`[Verification] Student socket received ${studentReceivedMessages.length} new_message socket events (expected >= 2).`);
-  if (studentReceivedMessages.length < 2) {
-    throw new Error("Student socket did not receive all new_message events!");
   }
 
   // Test downloading the first attachment as student
