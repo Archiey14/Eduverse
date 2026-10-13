@@ -57,8 +57,6 @@ type StoredUser = {
   id?: string;
 };
 
-
-
 const getPayload = (response: unknown): unknown => {
   if (!response || typeof response !== "object") {
     return response;
@@ -270,6 +268,42 @@ const sortConversations = (
   });
 };
 
+/**
+ * Merge messages by ID so that:
+ * - duplicate Socket.IO events are ignored;
+ * - a history response cannot erase messages received live;
+ * - messages stay in chronological order.
+ */
+const mergeMessages = (
+  existing: ChatMessage[],
+  incoming: ChatMessage[]
+): ChatMessage[] => {
+  const merged = new Map<string, ChatMessage>();
+
+  for (const message of existing) {
+    merged.set(message._id, message);
+  }
+
+  for (const message of incoming) {
+    const previous = merged.get(message._id);
+
+    merged.set(message._id, {
+      ...previous,
+      ...message,
+    });
+  }
+
+  return Array.from(merged.values()).sort((a, b) => {
+    const aTime = new Date(a.createdAt).getTime();
+    const bTime = new Date(b.createdAt).getTime();
+
+    return (
+      (Number.isNaN(aTime) ? 0 : aTime) -
+      (Number.isNaN(bTime) ? 0 : bTime)
+    );
+  });
+};
+
 function Messages() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversation] =
@@ -330,7 +364,35 @@ function Messages() {
         extractArray<Conversation>(response, "conversations")
       );
 
-      setConversations(items);
+      setConversations((existing) => {
+        // Preserve a live message preview if it arrived while this
+        // conversation-list request was running.
+        const previousById = new Map(
+          existing.map((item) => [item._id, item])
+        );
+
+        return sortConversations(
+          items.map((item) => {
+            const previous = previousById.get(item._id);
+
+            if (
+              previous?.lastMessageAt &&
+              item.lastMessageAt &&
+              new Date(previous.lastMessageAt).getTime() >
+                new Date(item.lastMessageAt).getTime()
+            ) {
+              return {
+                ...item,
+                lastMessage: previous.lastMessage,
+                lastMessageAt: previous.lastMessageAt,
+                updatedAt: previous.updatedAt,
+              };
+            }
+
+            return item;
+          })
+        );
+      });
 
       setActiveConversation((current) => {
         if (current) {
@@ -373,7 +435,7 @@ function Messages() {
     };
   }, [loadConversations]);
 
-  // Connect to Socket.IO and register listeners for this page.
+  // Connect to Socket.IO and register one set of page listeners.
   useEffect(() => {
     let socket: ReturnType<typeof connectMessagingSocket>;
 
@@ -440,17 +502,9 @@ function Messages() {
         : "";
 
       if (currentActiveId && currentActiveId === String(conversationId)) {
-        setMessages((existing) => {
-          if (
-            existing.some(
-              (item) => String(item._id) === String(message._id)
-            )
-          ) {
-            return existing;
-          }
-
-          return [...existing, message];
-        });
+        setMessages((existing) =>
+          mergeMessages(existing, [message])
+        );
       }
 
       setConversations((existing) => {
@@ -498,8 +552,7 @@ function Messages() {
       socket.off("connect_error", handleConnectError);
       socket.off("new_message", handleNewMessage);
 
-      // The socket service owns the shared connection.
-      // Do not disconnect it during routine React effect cleanup.
+      // This is a shared socket; leave it connected for other pages.
       if (socketRef.current === socket) {
         socketRef.current = null;
       }
@@ -558,7 +611,8 @@ function Messages() {
     return () => window.clearTimeout(timer);
   }, [userSearch, showNewMessage]);
 
-  // Load the selected conversation's history.
+  // Load selected conversation history without overwriting messages
+  // that arrive through Socket.IO while the request is in flight.
   useEffect(() => {
     const requestId = ++messageRequestRef.current;
     const conversationId = activeConversation?._id;
@@ -583,16 +637,26 @@ function Messages() {
           });
 
         if (
-          !cancelled &&
-          requestId === messageRequestRef.current
+          cancelled ||
+          requestId !== messageRequestRef.current
         ) {
-          const history = extractArray<ChatMessage>(
-            response,
-            "messages"
+          return;
+        }
+
+        const history = extractArray<ChatMessage>(
+          response,
+          "messages"
+        );
+
+        setMessages((existing) => {
+          // Only merge messages belonging to the selected conversation.
+          const liveMessages = existing.filter(
+            (message) =>
+              getConversationId(message) === conversationId
           );
 
-          setMessages(history);
-        }
+          return mergeMessages(history, liveMessages);
+        });
       } catch (err) {
         if (
           !cancelled &&
@@ -616,7 +680,9 @@ function Messages() {
 
     const socket = socketRef.current;
 
-    if (socket?.connected) {
+    const joinConversation = () => {
+      if (cancelled || !socket?.connected) return;
+
       socket.emit(
         "join_conversation",
         { conversationId },
@@ -628,6 +694,10 @@ function Messages() {
           );
         }
       );
+    };
+
+    if (socket?.connected) {
+      joinConversation();
     }
 
     return () => {
@@ -685,11 +755,18 @@ function Messages() {
         if (result.message) {
           const sentMessage = result.message;
 
-          setMessages((existing) =>
-            existing.some((item) => item._id === sentMessage._id)
-              ? existing
-              : [...existing, sentMessage]
-          );
+          setMessages((existing) => {
+            // Do not append the same message twice: the socket event
+            // and the acknowledgement may both deliver it.
+            if (
+              getConversationId(sentMessage) !==
+              activeConversationRef.current?._id
+            ) {
+              return existing;
+            }
+
+            return mergeMessages(existing, [sentMessage]);
+          });
 
           setConversations((existing) =>
             sortConversations(
