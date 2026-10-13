@@ -5,6 +5,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { activityService } from "../services/activityService.js";
 import { notificationService } from "../services/notificationService.js";
 import { courseService } from "../services/courseService.js";
+import { getOrCreateCourseConversation } from "../utils/messagingAccess.js";
 
 export const enrollCourse = asyncHandler(async (req, res, next) => {
   const { courseId } = req.body;
@@ -74,6 +75,13 @@ export const enrollCourse = asyncHandler(async (req, res, next) => {
     message: `${req.user.name} has enrolled in your course "${course.title}".`,
     courseId: course._id,
   });
+
+  // Ensure course group chat exists
+  try {
+    await getOrCreateCourseConversation(course._id);
+  } catch (err) {
+    console.error("Failed to initialize course chat on enrollment:", err);
+  }
 
   res.status(201).json({
     success: true,

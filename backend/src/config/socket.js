@@ -1,6 +1,8 @@
 
 import { Server } from "socket.io";
 import { User } from "../models/User.js";
+import { Course } from "../models/Course.js";
+import { Enrollment } from "../models/Enrollment.js";
 import { verifyToken } from "../utils/token.js";
 import { Message } from "../models/Message.js";
 import { Conversation } from "../models/Conversation.js";
@@ -64,6 +66,42 @@ export const initializeSocket = (httpServer) => {
     // Join personal user room for targeted notifications and cross-conversation message delivery
     socket.join(`user:${socket.user.id}`);
 
+    // Automatically join all course conversation rooms in the background without blocking listeners
+    (async () => {
+      try {
+        const [enrollments, mentoredCourses] = await Promise.all([
+          Enrollment.find({ student: socket.user.id, status: "active" })
+            .select("course")
+            .lean(),
+          Course.find({ mentor: socket.user.id })
+            .select("_id")
+            .lean(),
+        ]);
+
+        const courseIds = [
+          ...new Set([
+            ...enrollments.map((e) => String(e.course)),
+            ...mentoredCourses.map((c) => String(c._id)),
+          ]),
+        ];
+
+        for (const courseId of courseIds) {
+          const courseConv = await Conversation.findOne({
+            type: "course",
+            course: courseId,
+          })
+            .select("_id")
+            .lean();
+
+          if (courseConv) {
+            socket.join(`conversation:${courseConv._id}`);
+          }
+        }
+      } catch (err) {
+        console.error("Error auto-joining course rooms on connect:", err);
+      }
+    })();
+
     // Join only after the server verifies conversation access.
     socket.on("join_conversation", async (payload, callback) => {
       try {
@@ -100,6 +138,7 @@ export const initializeSocket = (httpServer) => {
 
     // Message persistence and delivery happen on the server.
     socket.on("send_message", async (payload, callback) => {
+      console.log(`[Messaging] send_message from ${socket.user?.id}:`, payload);
       try {
         const conversationId = payload?.conversationId;
         const content =
@@ -146,17 +185,23 @@ export const initializeSocket = (httpServer) => {
           { new: true }
         ).select("type participants course");
 
-        const populatedMessage = await Message.findById(message._id)
+        const rawPopulatedMessage = await Message.findById(message._id)
           .populate("sender", "name avatarUrl")
           .lean();
 
-        // Deliver to everyone currently viewing this conversation room
+        // Ensure conversation is a clean string ID
+        const populatedMessage = {
+          ...rawPopulatedMessage,
+          conversation: String(conversationId),
+        };
+
+        // 1. Deliver to everyone actively in this conversation room
         io.to(`conversation:${conversationId}`).emit(
           "new_message",
           populatedMessage
         );
 
-        // Also deliver to participants' personal rooms so their inboxes update in real time
+        // 2. Also deliver to individual participants' personal rooms
         if (
           updatedConversation &&
           updatedConversation.type === "direct" &&
@@ -167,6 +212,42 @@ export const initializeSocket = (httpServer) => {
               "new_message",
               populatedMessage
             );
+          }
+        } else if (
+          updatedConversation &&
+          updatedConversation.type === "course" &&
+          updatedConversation.course
+        ) {
+          try {
+            const course = await Course.findById(
+              updatedConversation.course
+            ).select("mentor");
+
+            const enrollments = await Enrollment.find({
+              course: updatedConversation.course,
+              status: "active",
+            }).select("student");
+
+            const recipientIds = new Set();
+            if (course?.mentor) {
+              recipientIds.add(String(course.mentor));
+            }
+            if (Array.isArray(enrollments)) {
+              for (const en of enrollments) {
+                if (en.student) {
+                  recipientIds.add(String(en.student));
+                }
+              }
+            }
+
+            for (const participantId of recipientIds) {
+              io.to(`user:${participantId}`).emit(
+                "new_message",
+                populatedMessage
+              );
+            }
+          } catch (err) {
+            console.error("Error broadcasting course message to students:", err);
           }
         }
 

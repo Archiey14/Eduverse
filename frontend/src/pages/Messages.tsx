@@ -141,10 +141,13 @@ const getConversationFromResponse = (
   return candidate as Conversation;
 };
 
-const getConversationId = (message: ChatMessage): string =>
-  typeof message.conversation === "string"
-    ? message.conversation
-    : message.conversation?._id || "";
+const getConversationId = (message: any): string => {
+  if (!message) return "";
+  if (typeof message.conversation === "string") return message.conversation;
+  if (message.conversation?._id) return String(message.conversation._id);
+  if (message.conversationId) return String(message.conversationId);
+  return "";
+};
 
 const getMessageSenderName = (message: ChatMessage): string =>
   typeof message.sender === "string"
@@ -430,9 +433,17 @@ function Messages() {
 
       if (!conversationId) return;
 
-      if (activeConversationRef.current?._id === conversationId) {
+      const currentActiveId = activeConversationRef.current?._id
+        ? String(activeConversationRef.current._id)
+        : "";
+
+      if (currentActiveId && currentActiveId === String(conversationId)) {
         setMessages((existing) => {
-          if (existing.some((item) => item._id === message._id)) {
+          if (
+            existing.some(
+              (item) => String(item._id) === String(message._id)
+            )
+          ) {
             return existing;
           }
 
@@ -442,7 +453,8 @@ function Messages() {
 
       setConversations((existing) => {
         const found = existing.some(
-          (conversation) => conversation._id === conversationId
+          (conversation) =>
+            String(conversation._id) === String(conversationId)
         );
 
         if (!found) {
@@ -452,7 +464,7 @@ function Messages() {
 
         return sortConversations(
           existing.map((conversation) =>
-            conversation._id === conversationId
+            String(conversation._id) === String(conversationId)
               ? {
                   ...conversation,
                   lastMessage: message,
@@ -623,7 +635,7 @@ function Messages() {
         socket.emit("leave_conversation", { conversationId });
       }
     };
-  }, [activeConversation?._id]);
+  }, [activeConversation?._id, connectionStatus]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
