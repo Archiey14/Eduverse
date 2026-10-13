@@ -303,7 +303,7 @@ function Messages() {
   const mountedRef = useRef(false);
 
   const { user: authUser } = useAuth();
-  const currentUserId = authUser?.id || authUser?._id || getCurrentUserId();
+  const currentUserId = authUser?.id || (authUser as any)?._id || getCurrentUserId();
 
   useEffect(() => {
     activeConversationRef.current = activeConversation;

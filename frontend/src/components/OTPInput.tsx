@@ -1,4 +1,4 @@
-import React, { useRef, KeyboardEvent, ClipboardEvent } from 'react';
+import React, { useRef, type KeyboardEvent, type ClipboardEvent } from 'react';
 import './OTPInput.css';
 
 interface OTPInputProps {
@@ -62,7 +62,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({ length = 6, value, onChange 
       {Array.from({ length }).map((_, index) => (
         <input
           key={index}
-          ref={(el) => (inputRefs.current[index] = el)}
+          ref={(el) => { inputRefs.current[index] = el; }}
           type="text"
           inputMode="numeric"
           maxLength={1}

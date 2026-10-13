@@ -254,7 +254,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
       const isViewingChat = locationRef.current.startsWith("/messages");
 
       // Don't toast own sent messages
-      const currentUserId = userRef.current?.id || userRef.current?._id;
+      const currentUserId = userRef.current?.id || (userRef.current as any)?._id;
       if (msg?.sender?._id && currentUserId && String(msg.sender._id) === String(currentUserId)) {
         return;
       }

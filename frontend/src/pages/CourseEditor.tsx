@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { FolderOpen, FileText, Video, FileQuestion, Plus, Rocket, Trash2, Edit2 } from "lucide-react";
+import { FolderOpen, FileText, Video, FileQuestion, Plus, Rocket } from "lucide-react";
 import { api, getErrorMessage } from "../services/api";
 import InstructorLayout from "../components/InstructorLayout";
 import "../components/InstructorLayout.css";
