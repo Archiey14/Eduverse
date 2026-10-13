@@ -18,12 +18,18 @@ type Participant = {
   avatarUrl?: string;
 };
 
+type MessageReaction = {
+  user: string | { _id: string; name?: string };
+  emoji: string;
+};
+
 type ChatMessage = {
   _id: string;
   conversation: string | { _id: string };
   content: string;
   sender: Participant | string;
   createdAt: string;
+  reactions?: MessageReaction[];
 };
 
 type Conversation = {
@@ -56,6 +62,17 @@ type StoredUser = {
   _id?: string;
   id?: string;
 };
+
+const MESSAGE_REACTIONS = [
+  "👍",
+  "❤️",
+  "😂",
+  "😮",
+  "😢",
+  "🙏",
+  "🔥",
+  "🎉",
+];
 
 const getPayload = (response: unknown): unknown => {
   if (!response || typeof response !== "object") {
@@ -140,11 +157,21 @@ const getConversationFromResponse = (
   return candidate as Conversation;
 };
 
-const getConversationId = (message: any): string => {
+const getConversationId = (message: ChatMessage | any): string => {
   if (!message) return "";
-  if (typeof message.conversation === "string") return message.conversation;
-  if (message.conversation?._id) return String(message.conversation._id);
-  if (message.conversationId) return String(message.conversationId);
+
+  if (typeof message.conversation === "string") {
+    return message.conversation;
+  }
+
+  if (message.conversation?._id) {
+    return String(message.conversation._id);
+  }
+
+  if (message.conversationId) {
+    return String(message.conversationId);
+  }
+
   return "";
 };
 
@@ -157,6 +184,13 @@ const getMessageSenderId = (message: ChatMessage): string =>
   typeof message.sender === "string"
     ? message.sender
     : message.sender?._id || "";
+
+const getReactionUserId = (
+  reaction: MessageReaction
+): string =>
+  typeof reaction.user === "string"
+    ? reaction.user
+    : reaction.user?._id || "";
 
 const getStoredCurrentUser = (): StoredUser | null => {
   try {
@@ -268,12 +302,6 @@ const sortConversations = (
   });
 };
 
-/**
- * Merge messages by ID so that:
- * - duplicate Socket.IO events are ignored;
- * - a history response cannot erase messages received live;
- * - messages stay in chronological order.
- */
 const mergeMessages = (
   existing: ChatMessage[],
   incoming: ChatMessage[]
@@ -290,6 +318,8 @@ const mergeMessages = (
     merged.set(message._id, {
       ...previous,
       ...message,
+      reactions:
+        message.reactions ?? previous?.reactions ?? [],
     });
   }
 
@@ -327,6 +357,10 @@ function Messages() {
   const [searchError, setSearchError] = useState("");
   const [openingUserId, setOpeningUserId] = useState<string | null>(null);
 
+  const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(
+    null
+  );
+
   const socketRef =
     useRef<ReturnType<typeof connectMessagingSocket> | null>(null);
   const activeConversationRef = useRef<Conversation | null>(null);
@@ -337,7 +371,8 @@ function Messages() {
   const mountedRef = useRef(false);
 
   const { user: authUser } = useAuth();
-  const currentUserId = authUser?.id || (authUser as any)?._id || getCurrentUserId();
+  const currentUserId =
+    authUser?.id || (authUser as any)?._id || getCurrentUserId();
 
   useEffect(() => {
     activeConversationRef.current = activeConversation;
@@ -365,8 +400,6 @@ function Messages() {
       );
 
       setConversations((existing) => {
-        // Preserve a live message preview if it arrived while this
-        // conversation-list request was running.
         const previousById = new Map(
           existing.map((item) => [item._id, item])
         );
@@ -435,7 +468,7 @@ function Messages() {
     };
   }, [loadConversations]);
 
-  // Connect to Socket.IO and register one set of page listeners.
+  // Connect to Socket.IO and register page listeners.
   useEffect(() => {
     let socket: ReturnType<typeof connectMessagingSocket>;
 
@@ -501,7 +534,7 @@ function Messages() {
         ? String(activeConversationRef.current._id)
         : "";
 
-      if (currentActiveId && currentActiveId === String(conversationId)) {
+      if (currentActiveId === String(conversationId)) {
         setMessages((existing) =>
           mergeMessages(existing, [message])
         );
@@ -533,10 +566,36 @@ function Messages() {
       });
     };
 
+    const handleReactionsUpdated = (payload: {
+      conversationId: string;
+      messageId: string;
+      reactions: MessageReaction[];
+    }) => {
+      if (
+        disposed ||
+        !payload?.messageId ||
+        !Array.isArray(payload.reactions)
+      ) {
+        return;
+      }
+
+      setMessages((existing) =>
+        existing.map((message) =>
+          message._id === payload.messageId
+            ? {
+                ...message,
+                reactions: payload.reactions,
+              }
+            : message
+        )
+      );
+    };
+
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("connect_error", handleConnectError);
     socket.on("new_message", handleNewMessage);
+    socket.on("message_reactions_updated", handleReactionsUpdated);
 
     if (socket.connected) {
       handleConnect();
@@ -551,15 +610,15 @@ function Messages() {
       socket.off("disconnect", handleDisconnect);
       socket.off("connect_error", handleConnectError);
       socket.off("new_message", handleNewMessage);
+      socket.off("message_reactions_updated", handleReactionsUpdated);
 
-      // This is a shared socket; leave it connected for other pages.
       if (socketRef.current === socket) {
         socketRef.current = null;
       }
     };
   }, [loadConversations]);
 
-  // Search people with a debounce to avoid excessive API requests.
+  // Search people with a debounce.
   useEffect(() => {
     const query = userSearch.trim();
     const requestId = ++searchRequestRef.current;
@@ -611,8 +670,7 @@ function Messages() {
     return () => window.clearTimeout(timer);
   }, [userSearch, showNewMessage]);
 
-  // Load selected conversation history without overwriting messages
-  // that arrive through Socket.IO while the request is in flight.
+  // Load history and merge any live messages received during the request.
   useEffect(() => {
     const requestId = ++messageRequestRef.current;
     const conversationId = activeConversation?._id;
@@ -628,6 +686,7 @@ function Messages() {
     setMessages([]);
     setLoadingMessages(true);
     setError("");
+    setReactionPickerFor(null);
 
     const loadMessages = async () => {
       try {
@@ -649,7 +708,6 @@ function Messages() {
         );
 
         setMessages((existing) => {
-          // Only merge messages belonging to the selected conversation.
           const liveMessages = existing.filter(
             (message) =>
               getConversationId(message) === conversationId
@@ -756,8 +814,6 @@ function Messages() {
           const sentMessage = result.message;
 
           setMessages((existing) => {
-            // Do not append the same message twice: the socket event
-            // and the acknowledgement may both deliver it.
             if (
               getConversationId(sentMessage) !==
               activeConversationRef.current?._id
@@ -787,6 +843,7 @@ function Messages() {
     );
   };
 
+  // Open or create a direct conversation with a searched user.
   const handleOpenDirectMessage = async (user: SearchUser) => {
     if (openingUserId) return;
 
@@ -845,6 +902,64 @@ function Messages() {
     } finally {
       setOpeningUserId(null);
     }
+  };
+
+  const handleMessageReaction = (
+    message: ChatMessage,
+    emoji: string
+  ) => {
+    const socket = socketRef.current;
+    const conversation = activeConversation;
+
+    if (!socket?.connected) {
+      setError("You're disconnected. Please reconnect to react.");
+      return;
+    }
+
+    if (!conversation || !MESSAGE_REACTIONS.includes(emoji)) {
+      return;
+    }
+
+    socket.emit(
+      "add_reaction",
+      {
+        conversationId: conversation._id,
+        messageId: message._id,
+        emoji,
+      },
+      (result: SocketResult) => {
+        if (!result?.ok) {
+          setError(result?.error || "Unable to add reaction.");
+        }
+      }
+    );
+
+    setReactionPickerFor(null);
+  };
+
+  const handleRemoveReaction = (message: ChatMessage) => {
+    const socket = socketRef.current;
+    const conversation = activeConversation;
+
+    if (!socket?.connected) {
+      setError("You're disconnected. Please reconnect to react.");
+      return;
+    }
+
+    if (!conversation) return;
+
+    socket.emit(
+      "remove_reaction",
+      {
+        conversationId: conversation._id,
+        messageId: message._id,
+      },
+      (result: SocketResult) => {
+        if (!result?.ok) {
+          setError(result?.error || "Unable to remove reaction.");
+        }
+      }
+    );
   };
 
   const getConversationName = (
@@ -1299,6 +1414,25 @@ function Messages() {
                         ? null
                         : message.sender;
 
+                    const reactionCounts = (
+                      message.reactions || []
+                    ).reduce<Record<string, number>>(
+                      (counts, reaction) => {
+                        counts[reaction.emoji] =
+                          (counts[reaction.emoji] || 0) + 1;
+                        return counts;
+                      },
+                      {}
+                    );
+
+                    const myReaction = (
+                      message.reactions || []
+                    ).find(
+                      (reaction) =>
+                        getReactionUserId(reaction) ===
+                        String(currentUserId)
+                    );
+
                     return (
                       <article
                         key={message._id}
@@ -1330,6 +1464,91 @@ function Messages() {
                           </div>
 
                           <p>{message.content}</p>
+
+                          <div className="message-reactions">
+                            <div className="message-reaction-badges">
+                              {Object.entries(reactionCounts).map(
+                                ([emoji, count]) => (
+                                  <button
+                                    key={emoji}
+                                    type="button"
+                                    className={`message-reaction-badge ${
+                                      myReaction?.emoji === emoji
+                                        ? "is-selected"
+                                        : ""
+                                    }`}
+                                    onClick={() => {
+                                      if (myReaction?.emoji === emoji) {
+                                        handleRemoveReaction(message);
+                                      } else {
+                                        handleMessageReaction(
+                                          message,
+                                          emoji
+                                        );
+                                      }
+                                    }}
+                                    title={
+                                      myReaction?.emoji === emoji
+                                        ? "Remove your reaction"
+                                        : `React with ${emoji}`
+                                    }
+                                    aria-label={`${emoji}, ${count} reaction${
+                                      count === 1 ? "" : "s"
+                                    }`}
+                                  >
+                                    <span>{emoji}</span>
+                                    <span>{count}</span>
+                                  </button>
+                                )
+                              )}
+                            </div>
+
+                            <div className="message-reaction-actions">
+                              <button
+                                type="button"
+                                className="message-reaction-trigger"
+                                onClick={() =>
+                                  setReactionPickerFor((current) =>
+                                    current === message._id
+                                      ? null
+                                      : message._id
+                                  )
+                                }
+                                aria-label="Add a reaction"
+                                aria-expanded={
+                                  reactionPickerFor === message._id
+                                }
+                                title="Add reaction"
+                              >
+                                ☺+
+                              </button>
+
+                              {reactionPickerFor === message._id && (
+                                <div
+                                  className="message-reaction-picker"
+                                  role="group"
+                                  aria-label="Choose a reaction"
+                                >
+                                  {MESSAGE_REACTIONS.map((emoji) => (
+                                    <button
+                                      key={emoji}
+                                      type="button"
+                                      onClick={() =>
+                                        handleMessageReaction(
+                                          message,
+                                          emoji
+                                        )
+                                      }
+                                      aria-label={`React with ${emoji}`}
+                                      title={emoji}
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </article>
                     );

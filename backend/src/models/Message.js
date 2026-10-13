@@ -1,6 +1,22 @@
 
 import mongoose from "mongoose";
 
+const reactionSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    emoji: {
+      type: String,
+      required: true,
+      enum: ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "🎉"],
+    },
+  },
+  { _id: false }
+);
+
 const messageSchema = new mongoose.Schema(
   {
     conversation: {
@@ -23,11 +39,16 @@ const messageSchema = new mongoose.Schema(
       maxlength: 5000,
     },
 
-    // Supports text messages now and can be extended later.
     type: {
       type: String,
       enum: ["text"],
       default: "text",
+    },
+
+    // Each user can have one reaction per message.
+    reactions: {
+      type: [reactionSchema],
+      default: [],
     },
   },
   { timestamps: true }

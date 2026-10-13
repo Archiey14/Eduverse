@@ -10,6 +10,8 @@ import { canAccessConversation } from "../utils/messagingAccess.js";
 
 let io;
 
+const ALLOWED_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "🎉"];
+
 export const initializeSocket = (httpServer) => {
   if (io) return io;
 
@@ -37,7 +39,7 @@ export const initializeSocket = (httpServer) => {
     },
   });
 
-  // Authenticate every socket connection with the existing JWT.
+  // Authenticate every socket connection using the existing JWT.
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
@@ -59,7 +61,7 @@ export const initializeSocket = (httpServer) => {
       };
 
       next();
-    } catch {
+    } catch (error) {
       next(new Error("Socket authentication failed"));
     }
   });
@@ -67,16 +69,20 @@ export const initializeSocket = (httpServer) => {
   io.on("connection", (socket) => {
     console.log(`[Messaging] Connected: ${socket.user.id}`);
 
-    // Join personal user room for targeted notifications and cross-conversation message delivery
+    // Personal room for notifications and cross-conversation delivery.
     socket.join(`user:${socket.user.id}`);
 
-    // Automatically join all course conversation rooms in the background without blocking listeners
+    // Automatically join course conversation rooms.
     (async () => {
       try {
         const [enrollments, mentoredCourses] = await Promise.all([
-          Enrollment.find({ student: socket.user.id, status: "active" })
+          Enrollment.find({
+            student: socket.user.id,
+            status: "active",
+          })
             .select("course")
             .lean(),
+
           Course.find({ mentor: socket.user.id })
             .select("_id")
             .lean(),
@@ -84,36 +90,41 @@ export const initializeSocket = (httpServer) => {
 
         const courseIds = [
           ...new Set([
-            ...enrollments.map((e) => String(e.course)),
-            ...mentoredCourses.map((c) => String(c._id)),
+            ...enrollments.map((enrollment) =>
+              String(enrollment.course)
+            ),
+            ...mentoredCourses.map((course) => String(course._id)),
           ]),
         ];
 
         for (const courseId of courseIds) {
-          const courseConv = await Conversation.findOne({
+          const courseConversation = await Conversation.findOne({
             type: "course",
             course: courseId,
           })
             .select("_id")
             .lean();
 
-          if (courseConv) {
-            socket.join(`conversation:${courseConv._id}`);
+          if (courseConversation) {
+            socket.join(`conversation:${courseConversation._id}`);
           }
         }
-      } catch (err) {
-        console.error("Error auto-joining course rooms on connect:", err);
+      } catch (error) {
+        console.error("Error auto-joining course rooms:", error);
       }
     })();
 
-    // Join only after the server verifies conversation access.
+    // Join a conversation only after verifying access.
     socket.on("join_conversation", async (payload, callback) => {
       try {
         const conversationId = payload?.conversationId;
 
         if (
           typeof conversationId !== "string" ||
-          !(await canAccessConversation(conversationId, socket.user.id))
+          !(await canAccessConversation(
+            conversationId,
+            socket.user.id
+          ))
         ) {
           return callback?.({
             ok: false,
@@ -126,10 +137,15 @@ export const initializeSocket = (httpServer) => {
         callback?.({ ok: true });
       } catch (error) {
         console.error("Join conversation error:", error);
-        callback?.({ ok: false, error: "Unable to join conversation." });
+
+        callback?.({
+          ok: false,
+          error: "Unable to join conversation.",
+        });
       }
     });
 
+    // Leave a conversation room.
     socket.on("leave_conversation", (payload, callback) => {
       const conversationId = payload?.conversationId;
 
@@ -140,9 +156,8 @@ export const initializeSocket = (httpServer) => {
       callback?.({ ok: true });
     });
 
-    // Message persistence and delivery happen on the server.
+    // Send and persist a message.
     socket.on("send_message", async (payload, callback) => {
-      console.log(`[Messaging] send_message from ${socket.user?.id}:`, payload);
       try {
         const conversationId = payload?.conversationId;
         const content =
@@ -157,7 +172,8 @@ export const initializeSocket = (httpServer) => {
         ) {
           return callback?.({
             ok: false,
-            error: "Provide a conversation ID and a message of 1–5000 characters.",
+            error:
+              "Provide a conversation ID and a message of 1–5000 characters.",
           });
         }
 
@@ -193,66 +209,235 @@ export const initializeSocket = (httpServer) => {
           .populate("sender", "name avatarUrl")
           .lean();
 
-        // Ensure conversation is a clean string ID
         const populatedMessage = {
           ...rawPopulatedMessage,
           conversation: String(conversationId),
         };
 
-        // Collect target rooms: conversation room + personal user rooms for notification delivery
-        const targetRooms = new Set([`conversation:${conversationId}`]);
+        // Broadcast to the conversation and relevant personal rooms.
+        const targetRooms = new Set([
+          `conversation:${conversationId}`,
+        ]);
 
         if (
-          updatedConversation &&
-          updatedConversation.type === "direct" &&
+          updatedConversation?.type === "direct" &&
           Array.isArray(updatedConversation.participants)
         ) {
           for (const participantId of updatedConversation.participants) {
-            targetRooms.add(`user:${participantId}`);
+            targetRooms.add(`user:${String(participantId)}`);
           }
         } else if (
-          updatedConversation &&
-          updatedConversation.type === "course" &&
+          updatedConversation?.type === "course" &&
           updatedConversation.course
         ) {
           try {
-            const course = await Course.findById(
-              updatedConversation.course
-            ).select("mentor");
+            const [course, enrollments] = await Promise.all([
+              Course.findById(updatedConversation.course)
+                .select("mentor")
+                .lean(),
 
-            const enrollments = await Enrollment.find({
-              course: updatedConversation.course,
-              status: "active",
-            }).select("student");
+              Enrollment.find({
+                course: updatedConversation.course,
+                status: "active",
+              })
+                .select("student")
+                .lean(),
+            ]);
 
             if (course?.mentor) {
-              targetRooms.add(`user:${course.mentor}`);
+              targetRooms.add(`user:${String(course.mentor)}`);
             }
-            if (Array.isArray(enrollments)) {
-              for (const en of enrollments) {
-                if (en.student) {
-                  targetRooms.add(`user:${en.student}`);
-                }
+
+            for (const enrollment of enrollments) {
+              if (enrollment.student) {
+                targetRooms.add(`user:${String(enrollment.student)}`);
               }
             }
-          } catch (err) {
-            console.error("Error broadcasting course message to students:", err);
+          } catch (error) {
+            console.error(
+              "Error broadcasting course message:",
+              error
+            );
           }
         }
 
-        // Socket.IO automatically deduplicates sockets when chaining .to() so each client receives the message exactly once
         let broadcastTarget = io;
+
         for (const room of targetRooms) {
           broadcastTarget = broadcastTarget.to(room);
         }
+
         broadcastTarget.emit("new_message", populatedMessage);
 
-        callback?.({ ok: true, message: populatedMessage });
+        callback?.({
+          ok: true,
+          message: populatedMessage,
+        });
       } catch (error) {
         console.error("Send message error:", error);
+
         callback?.({
           ok: false,
           error: "Unable to send message. Please try again.",
+        });
+      }
+    });
+
+    // Add a reaction or change the current user's reaction.
+    socket.on("add_reaction", async (payload, callback) => {
+      try {
+        const { conversationId, messageId, emoji } = payload || {};
+
+        if (
+          typeof conversationId !== "string" ||
+          typeof messageId !== "string" ||
+          !ALLOWED_REACTIONS.includes(emoji)
+        ) {
+          return callback?.({
+            ok: false,
+            error: "Invalid reaction details.",
+          });
+        }
+
+        const hasAccess = await canAccessConversation(
+          conversationId,
+          socket.user.id
+        );
+
+        if (!hasAccess) {
+          return callback?.({
+            ok: false,
+            error: "You cannot access this conversation.",
+          });
+        }
+
+        const message = await Message.findOne({
+          _id: messageId,
+          conversation: conversationId,
+        });
+
+        if (!message) {
+          return callback?.({
+            ok: false,
+            error: "Message not found.",
+          });
+        }
+
+        // Keep only one reaction per user per message.
+        const existingReaction = message.reactions.find(
+          (reaction) => String(reaction.user) === socket.user.id
+        );
+
+        if (existingReaction) {
+          existingReaction.emoji = emoji;
+        } else {
+          message.reactions.push({
+            user: socket.user.id,
+            emoji,
+          });
+        }
+
+        await message.save();
+
+        const updatedMessage = await Message.findById(message._id)
+          .populate("reactions.user", "name")
+          .lean();
+
+        const reactionData = {
+          conversationId: String(conversationId),
+          messageId: String(message._id),
+          reactions: updatedMessage.reactions,
+        };
+
+        io.to(`conversation:${conversationId}`).emit(
+          "message_reactions_updated",
+          reactionData
+        );
+
+        callback?.({
+          ok: true,
+          ...reactionData,
+        });
+      } catch (error) {
+        console.error("Add reaction error:", error);
+
+        callback?.({
+          ok: false,
+          error: "Unable to add reaction. Please try again.",
+        });
+      }
+    });
+
+    // Remove only the current user's reaction.
+    socket.on("remove_reaction", async (payload, callback) => {
+      try {
+        const { conversationId, messageId } = payload || {};
+
+        if (
+          typeof conversationId !== "string" ||
+          typeof messageId !== "string"
+        ) {
+          return callback?.({
+            ok: false,
+            error: "Invalid reaction details.",
+          });
+        }
+
+        const hasAccess = await canAccessConversation(
+          conversationId,
+          socket.user.id
+        );
+
+        if (!hasAccess) {
+          return callback?.({
+            ok: false,
+            error: "You cannot access this conversation.",
+          });
+        }
+
+        const message = await Message.findOne({
+          _id: messageId,
+          conversation: conversationId,
+        });
+
+        if (!message) {
+          return callback?.({
+            ok: false,
+            error: "Message not found.",
+          });
+        }
+
+        message.reactions = message.reactions.filter(
+          (reaction) => String(reaction.user) !== socket.user.id
+        );
+
+        await message.save();
+
+        const updatedMessage = await Message.findById(message._id)
+          .populate("reactions.user", "name")
+          .lean();
+
+        const reactionData = {
+          conversationId: String(conversationId),
+          messageId: String(message._id),
+          reactions: updatedMessage.reactions,
+        };
+
+        io.to(`conversation:${conversationId}`).emit(
+          "message_reactions_updated",
+          reactionData
+        );
+
+        callback?.({
+          ok: true,
+          ...reactionData,
+        });
+      } catch (error) {
+        console.error("Remove reaction error:", error);
+
+        callback?.({
+          ok: false,
+          error: "Unable to remove reaction. Please try again.",
         });
       }
     });
