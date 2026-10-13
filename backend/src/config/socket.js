@@ -16,13 +16,17 @@ export const initializeSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
       origin: (origin, callback) => {
-        const allowedOrigins = [
-          process.env.CLIENT_URL,
-          "http://localhost:5173",
-          "http://127.0.0.1:5173",
-        ].filter(Boolean);
+        if (!origin) {
+          return callback(null, true);
+        }
 
-        if (!origin || allowedOrigins.includes(origin)) {
+        const isLocalhost =
+          /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+
+        const configuredClient =
+          process.env.CLIENT_URL || "http://localhost:5173";
+
+        if (isLocalhost || origin === configuredClient) {
           return callback(null, true);
         }
 
