@@ -276,3 +276,23 @@
   fill: currentColor;
   margin-left: 2px;
 }
+
+@media (max-width: 480px) {
+  .chat-assistant-container {
+    right: 16px;
+    bottom: 80px;
+    left: 16px;
+    align-items: stretch;
+  }
+
+  .chat-assistant-window {
+    width: 100%;
+    max-width: 100%;
+    height: min(500px, calc(100dvh - 100px));
+    margin-bottom: 0.5rem;
+  }
+
+  .chat-assistant-toggle {
+    align-self: flex-end;
+  }
+}

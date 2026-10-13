@@ -612,3 +612,41 @@
     padding: 18px;
   }
 }
+
+@media (max-width: 480px) {
+  .cd-hero h1 {
+    font-size: 24px;
+    line-height: 1.3;
+  }
+
+  .cd-navbar-inner {
+    height: auto;
+    padding: 12px 0;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .cd-nav-links {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .cd-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .cd-footer-inner {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+
+  .cd-footer-inner div {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}

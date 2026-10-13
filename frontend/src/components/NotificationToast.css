@@ -262,3 +262,35 @@
     transform: scale(1);
   }
 }
+
+@media (max-width: 480px) {
+  .eduverse-toast-container {
+    top: 16px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+    max-width: 100%;
+  }
+
+  .eduverse-toast {
+    padding: 12px;
+    gap: 10px;
+    border-radius: 12px;
+  }
+
+  .session-modal-card {
+    padding: 24px 18px;
+    border-radius: 16px;
+    max-width: 95vw;
+  }
+
+  .session-modal-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .session-btn-stay,
+  .session-btn-logout {
+    width: 100%;
+  }
+}

@@ -199,3 +199,42 @@
 .sessions-btn-refresh:hover {
   color: #111827;
 }
+
+@media (max-width: 540px) {
+  .sessions-card {
+    padding: 18px 14px;
+    border-radius: 14px;
+  }
+
+  .session-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .session-item-left {
+    width: 100%;
+  }
+
+  .session-btn-revoke {
+    width: 100%;
+    text-align: center;
+  }
+
+  .sessions-actions-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .sessions-btn-revoke-all {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .sessions-btn-refresh {
+    width: 100%;
+    justify-content: center;
+  }
+}

@@ -36,3 +36,27 @@
   -webkit-appearance: none;
   margin: 0;
 }
+
+@media (max-width: 420px) {
+  .otp-input-container {
+    gap: 8px;
+  }
+  .otp-digit-input {
+    width: 38px;
+    height: 50px;
+    font-size: 20px;
+    border-radius: 6px;
+  }
+}
+
+@media (max-width: 340px) {
+  .otp-input-container {
+    gap: 6px;
+  }
+  .otp-digit-input {
+    width: 32px;
+    height: 44px;
+    font-size: 17px;
+    border-radius: 6px;
+  }
+}
